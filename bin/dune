@@ -1,0 +1,4 @@
+(executable
+ (public_name mfl)
+ (name main)
+ (libraries mfl))
