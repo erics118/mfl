@@ -1,2 +1,3 @@
 (library
- (name mfl))
+ (name mfl)
+ (modules ast lexer parser))
