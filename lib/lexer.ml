@@ -2,7 +2,7 @@ type token =
   | Eof
   | Lparen
   | Rparen
-  | Number of float
+  | Integer of int
   | BinaryOp of char
 
 type state = {
@@ -25,20 +25,16 @@ let rec skip_whitespace st =
 
 let read_number st =
   let start = st.pos in
-  let rec loop seen_dot =
+  while
     match peek st with
-    | Some c when is_digit c ->
-        advance st;
-        loop seen_dot
-    | Some '.' when not seen_dot ->
-        advance st;
-        loop true
-    | _ -> ()
-  in
-  loop false;
+    | Some c when is_digit c -> true
+    | _ -> false
+  do
+    advance st
+  done;
   let literal = String.sub st.input start (st.pos - start) in
-  try Number (float_of_string literal)
-  with Failure _ -> failwith (Printf.sprintf "invalid number '%s'" literal)
+  try Integer (int_of_string literal)
+  with Failure _ -> failwith (Printf.sprintf "invalid integer '%s'" literal)
 
 let gettok st =
   skip_whitespace st;
@@ -53,12 +49,12 @@ let gettok st =
   | Some (('+' | '-' | '*' | '/') as op) ->
       advance st;
       BinaryOp op
-  | Some c when is_digit c || c = '.' -> read_number st
+  | Some c when is_digit c -> read_number st
   | Some c -> failwith (Printf.sprintf "unexpected character '%c'" c)
 
 let string_of_token = function
   | Eof -> "eof"
   | Lparen -> "("
   | Rparen -> ")"
-  | Number x -> "Number(" ^ string_of_float x ^ ")"
-  | BinaryOp x -> "Number(" ^ String.make 1 x ^ ")"
+  | Integer x -> "Integer(" ^ string_of_int x ^ ")"
+  | BinaryOp x -> "Integer(" ^ String.make 1 x ^ ")"

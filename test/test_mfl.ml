@@ -9,30 +9,28 @@ let assert_parse_fails err input =
       Parser.parse input |> Ast.pp_expr)
 
 let assert_interpret_equals expected input =
-  assert_equal ~printer:Ast.pp_expr (Ast.Number expected)
+  assert_equal ~printer:Ast.pp_expr (Ast.Integer expected)
     (Interpreter.interpret (Parser.parse input))
 
 let test_parse _ =
   assert_equal ~printer:Ast.pp_expr
-    (Ast.Binary (Ast.Add, Ast.Number 1., Ast.Number 2.))
+    (Ast.Binary (Ast.Add, Ast.Integer 1, Ast.Integer 2))
     (Parser.parse "1 + 2");
 
   assert_parse_string_equal "1 + 2 * 3" "1+2*3";
   assert_parse_string_equal "(1 + 2) * 3" "(1 + 2) * 3";
   assert_parse_string_equal "8 / (4 / 2)" "8 / (4 / 2)";
   assert_parse_string_equal "7 - (2 - 1)" "7 - (2 - 1)";
-  assert_parse_string_equal "3.5 + 1.25" "3.5 + 1.25";
   assert_parse_fails "unexpected end of input" "";
   assert_parse_fails "unexpected end of input" "1 +";
   assert_parse_fails "unexpected trailing input" "1 + 2 3"
 
 let test_interpret _ =
-  assert_interpret_equals 3. "1 + 2";
-  assert_interpret_equals 7. "1 + 2 * 3";
-  assert_interpret_equals 9. "(1 + 2) * 3";
-  assert_interpret_equals 4. "8 / (4 / 2)";
-  assert_interpret_equals 6. "7 - (2 - 1)";
-  assert_interpret_equals 4.75 "3.5 + 1.25"
+  assert_interpret_equals 3 "1 + 2";
+  assert_interpret_equals 7 "1 + 2 * 3";
+  assert_interpret_equals 9 "(1 + 2) * 3";
+  assert_interpret_equals 4 "8 / (4 / 2)";
+  assert_interpret_equals 6 "7 - (2 - 1)"
 
 let tests =
   "test suite"

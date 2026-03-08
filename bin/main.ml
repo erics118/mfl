@@ -1,36 +1,36 @@
 open Mfl
 
-let expression_from_argv () =
-  let argc = Array.length Sys.argv in
-  if argc < 2 then None
-  else
-    let words = Array.to_list (Array.sub Sys.argv 1 (argc - 1)) in
-    Some (String.concat " " words)
-
 let () =
-  match expression_from_argv () with
-  | None ->
-      prerr_endline "Usage: mfl \"ARITHMETIC_EXPRESSION\"";
-      exit 1
-  | Some input -> (
-      try
-        let parsed = Parser.parse input in
-        (* wrap expression in an anonymous `() -> double` function *)
-        let ft = Llvm.function_type Codegen.double_type [||] in
-        let fn = Llvm.declare_function "__anon" ft Codegen.the_module in
-        let bb = Llvm.append_block Codegen.context "entry" fn in
-        Llvm.position_at_end bb Codegen.builder;
-        let ret = Codegen.expr_to_llvm parsed in
-        let _ = Llvm.build_ret ret Codegen.builder in
-        (* JIT and run *)
-        ignore (Llvm_executionengine.initialize ());
-        let engine = Llvm_executionengine.create Codegen.the_module in
-        let fp =
-          Llvm_executionengine.get_function_address "__anon"
-            Foreign.(funptr Ctypes.(void @-> returning double))
-            engine
-        in
-        Printf.printf "%g\n" (fp ())
-      with Failure msg ->
-        Printf.eprintf "Error: %s\n" msg;
-        exit 1)
+  let argc = Array.length Sys.argv in
+  if argc < 2 then (
+    prerr_endline "Usage: mfl \"EXPRESSION\" [output.ll]";
+    exit 1);
+  let input = Sys.argv.(1) in
+  let outfile = if argc >= 3 then Sys.argv.(2) else "output.ll" in
+  try
+    let parsed = Parser.parse input in
+    let i32 = Llvm.i32_type Codegen.context in
+    let i8p = Llvm.pointer_type Codegen.context in
+    let printf_ty = Llvm.var_arg_function_type i32 [| i8p |] in
+    let printf_fn =
+      Llvm.declare_function "printf" printf_ty Codegen.the_module
+    in
+    let main_fn =
+      Llvm.declare_function "main"
+        (Llvm.function_type i32 [||])
+        Codegen.the_module
+    in
+    Llvm.position_at_end
+      (Llvm.append_block Codegen.context "entry" main_fn)
+      Codegen.builder;
+    let result = Codegen.expr_to_llvm parsed in
+    let fmt = Llvm.build_global_stringptr "%ld\n" "fmt" Codegen.builder in
+    let _ =
+      Llvm.build_call printf_ty printf_fn [| fmt; result |] "" Codegen.builder
+    in
+    let _ = Llvm.build_ret (Llvm.const_int i32 0) Codegen.builder in
+    Llvm.print_module outfile Codegen.the_module;
+    Printf.printf "Wrote %s\n" outfile
+  with Failure msg ->
+    Printf.eprintf "Error: %s\n" msg;
+    exit 1

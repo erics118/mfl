@@ -37,9 +37,9 @@ let rec parse_paren_expr st =
 
 and parse_primary st =
   match st.cur_tok with
-  | Lexer.Number n ->
+  | Lexer.Integer n ->
       get_next_token st;
-      Ast.Number n
+      Ast.Integer n
   | Lexer.Lparen -> parse_paren_expr st
   | Eof -> raise (Parse_error "unexpected end of input")
   | _ ->

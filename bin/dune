@@ -1,5 +1,5 @@
 (executable
  (public_name mfl)
  (name main)
- (libraries mfl llvm llvm.executionengine ctypes ctypes.foreign)
+ (libraries mfl llvm)
  (link_flags (:standard -cclib -lz)))

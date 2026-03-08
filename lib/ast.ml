@@ -5,7 +5,7 @@ type op =
   | Div
 
 type expr =
-  | Number of float
+  | Integer of int
   | Binary of op * expr * expr
 
 let precedence = function
@@ -18,10 +18,10 @@ let char_of_op = function
   | Mul -> '*'
   | Div -> '/'
 
-let pp_number n = Printf.sprintf "%g" n
+let pp_number n = string_of_int n
 
 let rec pp_expr ?(parent_prec = 0) = function
-  | Number n -> pp_number n
+  | Integer n -> pp_number n
   | Binary (op, lhs, rhs) ->
       let current_prec = precedence op in
       let lhs_str = pp_expr ~parent_prec:current_prec lhs in
