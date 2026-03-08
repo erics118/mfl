@@ -15,7 +15,22 @@ let () =
   | Some input -> (
       try
         let parsed = Parser.parse input in
-        Printf.printf "%s\n" (Ast.pp_expr parsed)
+        (* wrap expression in an anonymous `() -> double` function *)
+        let ft = Llvm.function_type Codegen.double_type [||] in
+        let fn = Llvm.declare_function "__anon" ft Codegen.the_module in
+        let bb = Llvm.append_block Codegen.context "entry" fn in
+        Llvm.position_at_end bb Codegen.builder;
+        let ret = Codegen.expr_to_llvm parsed in
+        let _ = Llvm.build_ret ret Codegen.builder in
+        (* JIT and run *)
+        ignore (Llvm_executionengine.initialize ());
+        let engine = Llvm_executionengine.create Codegen.the_module in
+        let fp =
+          Llvm_executionengine.get_function_address "__anon"
+            Foreign.(funptr Ctypes.(void @-> returning double))
+            engine
+        in
+        Printf.printf "%g\n" (fp ())
       with Failure msg ->
-        Printf.eprintf "Parse error: %s\n" msg;
+        Printf.eprintf "Error: %s\n" msg;
         exit 1)

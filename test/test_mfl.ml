@@ -1,22 +1,41 @@
 open OUnit2
 open Mfl
 
-let check_parse input expected =
+let assert_parse_string_equal expected input =
   assert_equal expected (Parser.parse input |> Ast.pp_expr)
 
-let check_fails err input =
+let assert_parse_fails err input =
   assert_raises (Parser.Parse_error err) (fun () ->
       Parser.parse input |> Ast.pp_expr)
 
-let test_parse _ =
-  check_parse "1+2*3" "1 + 2 * 3";
-  check_parse "(1 + 2) * 3" "(1 + 2) * 3";
-  check_parse "8 / (4 / 2)" "8 / (4 / 2)";
-  check_parse "7 - (2 - 1)" "7 - (2 - 1)";
-  check_parse "3.5 + 1.25" "3.5 + 1.25";
-  check_fails "unexpected end of input" "";
-  check_fails "unexpected end of input" "1 +";
-  check_fails "unexpected trailing input" "1 + 2 3"
+let assert_interpret_equals expected input =
+  assert_equal ~printer:Ast.pp_expr (Ast.Number expected)
+    (Interpreter.interpret (Parser.parse input))
 
-let tests = "test suite" >::: [ "test_parse" >:: test_parse ]
+let test_parse _ =
+  assert_equal ~printer:Ast.pp_expr
+    (Ast.Binary (Ast.Add, Ast.Number 1., Ast.Number 2.))
+    (Parser.parse "1 + 2");
+
+  assert_parse_string_equal "1 + 2 * 3" "1+2*3";
+  assert_parse_string_equal "(1 + 2) * 3" "(1 + 2) * 3";
+  assert_parse_string_equal "8 / (4 / 2)" "8 / (4 / 2)";
+  assert_parse_string_equal "7 - (2 - 1)" "7 - (2 - 1)";
+  assert_parse_string_equal "3.5 + 1.25" "3.5 + 1.25";
+  assert_parse_fails "unexpected end of input" "";
+  assert_parse_fails "unexpected end of input" "1 +";
+  assert_parse_fails "unexpected trailing input" "1 + 2 3"
+
+let test_interpret _ =
+  assert_interpret_equals 3. "1 + 2";
+  assert_interpret_equals 7. "1 + 2 * 3";
+  assert_interpret_equals 9. "(1 + 2) * 3";
+  assert_interpret_equals 4. "8 / (4 / 2)";
+  assert_interpret_equals 6. "7 - (2 - 1)";
+  assert_interpret_equals 4.75 "3.5 + 1.25"
+
+let tests =
+  "test suite"
+  >::: [ "test_parse" >:: test_parse; "test_interpret" >:: test_interpret ]
+
 let _ = run_test_tt_main tests

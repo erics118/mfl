@@ -1,3 +1,12 @@
 (library
  (name mfl)
- (modules ast lexer parser))
+ (modules ast lexer parser interpreter codegen)
+ (libraries
+  ctypes.foreign
+  llvm
+  llvm.analysis
+  llvm.executionengine
+  llvm.target
+  ; llvm.scalar_opts
+  llvm.all_backends
+  stdio))
