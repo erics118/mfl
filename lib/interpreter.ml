@@ -1,15 +1,17 @@
 let rec interpret : Ast.expr -> Ast.expr = function
-  | Integer _ as n -> n
-  | Binary (op, l, r) -> interpret_infix op l r
+  | IntLiteral _ as n -> n
+  | BinaryOp (op, l, r) -> interpret_infix op l r
+  | _ -> failwith "unimplemented"
 
 and interpret_infix op l r =
   match (l, r) with
-  | Integer ll, Integer rr -> begin
+  | IntLiteral ll, IntLiteral rr -> begin
       match op with
-      | Ast.Add -> Integer (ll + rr)
-      | Ast.Sub -> Integer (ll - rr)
-      | Ast.Mul -> Integer (ll * rr)
-      | Ast.Div -> Integer (ll / rr)
+      | Ast.Add -> IntLiteral (ll + rr)
+      | Ast.Sub -> IntLiteral (ll - rr)
+      | Ast.Mul -> IntLiteral (ll * rr)
+      | Ast.Div -> IntLiteral (ll / rr)
+      | _ -> failwith "unimplemented"
     end
   | _, _ ->
       (* one of the two is not a Integer, so continue interpreting it *)

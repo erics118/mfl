@@ -19,7 +19,9 @@ and binary_to_llvm op lhs rhs =
   | Ast.Sub -> Llvm.build_sub lv rv "subtmp" builder
   | Ast.Mul -> Llvm.build_mul lv rv "multmp" builder
   | Ast.Div -> Llvm.build_sdiv lv rv "divtmp" builder
+  | _ -> failwith "unimplemented"
 
 and expr_to_llvm = function
-  | Ast.Integer n -> integer_to_llvm n
-  | Ast.Binary (op, lhs, rhs) -> binary_to_llvm op lhs rhs
+  | Ast.IntLiteral n -> integer_to_llvm n
+  | Ast.BinaryOp (op, lhs, rhs) -> binary_to_llvm op lhs rhs
+  | _ -> failwith "unimplemented"

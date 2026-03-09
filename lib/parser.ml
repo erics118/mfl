@@ -20,6 +20,7 @@ let char_of_op = function
   | Ast.Sub -> '-'
   | Ast.Mul -> '*'
   | Ast.Div -> '/'
+  | _ -> failwith "unimplemented"
 
 let get_tok_precedence st =
   match st.cur_tok with
@@ -39,7 +40,7 @@ and parse_primary st =
   match st.cur_tok with
   | Lexer.Integer n ->
       get_next_token st;
-      Ast.Integer n
+      Ast.IntLiteral n
   | Lexer.Lparen -> parse_paren_expr st
   | Eof -> raise (Parse_error "unexpected end of input")
   | _ ->
@@ -58,7 +59,7 @@ and parse_binop_rhs st expr_prec lhs =
         let rhs =
           if prec < next_prec then parse_binop_rhs st (prec + 1) rhs else rhs
         in
-        parse_binop_rhs st expr_prec (Ast.Binary (op, lhs, rhs))
+        parse_binop_rhs st expr_prec (Ast.BinaryOp (op, lhs, rhs))
     | _ -> lhs
 
 and parse_expr st =

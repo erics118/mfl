@@ -9,12 +9,12 @@ let assert_parse_fails err input =
       Parser.parse input |> Ast.pp_expr)
 
 let assert_interpret_equals expected input =
-  assert_equal ~printer:Ast.pp_expr (Ast.Integer expected)
+  assert_equal ~printer:Ast.pp_expr (Ast.IntLiteral expected)
     (Interpreter.interpret (Parser.parse input))
 
 let test_parse _ =
   assert_equal ~printer:Ast.pp_expr
-    (Ast.Binary (Ast.Add, Ast.Integer 1, Ast.Integer 2))
+    (Ast.BinaryOp (Ast.Add, Ast.IntLiteral 1, Ast.IntLiteral 2))
     (Parser.parse "1 + 2");
 
   assert_parse_string_equal "1 + 2 * 3" "1+2*3";
