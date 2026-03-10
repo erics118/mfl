@@ -8,23 +8,28 @@ exception Parse_error of string
 let create lex_st = { cur_tok = Lexer.Eof; lex = lex_st }
 let get_next_token st = st.cur_tok <- Lexer.gettok st.lex
 
-let op_of_char = function
-  | '+' -> Ast.Add
-  | '-' -> Ast.Sub
-  | '*' -> Ast.Mul
-  | '/' -> Ast.Div
-  | c -> raise (Parse_error (Printf.sprintf "unknown operator '%c'" c))
-
-let char_of_op = function
-  | Ast.Add -> '+'
-  | Ast.Sub -> '-'
-  | Ast.Mul -> '*'
-  | Ast.Div -> '/'
-  | _ -> failwith "unimplemented"
+let op_of_str = function
+  | "+" -> Ast.Add
+  | "-" -> Ast.Sub
+  | "*" -> Ast.Mul
+  | "/" -> Ast.Div
+  | "%" -> Ast.Mod
+  | "<" -> Ast.Less
+  | ">" -> Ast.Greater
+  | "==" -> Ast.Equal
+  | "!=" -> Ast.Neq
+  | "<=" -> Ast.Leq
+  | ">=" -> Ast.Geq
+  | "&&" -> Ast.And
+  | "||" -> Ast.Or
+  | "&" -> Ast.BitAnd
+  | "|" -> Ast.BitOr
+  | "^" -> Ast.BitXor
+  | s -> raise (Parse_error (Printf.sprintf "unknown operator '%s'" s))
 
 let get_tok_precedence st =
   match st.cur_tok with
-  | Lexer.BinaryOp c -> Ast.precedence (op_of_char c)
+  | Lexer.BinaryOp s -> Ast.precedence (op_of_str s)
   | _ -> -1
 
 let rec parse_paren_expr st =
@@ -41,6 +46,9 @@ and parse_primary st =
   | Lexer.Integer n ->
       get_next_token st;
       Ast.IntLiteral n
+  | Lexer.Bool b ->
+      get_next_token st;
+      Ast.BoolLiteral b
   | Lexer.Lparen -> parse_paren_expr st
   | Eof -> raise (Parse_error "unexpected end of input")
   | _ ->
@@ -51,8 +59,8 @@ and parse_binop_rhs st expr_prec lhs =
   if prec < expr_prec then lhs
   else
     match st.cur_tok with
-    | Lexer.BinaryOp c ->
-        let op = op_of_char c in
+    | Lexer.BinaryOp s ->
+        let op = op_of_str s in
         get_next_token st;
         let rhs = parse_primary st in
         let next_prec = get_tok_precedence st in

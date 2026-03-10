@@ -3,7 +3,8 @@ type token =
   | Lparen
   | Rparen
   | Integer of int
-  | BinaryOp of char
+  | Bool of bool
+  | BinaryOp of string
 
 type state = {
   input : string;
@@ -15,6 +16,7 @@ let has_more st = st.pos < String.length st.input
 let peek st = if has_more st then Some st.input.[st.pos] else None
 let advance st = st.pos <- st.pos + 1
 let is_digit c = c >= '0' && c <= '9'
+let is_alpha c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c = '_'
 
 let rec skip_whitespace st =
   match peek st with
@@ -33,8 +35,25 @@ let read_number st =
     advance st
   done;
   let literal = String.sub st.input start (st.pos - start) in
-  try Integer (int_of_string literal)
-  with Failure _ -> failwith (Printf.sprintf "invalid integer '%s'" literal)
+  Integer (int_of_string literal)
+
+let read_ident st =
+  let start = st.pos in
+  while
+    match peek st with
+    | Some c when is_alpha c || is_digit c -> true
+    | _ -> false
+  do
+    advance st
+  done;
+  match String.sub st.input start (st.pos - start) with
+  | "true" -> Bool true
+  | "false" -> Bool false
+  | s -> failwith (Printf.sprintf "unknown identifier '%s'" s)
+
+let peek2 st =
+  let pos = st.pos + 1 in
+  if pos < String.length st.input then Some st.input.[pos] else None
 
 let gettok st =
   skip_whitespace st;
@@ -46,15 +65,43 @@ let gettok st =
   | Some ')' ->
       advance st;
       Rparen
-  | Some (('+' | '-' | '*' | '/') as op) ->
+  | Some '=' when peek2 st = Some '=' ->
       advance st;
-      BinaryOp op
+      advance st;
+      BinaryOp "=="
+  | Some '!' when peek2 st = Some '=' ->
+      advance st;
+      advance st;
+      BinaryOp "!="
+  | Some '<' when peek2 st = Some '=' ->
+      advance st;
+      advance st;
+      BinaryOp "<="
+  | Some '>' when peek2 st = Some '=' ->
+      advance st;
+      advance st;
+      BinaryOp ">="
+  | Some '&' when peek2 st = Some '&' ->
+      advance st;
+      advance st;
+      BinaryOp "&&"
+  | Some '|' when peek2 st = Some '|' ->
+      advance st;
+      advance st;
+      BinaryOp "||"
+  | Some
+      (('+' | '-' | '*' | '/' | '%' | '<' | '>' | '&' | '|' | '^' | '!') as op)
+    ->
+      advance st;
+      BinaryOp (String.make 1 op)
   | Some c when is_digit c -> read_number st
+  | Some c when is_alpha c -> read_ident st
   | Some c -> failwith (Printf.sprintf "unexpected character '%c'" c)
 
 let string_of_token = function
-  | Eof -> "eof"
+  | Eof -> "EOF"
   | Lparen -> "("
   | Rparen -> ")"
-  | Integer x -> "Integer(" ^ string_of_int x ^ ")"
-  | BinaryOp x -> "Integer(" ^ String.make 1 x ^ ")"
+  | Integer x -> "Integer" ^ string_of_int x ^ ")"
+  | Bool x -> "Bool(" ^ string_of_bool x ^ ")"
+  | BinaryOp x -> "BinaryOp(" ^ x ^ ")"
