@@ -1,4 +1,4 @@
 (library
  (name mfl)
- (modules ast lexer parser interpreter codegen)
- (libraries llvm stdio))
+ (modules ast lexer parser interpreter)
+ (libraries stdio))
