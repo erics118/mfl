@@ -10,14 +10,22 @@ let check_bool expected input =
   assert_equal ~printer:Ast.pp_expr (Ast.BoolLiteral expected)
     (Interpreter.interpret (Parser.parse input))
 
+let check_empty input =
+  assert_equal ~printer:Ast.pp_expr Ast.EmptyStmt
+    (Interpreter.interpret (Parser.parse input))
+
 let check_type_error msg input =
   assert_raises (Interpreter.Type_error msg) (fun () ->
       Parser.parse input |> Interpreter.interpret)
 
 let test_literals _ =
+  check_empty ";";
+  check_empty ";;;;;;;;;;;;;;;;;;;;;;;;";
   check_int 0 "0;";
   check_int 1 "1;";
+  check_int 1 "1;;";
   check_int 42 "42;";
+  check_bool true "true;;;";
   check_bool true "true;";
   check_bool false "false;"
 

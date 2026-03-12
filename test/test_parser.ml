@@ -8,7 +8,10 @@ let fails err input =
   assert_raises (Parser.Parse_error err) (fun () -> Parser.parse input)
 
 let test_literals _ =
+  check ";" ";";
+  check ";" ";;;;;;;";
   check "42;" "42;";
+  check "42;" "42;;";
   check "0;" "0;";
   check "true;" "true;";
   check "false;" "false;"
@@ -84,6 +87,7 @@ let test_errors _ =
   fails "unexpected end of input" "1 +";
   fails "expected ';'" "1 + 2 3";
   fails "unexpected trailing input" "1; 2";
+  fails "unexpected trailing input" ";; 1;";
   fails "expected ')'" "(1 + 2";
   fails "expected ';'" "1 != 2 ! 3";
   fails "unknown token: )" ")";
