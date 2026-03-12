@@ -68,10 +68,18 @@ and parse_expr st =
   let lhs = parse_primary st in
   parse_binop_rhs st 0 lhs
 
+let parse_statement st =
+  let e = parse_expr st in
+  match st.cur_tok with
+  | Lexer.Semicolon ->
+      get_next_token st;
+      Ast.Statement e
+  | _ -> raise (Parse_error "expected ';'")
+
 let parse input =
   let st = create (Lexer.create input) in
   get_next_token st;
-  let expr = parse_expr st in
+  let stmt = parse_statement st in
   match st.cur_tok with
-  | Lexer.Eof -> expr
+  | Lexer.Eof -> stmt
   | _ -> raise (Parse_error "unexpected trailing input")

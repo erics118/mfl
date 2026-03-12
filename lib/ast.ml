@@ -28,6 +28,7 @@ type expr =
   | BoolLiteral of bool
   | BinaryOp of op * expr * expr (* binary operators *)
   | UnaryOp of uop * expr (* unary operators *)
+  | Statement of expr (* complete statement (currently just an expr) *)
 
 let precedence = function
   | Or -> 10
@@ -102,3 +103,4 @@ let rec pp_expr ?(parent_prec = 0) = function
       let rhs_str = pp_expr ~parent_prec:rhs_prec rhs in
       let s = Printf.sprintf "%s %s %s" lhs_str (string_of_op op) rhs_str in
       if prec < parent_prec then "(" ^ s ^ ")" else s
+  | Statement e -> pp_expr e ^ ";"

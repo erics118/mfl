@@ -8,6 +8,7 @@ type token =
   | Bool of bool
   | BinaryOp of string
   | UnaryOp of string
+  | Semicolon
 
 type state = {
   input : string;
@@ -62,6 +63,9 @@ let gettok st =
   skip_whitespace st;
   match peek st with
   | None -> Eof
+  | Some ';' ->
+      advance st;
+      Semicolon
   | Some '(' ->
       advance st;
       Lparen
@@ -104,6 +108,7 @@ let gettok st =
 
 let string_of_token = function
   | Eof -> "EOF"
+  | Semicolon -> ";"
   | Lparen -> "("
   | Rparen -> ")"
   | Integer x -> string_of_int x

@@ -25,6 +25,7 @@ let rec interpret : Ast.expr -> Ast.expr = function
       | BoolLiteral b -> BoolLiteral (not b)
       | v -> type_error (Ast.string_of_uop Not) [ type_of v ])
   | BinaryOp (op, l, r) -> interpret_binop op (interpret l) (interpret r)
+  | Statement e -> interpret e
 
 and interpret_binop op l r =
   let te () = type_error (Ast.string_of_op op) [ type_of l; type_of r ] in

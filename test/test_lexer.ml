@@ -66,10 +66,13 @@ let test_sequences _ =
   check [ Bool true; BinaryOp "&&"; Bool false ] "true && false";
   check [ UnaryOp "!"; Bool true ] "!true";
   check [ Integer 1; BinaryOp "=="; Integer 1 ] "1 == 1";
-  check [ Integer 3; BinaryOp "&"; Integer 5 ] "3 & 5"
+  check [ Integer 3; BinaryOp "&"; Integer 5 ] "3 & 5";
+  check [ Integer 1; Semicolon ] "1;";
+  check [ Integer 1; BinaryOp "+"; Integer 3; Semicolon ] "1 + 3;"
 
 let test_string_of_token _ =
   assert_equal "EOF" (Lexer.string_of_token Eof);
+  assert_equal ";" (Lexer.string_of_token Semicolon);
   assert_equal "(" (Lexer.string_of_token Lparen);
   assert_equal ")" (Lexer.string_of_token Rparen);
   assert_equal "42" (Lexer.string_of_token (Integer 42));
