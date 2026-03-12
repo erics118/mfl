@@ -2,7 +2,7 @@ exception Type_error of string
 exception Div_by_zero
 
 let type_of = function
-  | Ast.IntLiteral _  -> "int"
+  | Ast.IntLiteral _ -> "int"
   | Ast.BoolLiteral _ -> "bool"
   | _ -> assert false
 
@@ -56,5 +56,7 @@ and interpret_binop op l r =
       match op with
       | Ast.And -> BoolLiteral (a && b)
       | Ast.Or -> BoolLiteral (a || b)
+      | Ast.Equal -> BoolLiteral (a == b)
+      | Ast.Neq -> BoolLiteral (a <> b)
       | _ -> te ())
   | _ -> te ()

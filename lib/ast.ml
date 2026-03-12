@@ -65,7 +65,13 @@ let string_of_uop = function
 let rec pp_expr ?(parent_prec = 0) = function
   | IntLiteral n -> string_of_int n
   | BoolLiteral b -> string_of_bool b
-  | UnaryOp (op, e) -> string_of_uop op ^ pp_expr e
+  | UnaryOp (op, e) ->
+      let e_str =
+        match e with
+        | BinaryOp _ | UnaryOp _ -> "(" ^ pp_expr e ^ ")"
+        | _ -> pp_expr e
+      in
+      string_of_uop op ^ e_str
   | BinaryOp (op, lhs, rhs) ->
       let prec = precedence op in
       let lhs_str = pp_expr ~parent_prec:prec lhs in

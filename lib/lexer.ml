@@ -1,3 +1,5 @@
+exception Lex_error of string
+
 type token =
   | Eof
   | Lparen
@@ -5,6 +7,7 @@ type token =
   | Integer of int
   | Bool of bool
   | BinaryOp of string
+  | UnaryOp of string
 
 type state = {
   input : string;
@@ -49,7 +52,7 @@ let read_ident st =
   match String.sub st.input start (st.pos - start) with
   | "true" -> Bool true
   | "false" -> Bool false
-  | s -> failwith (Printf.sprintf "unknown identifier '%s'" s)
+  | s -> raise (Lex_error (Printf.sprintf "unknown identifier '%s'" s))
 
 let peek2 st =
   let pos = st.pos + 1 in
@@ -89,19 +92,21 @@ let gettok st =
       advance st;
       advance st;
       BinaryOp "||"
-  | Some
-      (('+' | '-' | '*' | '/' | '%' | '<' | '>' | '&' | '|' | '^' | '!') as op)
-    ->
+  | Some '!' ->
+      advance st;
+      UnaryOp "!"
+  | Some (('+' | '-' | '*' | '/' | '%' | '<' | '>' | '&' | '|' | '^') as op) ->
       advance st;
       BinaryOp (String.make 1 op)
   | Some c when is_digit c -> read_number st
   | Some c when is_alpha c -> read_ident st
-  | Some c -> failwith (Printf.sprintf "unexpected character '%c'" c)
+  | Some c -> raise (Lex_error (Printf.sprintf "unexpected character '%c'" c))
 
 let string_of_token = function
   | Eof -> "EOF"
   | Lparen -> "("
   | Rparen -> ")"
-  | Integer x -> "Integer" ^ string_of_int x ^ ")"
-  | Bool x -> "Bool(" ^ string_of_bool x ^ ")"
-  | BinaryOp x -> "BinaryOp(" ^ x ^ ")"
+  | Integer x -> string_of_int x
+  | Bool x -> string_of_bool x
+  | BinaryOp x -> x
+  | UnaryOp x -> x

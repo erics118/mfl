@@ -5,8 +5,7 @@ let check expected input =
   assert_equal ~printer:Fun.id expected (Parser.parse input |> Ast.pp_expr)
 
 let fails err input =
-  assert_raises (Parser.Parse_error err) (fun () ->
-      Parser.parse input |> Ast.pp_expr)
+  assert_raises (Parser.Parse_error err) (fun () -> Parser.parse input)
 
 let test_literals _ =
   check "42" "42";
@@ -66,12 +65,28 @@ let test_mixed_precedence _ =
   (* || lower than && *)
   check "1 == 1 || 2 == 3 && 4 == 4" "1 == 1 || (2 == 3 && 4 == 4)"
 
+let test_unary _ =
+  check "-1" "-1";
+  check "-42" "-42";
+  check "-(-5)" "--5";
+  check "!true" "!true";
+  check "!false" "!false";
+  check "!(!true)" "!!true";
+  (* unary binds tighter than binary *)
+  check "-1 + 2" "-1 + 2";
+  check "!true && false" "!true && false";
+  (* unary over a binary subexpr requires parens *)
+  check "-(1 + 2)" "-(1 + 2)";
+  check "!(1 == 2)" "!(1 == 2)"
+
 let test_errors _ =
   fails "unexpected end of input" "";
   fails "unexpected end of input" "1 +";
   fails "unexpected trailing input" "1 + 2 3";
   fails "expected ')'" "(1 + 2";
-  fails "unknown operator '!'" "1 != 2 ! 3"
+  fails "unexpected trailing input" "1 != 2 ! 3";
+  fails "unknown token: )" ")";
+  fails "unknown token: +" "+ 1"
 
 let tests =
   "parser"
@@ -83,6 +98,7 @@ let tests =
          "boolean_logic" >:: test_boolean_logic;
          "bitwise" >:: test_bitwise;
          "mixed_precedence" >:: test_mixed_precedence;
+         "unary" >:: test_unary;
          "errors" >:: test_errors;
        ]
 

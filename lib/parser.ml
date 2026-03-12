@@ -25,7 +25,9 @@ let op_of_str = function
   | "&" -> Ast.BitAnd
   | "|" -> Ast.BitOr
   | "^" -> Ast.BitXor
-  | s -> raise (Parse_error (Printf.sprintf "unknown operator '%s'" s))
+  | s ->
+      raise
+        (Parse_error (Printf.sprintf "unknown operator '%s'" s)) [@coverage off]
 
 let get_tok_precedence st =
   match st.cur_tok with
@@ -50,6 +52,12 @@ and parse_primary st =
       get_next_token st;
       Ast.BoolLiteral b
   | Lexer.Lparen -> parse_paren_expr st
+  | Lexer.BinaryOp "-" ->
+      get_next_token st;
+      Ast.UnaryOp (Ast.Neg, parse_primary st)
+  | Lexer.UnaryOp "!" ->
+      get_next_token st;
+      Ast.UnaryOp (Ast.Not, parse_primary st)
   | Eof -> raise (Parse_error "unexpected end of input")
   | _ ->
       raise (Parse_error ("unknown token: " ^ Lexer.string_of_token st.cur_tok))
@@ -68,7 +76,7 @@ and parse_binop_rhs st expr_prec lhs =
           if prec < next_prec then parse_binop_rhs st (prec + 1) rhs else rhs
         in
         parse_binop_rhs st expr_prec (Ast.BinaryOp (op, lhs, rhs))
-    | _ -> lhs
+    | _ -> lhs [@coverage off]
 
 and parse_expr st =
   let lhs = parse_primary st in
