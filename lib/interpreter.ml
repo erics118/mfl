@@ -27,6 +27,19 @@ let rec interpret : Ast.expr -> Ast.expr = function
   | BinaryOp (op, l, r) -> interpret_binop op (interpret l) (interpret r)
   | Statement e -> interpret e
   | EmptyStmt -> EmptyStmt
+  | CompoundStmt statements ->
+      let rec interpret_seq last_non_empty = function
+        | [] -> last_non_empty
+        | stmt :: rest ->
+            let value = interpret stmt in
+            let last_non_empty =
+              match value with
+              | EmptyStmt -> last_non_empty
+              | _ -> value
+            in
+            interpret_seq last_non_empty rest
+      in
+      interpret_seq EmptyStmt statements
 
 and interpret_binop op l r =
   let te () = type_error (Ast.string_of_op op) [ type_of l; type_of r ] in

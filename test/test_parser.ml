@@ -9,9 +9,11 @@ let fails err input =
 
 let test_literals _ =
   check ";" ";";
-  check ";" ";;;;;;;";
+  check "; ; ; ; ; ; ;" ";;;;;;;";
   check "42;" "42;";
-  check "42;" "42;;";
+  check "42; ;" "42;;";
+  check "1; 2;" "1; 2;";
+  check "; ; 1;" ";; 1;";
   check "0;" "0;";
   check "true;" "true;";
   check "false;" "false;"
@@ -82,29 +84,45 @@ let test_unary _ =
   check "-(1 + 2);" "-(1 + 2);";
   check "!(1 == 2);" "!(1 == 2);"
 
+let test_multiple_statements _ =
+  check "1; 2; 3; 4; 5;" "1; 2; 3; 4; 5;";
+  check "1 + 2; 3 * 4;" "1 + 2; 3 * 4;"
+
+let test_compound_statements _ =
+  check "{}" "{}";
+  check "{1 + 2;}" "{1 + 2;}";
+  check "{1 + 2; 3 * 4;}" "{1 + 2; 3 * 4;}";
+  check "1; {2; 3;} 4;" "1; {2; 3;} 4;";
+  check "{; ;}" "{;;}"
+
 let test_errors _ =
   fails "unexpected end of input" "";
   fails "unexpected end of input" "1 +";
+  fails "expected '}'" "{";
+  fails "expected ';'" "{1";
+  fails "expected '}'" "{1;";
+  fails "unknown token: ';'" "1 + ;";
   fails "expected ';'" "1 + 2 3";
-  fails "unexpected trailing input" "1; 2";
-  fails "unexpected trailing input" ";; 1;";
+  fails "expected ';'" "1; 2";
   fails "expected ')'" "(1 + 2";
   fails "expected ';'" "1 != 2 ! 3";
-  fails "unknown token: )" ")";
-  fails "unknown token: +" "+ ;"
+  fails "unknown token: ')'" ")";
+  fails "unknown token: '+'" "+ ;"
 
 let tests =
   "parser;"
   >::: [
-         "literals;" >:: test_literals;
-         "arithmetic;" >:: test_arithmetic;
-         "precedence;" >:: test_precedence;
-         "comparison;" >:: test_comparison;
-         "boolean_logic;" >:: test_boolean_logic;
-         "bitwise;" >:: test_bitwise;
-         "mixed_precedence;" >:: test_mixed_precedence;
-         "unary;" >:: test_unary;
-         "errors;" >:: test_errors;
+         "literals" >:: test_literals;
+         "arithmetic" >:: test_arithmetic;
+         "precedence" >:: test_precedence;
+         "comparison" >:: test_comparison;
+         "boolean_logic" >:: test_boolean_logic;
+         "bitwise" >:: test_bitwise;
+         "mixed_precedence" >:: test_mixed_precedence;
+         "unary" >:: test_unary;
+         "multiple_statements" >:: test_multiple_statements;
+         "compound_statements" >:: test_compound_statements;
+         "errors" >:: test_errors;
        ]
 
 let _ = run_test_tt_main tests

@@ -158,6 +158,19 @@ let test_nested _ =
   check_int 6 "(1 + 2) * (5 - 3);";
   check_bool true "1 + 1 == 2;"
 
+let test_multiple_statements _ =
+  check_int 2 "1; 2;";
+  check_bool true "false; true;";
+  check_int 3 "; 1; ; 3; ;"
+
+let test_compound_statements _ =
+  check_empty "{}";
+  check_empty "{;;}";
+  check_int 2 "{1; 2;}";
+  check_bool true "{false; true;}";
+  check_int 4 "1; {2; 4;}";
+  check_int 3 "{1; {2; 3;};}"
+
 let test_type_errors _ =
   (* arithmetic requires int operands *)
   check_type_error "+: invalid operand types (int, bool)" "1 + false;";
@@ -195,6 +208,8 @@ let tests =
          "boolean_logic" >:: test_boolean_logic;
          "bitwise" >:: test_bitwise;
          "nested" >:: test_nested;
+         "multiple_statements" >:: test_multiple_statements;
+         "compound_statements" >:: test_compound_statements;
          "type_errors" >:: test_type_errors;
        ]
 

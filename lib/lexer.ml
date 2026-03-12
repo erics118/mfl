@@ -9,6 +9,8 @@ type token =
   | BinaryOp of string
   | UnaryOp of string
   | Semicolon
+  | LBrace
+  | RBrace
 
 type state = {
   input : string;
@@ -66,6 +68,12 @@ let gettok st =
   | Some ';' ->
       advance st;
       Semicolon
+  | Some '{' ->
+      advance st;
+      LBrace
+  | Some '}' ->
+      advance st;
+      RBrace
   | Some '(' ->
       advance st;
       Lparen
@@ -109,6 +117,8 @@ let gettok st =
 let string_of_token = function
   | Eof -> "EOF"
   | Semicolon -> ";"
+  | LBrace -> "{"
+  | RBrace -> "}"
   | Lparen -> "("
   | Rparen -> ")"
   | Integer x -> string_of_int x

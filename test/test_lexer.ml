@@ -21,6 +21,11 @@ let check expected input =
 let lex_fails err input =
   assert_raises (Lexer.Lex_error err) (fun () -> tokenize input)
 
+let test_semicolons _ =
+  check [] "";
+  check [ Semicolon ] ";";
+  check [ Semicolon; Semicolon; Semicolon; Semicolon ] ";;;  ;"
+
 let test_literals _ =
   check [ Integer 0 ] "0";
   check [ Integer 42 ] "42";
@@ -31,7 +36,10 @@ let test_literals _ =
 let test_parens _ =
   check [ Lparen ] "(";
   check [ Rparen ] ")";
-  check [ Lparen; Integer 1; Rparen ] "(1)"
+  check [ Lparen; Integer 1; Rparen ] "(1)";
+  check [ LBrace ] "{";
+  check [ RBrace ] "}";
+  check [ LBrace; Integer 1; Semicolon; RBrace ] "{1;}"
 
 let test_binary_ops _ =
   check [ BinaryOp "+" ] "+";
@@ -73,6 +81,8 @@ let test_sequences _ =
 let test_string_of_token _ =
   assert_equal "EOF" (Lexer.string_of_token Eof);
   assert_equal ";" (Lexer.string_of_token Semicolon);
+  assert_equal "{" (Lexer.string_of_token LBrace);
+  assert_equal "}" (Lexer.string_of_token RBrace);
   assert_equal "(" (Lexer.string_of_token Lparen);
   assert_equal ")" (Lexer.string_of_token Rparen);
   assert_equal "42" (Lexer.string_of_token (Integer 42));
@@ -96,6 +106,7 @@ let test_errors _ =
 let tests =
   "lexer"
   >::: [
+         "semicolons" >:: test_semicolons;
          "literals" >:: test_literals;
          "parens" >:: test_parens;
          "binary_ops" >:: test_binary_ops;
