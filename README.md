@@ -9,7 +9,7 @@ c implemented in ocaml using llvm from scratch
 - [x] handle operator predecence and associativity correctly
 - [x] interpreter with type checking
 - [x] support for statements with `;`
-- [ ] add statement blocks blocks with  `{}`
+- [x] add statement blocks blocks with  `{}`
 - [ ] `int` variable declarations and assignment
 - [ ] `bool`/`_Bool` variable declarations and assignment
 - [ ] `if`/`else` control flow
@@ -22,9 +22,14 @@ c implemented in ocaml using llvm from scratch
 
 ## how to run
 
+currently, it returns the value of the last expression in the input
+
 ```sh
 # evaluate an expression
-dune exec mfl -- "1 + 2 * 3"
+dune exec mfl -- "1 + 2 * 3;" # 7
+dune exec mfl -- "1 + 2; 4 + 5;" # 9
+dune exec mfl -- "1 <= 3;" # true
+dune exec mfl -- "1 * 8 >= 2 && 1 / 0;" # true, short circuits and doesn't error
 ```
 
 ## sources

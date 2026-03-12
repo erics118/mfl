@@ -37,6 +37,7 @@ _opam/
 
 # bisect
 _coverage
+*.coverage
 
 # direnv/devenv stuff
 .direnv
