@@ -24,7 +24,7 @@ let rec interpret : Ast.expr -> Ast.expr = function
       match interpret e with
       | BoolLiteral b -> BoolLiteral (not b)
       | v -> type_error (Ast.string_of_uop Not) [ type_of v ])
-  | BinaryOp (op, l, r) -> interpret_binop op (interpret l) (interpret r)
+  | BinaryOp (op, l, r) -> interpret_binary op l r
   | Statement e -> interpret e
   | EmptyStmt -> EmptyStmt
   | CompoundStmt statements ->
@@ -41,6 +41,20 @@ let rec interpret : Ast.expr -> Ast.expr = function
       in
       interpret_seq EmptyStmt statements
 
+(* short circuiting *)
+and interpret_binary op l r =
+  match op with
+  | Ast.And -> (
+      match interpret l with
+      | BoolLiteral false -> BoolLiteral false
+      | l_val -> interpret_binop Ast.And l_val (interpret r))
+  | Ast.Or -> (
+      match interpret l with
+      | BoolLiteral true -> BoolLiteral true
+      | l_val -> interpret_binop Ast.Or l_val (interpret r))
+  | _ -> interpret_binop op (interpret l) (interpret r)
+
+(* actual evaluates the binary operators *)
 and interpret_binop op l r =
   let te () = type_error (Ast.string_of_op op) [ type_of l; type_of r ] in
   match (l, r) with

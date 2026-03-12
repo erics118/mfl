@@ -124,7 +124,14 @@ let test_boolean_logic _ =
   check_bool false "false != false;";
   check_bool true "false != true;";
   check_bool true "true != false;";
-  check_bool false "true != true;"
+  check_bool false "true != true;";
+  (* short circuit *)
+  check_bool false "false && (1 / 0 == 0);";
+  check_bool true "true || (1 / 0 == 0);";
+  assert_raises Interpreter.Div_by_zero (fun () ->
+      Interpreter.interpret (Parser.parse "true && (1 / 0 == 0);"));
+  assert_raises Interpreter.Div_by_zero (fun () ->
+      Interpreter.interpret (Parser.parse "false || (1 / 0 == 0);"))
 
 let test_bitwise _ =
   (* 011 & 101 = 001 *)
