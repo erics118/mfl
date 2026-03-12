@@ -1,3 +1,4 @@
 (library
  (name mfl)
- (modules ast lexer parser interpreter))
+ (modules ast lexer parser interpreter)
+ (preprocess (pps bisect_ppx)))

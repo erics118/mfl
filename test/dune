@@ -1,3 +1,4 @@
-(test
- (name test_mfl)
- (libraries mfl ounit2))
+(tests
+ (names test_parser test_interpreter)
+ (libraries mfl ounit2)
+ (preprocess (pps bisect_ppx)))

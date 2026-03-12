@@ -24,6 +24,8 @@
             ocamlPackages.merlin
             ocamlPackages.utop
             ocamlPackages.ounit2
+            ocamlPackages.ppxlib
+            ocamlPackages.bisect_ppx
             llvm_19
           ];
         };

@@ -1,38 +1,60 @@
+exception Type_error of string
+exception Div_by_zero
+
+let type_of = function
+  | Ast.IntLiteral _  -> "int"
+  | Ast.BoolLiteral _ -> "bool"
+  | _ -> assert false
+
+let type_error op operands =
+  let plural = if List.length operands = 1 then "" else "s" in
+  let typs = String.concat ", " operands in
+  raise
+    (Type_error
+       (Printf.sprintf "%s: invalid operand type%s (%s)" op plural typs))
+
 let rec interpret : Ast.expr -> Ast.expr = function
   | IntLiteral _ as n -> n
   | BoolLiteral _ as b -> b
   | UnaryOp (Neg, e) -> (
       match interpret e with
       | IntLiteral n -> IntLiteral (-n)
-      | _ -> failwith "type error: Neg expects int")
+      | v -> type_error (Ast.string_of_uop Neg) [ type_of v ])
   | UnaryOp (Not, e) -> (
       match interpret e with
       | BoolLiteral b -> BoolLiteral (not b)
-      | _ -> failwith "type error: Not expects bool")
+      | v -> type_error (Ast.string_of_uop Not) [ type_of v ])
   | BinaryOp (op, l, r) -> interpret_binop op (interpret l) (interpret r)
 
 and interpret_binop op l r =
-  let int_op f a b =
-    match f a b with
-    | exception Division_by_zero -> failwith "div by zero"
-    | result -> Ast.IntLiteral result
-  in
-  let cmp_op f a b = Ast.BoolLiteral (f a b) in
-  match (op, l, r) with
-  | Ast.Add, IntLiteral a, IntLiteral b -> int_op ( + ) a b
-  | Ast.Sub, IntLiteral a, IntLiteral b -> int_op ( - ) a b
-  | Ast.Mul, IntLiteral a, IntLiteral b -> int_op ( * ) a b
-  | Ast.Div, IntLiteral a, IntLiteral b -> int_op ( / ) a b
-  | Ast.Mod, IntLiteral a, IntLiteral b -> int_op ( mod ) a b
-  | Ast.BitAnd, IntLiteral a, IntLiteral b -> int_op ( land ) a b
-  | Ast.BitOr, IntLiteral a, IntLiteral b -> int_op ( lor ) a b
-  | Ast.BitXor, IntLiteral a, IntLiteral b -> int_op ( lxor ) a b
-  | Ast.Equal, IntLiteral a, IntLiteral b -> cmp_op ( = ) a b
-  | Ast.Neq, IntLiteral a, IntLiteral b -> cmp_op ( <> ) a b
-  | Ast.Less, IntLiteral a, IntLiteral b -> cmp_op ( < ) a b
-  | Ast.Leq, IntLiteral a, IntLiteral b -> cmp_op ( <= ) a b
-  | Ast.Greater, IntLiteral a, IntLiteral b -> cmp_op ( > ) a b
-  | Ast.Geq, IntLiteral a, IntLiteral b -> cmp_op ( >= ) a b
-  | Ast.And, BoolLiteral a, BoolLiteral b -> BoolLiteral (a && b)
-  | Ast.Or, BoolLiteral a, BoolLiteral b -> BoolLiteral (a || b)
-  | _ -> failwith "type error"
+  let te () = type_error (Ast.string_of_op op) [ type_of l; type_of r ] in
+  match (l, r) with
+  | IntLiteral a, IntLiteral b -> (
+      let int_op f =
+        match f a b with
+        | exception Division_by_zero -> raise Div_by_zero
+        | n -> Ast.IntLiteral n
+      in
+      let cmp_op f = Ast.BoolLiteral (f a b) in
+      match op with
+      | Ast.Add -> int_op ( + )
+      | Ast.Sub -> int_op ( - )
+      | Ast.Mul -> int_op ( * )
+      | Ast.Div -> int_op ( / )
+      | Ast.Mod -> int_op ( mod )
+      | Ast.BitAnd -> int_op ( land )
+      | Ast.BitOr -> int_op ( lor )
+      | Ast.BitXor -> int_op ( lxor )
+      | Ast.Equal -> cmp_op ( = )
+      | Ast.Neq -> cmp_op ( <> )
+      | Ast.Less -> cmp_op ( < )
+      | Ast.Leq -> cmp_op ( <= )
+      | Ast.Greater -> cmp_op ( > )
+      | Ast.Geq -> cmp_op ( >= )
+      | _ -> te ())
+  | BoolLiteral a, BoolLiteral b -> (
+      match op with
+      | Ast.And -> BoolLiteral (a && b)
+      | Ast.Or -> BoolLiteral (a || b)
+      | _ -> te ())
+  | _ -> te ()

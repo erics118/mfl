@@ -35,6 +35,9 @@ setup.log
 # Local OPAM switch
 _opam/
 
+# bisect
+_coverage
+
 # direnv/devenv stuff
 .direnv
 .devenv
