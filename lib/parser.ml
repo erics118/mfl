@@ -8,24 +8,10 @@ exception Parse_error of string
 let create lex_st = { cur_tok = Lexer.Eof; lex = lex_st }
 let get_next_token st = st.cur_tok <- Lexer.gettok st.lex
 
-let op_of_str = function
-  | "+" -> Ast.Add
-  | "-" -> Ast.Sub
-  | "*" -> Ast.Mul
-  | "/" -> Ast.Div
-  | "%" -> Ast.Mod
-  | "<" -> Ast.Less
-  | ">" -> Ast.Greater
-  | "==" -> Ast.Equal
-  | "!=" -> Ast.Neq
-  | "<=" -> Ast.Leq
-  | ">=" -> Ast.Geq
-  | "&&" -> Ast.And
-  | "||" -> Ast.Or
-  | "&" -> Ast.BitAnd
-  | "|" -> Ast.BitOr
-  | "^" -> Ast.BitXor
-  | s ->
+let op_of_str s =
+  match Ast.op_of_string_opt s with
+  | Some op -> op
+  | None ->
       raise
         (Parse_error (Printf.sprintf "unknown operator '%s'" s)) [@coverage off]
 

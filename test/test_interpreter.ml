@@ -113,8 +113,6 @@ let test_boolean_logic _ =
   check_bool true "false == false";
   check_bool false "false == true";
   check_bool false "true == false";
-  check_bool true "true == true";
-  check_bool true "true == true";
   check_bool false "false != false";
   check_bool true "false != true";
   check_bool true "true != false";

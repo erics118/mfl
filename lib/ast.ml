@@ -58,6 +58,25 @@ let string_of_op = function
   | BitOr -> "|"
   | BitXor -> "^"
 
+let op_of_string_opt = function
+  | "+" -> Some Add
+  | "-" -> Some Sub
+  | "*" -> Some Mul
+  | "/" -> Some Div
+  | "%" -> Some Mod
+  | "<" -> Some Less
+  | ">" -> Some Greater
+  | "==" -> Some Equal
+  | "!=" -> Some Neq
+  | "<=" -> Some Leq
+  | ">=" -> Some Geq
+  | "&&" -> Some And
+  | "||" -> Some Or
+  | "&" -> Some BitAnd
+  | "|" -> Some BitOr
+  | "^" -> Some BitXor
+  | _ -> None [@coverage off]
+
 let string_of_uop = function
   | Neg -> "-"
   | Not -> "!"
