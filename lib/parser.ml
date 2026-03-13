@@ -80,9 +80,22 @@ and parse_binop_rhs st expr_prec lhs =
         parse_binop_rhs st expr_prec (Ast.BinaryOp (op, lhs, rhs))
     | _ -> lhs [@coverage off]
 
-and parse_expr st =
+and parse_binary_expr st =
   let lhs = parse_primary st in
   parse_binop_rhs st 0 lhs
+
+and parse_conditional_expr st =
+  let cond = parse_binary_expr st in
+  match st.cur_tok with
+  | Lexer.QuestionMark ->
+      consume st Lexer.QuestionMark;
+      let then_expr = parse_expr st in
+      consume st Lexer.Colon;
+      let else_expr = parse_conditional_expr st in
+      Ast.Ternary (cond, then_expr, else_expr)
+  | _ -> cond
+
+and parse_expr st = parse_conditional_expr st
 
 let parse_type_name st =
   match st.cur_tok with

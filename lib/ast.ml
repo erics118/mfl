@@ -37,6 +37,7 @@ type expr =
   | ReturnStmt of expr option
   | EmptyStmt
   | CompoundStmt of expr list (* sequence of statements surrounded by braces *)
+  | Ternary of expr * expr * expr (* ternary operator *)
   (* typed variable definition: <type> <name> = <expr>; *)
   | VarDef of {
       var_type : var_type;
@@ -137,6 +138,19 @@ let rec pp_expr ?(parent_prec = 0) ?(top_level = true) = function
         String.concat "\n" (List.map (pp_expr ~top_level:false) statements)
       in
       if top_level then body else "{" ^ body ^ "}"
+  | Ternary (e, t, f) ->
+      let cond_str =
+        (* put in parens *)
+        match e with
+        | Ternary _ -> "(" ^ pp_expr ~top_level:false e ^ ")"
+        | _ -> pp_expr ~top_level:false e
+      in
+      let s =
+        Printf.sprintf "%s ? %s : %s" cond_str
+          (pp_expr ~top_level:false t)
+          (pp_expr ~top_level:false f)
+      in
+      if parent_prec > 5 then "(" ^ s ^ ")" else s
   | VarDef { var_type; name; init } ->
       Printf.sprintf "%s %s = %s;"
         (string_of_var_type var_type)

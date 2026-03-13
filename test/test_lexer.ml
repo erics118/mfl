@@ -53,6 +53,8 @@ let test_parens _ =
   check [ Lparen ] "(";
   check [ Rparen ] ")";
   check [ Comma ] ",";
+  check [ QuestionMark ] "?";
+  check [ Colon ] ":";
   check [ Lparen; Integer 1; Rparen ] "(1)";
   check [ LBrace ] "{";
   check [ RBrace ] "}";
@@ -94,6 +96,9 @@ let test_sequences _ =
   check [ Integer 3; BinaryOp "&"; Integer 5 ] "3 & 5";
   check [ Integer 1; Semicolon ] "1;";
   check [ Integer 1; BinaryOp "+"; Integer 3; Semicolon ] "1 + 3;";
+  check
+    [ Identifier "a"; QuestionMark; Identifier "b"; Colon; Identifier "c"; Semicolon ]
+    "a ? b : c;";
   check [ ReturnKw; Integer 1; Semicolon ] "return 1;";
   check
     [
@@ -120,6 +125,8 @@ let test_string_of_token _ =
   assert_equal "EOF" (Lexer.string_of_token Eof);
   assert_equal ";" (Lexer.string_of_token Semicolon);
   assert_equal "," (Lexer.string_of_token Comma);
+  assert_equal "?" (Lexer.string_of_token QuestionMark);
+  assert_equal ":" (Lexer.string_of_token Colon);
   assert_equal "{" (Lexer.string_of_token LBrace);
   assert_equal "}" (Lexer.string_of_token RBrace);
   assert_equal "(" (Lexer.string_of_token Lparen);

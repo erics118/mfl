@@ -17,6 +17,8 @@ type token =
   | ReturnKw
   | LBrace
   | RBrace
+  | QuestionMark
+  | Colon
 
 type state = {
   input : string;
@@ -94,6 +96,12 @@ let gettok st =
   | Some ',' ->
       advance st;
       Comma
+  | Some '?' ->
+      advance st;
+      QuestionMark
+  | Some ':' ->
+      advance st;
+      Colon
   | Some '{' ->
       advance st;
       LBrace
@@ -147,6 +155,8 @@ let string_of_token = function
   | Eof -> "EOF"
   | Semicolon -> ";"
   | Comma -> ","
+  | QuestionMark -> "?"
+  | Colon -> ":"
   | LBrace -> "{"
   | RBrace -> "}"
   | Lparen -> "("
