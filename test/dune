@@ -2,4 +2,10 @@
  (names test_lexer test_parser test_interpreter)
  (libraries mfl ounit2)
  (preprocess
-  (pps bisect_ppx)))
+  (pps bisect_ppx))
+ (deps
+  (glob_files_rec ../data/*))
+ (action
+  (chdir
+   %{workspace_root}
+   (run %{test}))))

@@ -6,8 +6,12 @@ type token =
   | Rparen
   | Integer of int
   | Bool of bool
+  | IntKw
+  | BoolKw
+  | Identifier of string
   | BinaryOp of string
   | UnaryOp of string
+  | Assign
   | Semicolon
   | LBrace
   | RBrace
@@ -40,8 +44,22 @@ let read_number st =
   do
     advance st
   done;
-  let literal = String.sub st.input start (st.pos - start) in
-  Integer (int_of_string literal)
+  (* if see alpha, error *)
+  match peek st with
+  | Some c when is_alpha c ->
+      while
+        match peek st with
+        | Some c when is_alpha c || is_digit c -> true
+        | _ -> false
+      do
+        advance st
+      done;
+      let bad_literal = String.sub st.input start (st.pos - start) in
+      raise
+        (Lex_error (Printf.sprintf "invalid numeric literal '%s'" bad_literal))
+  | _ ->
+      let literal = String.sub st.input start (st.pos - start) in
+      Integer (int_of_string literal)
 
 let read_ident st =
   let start = st.pos in
@@ -55,7 +73,9 @@ let read_ident st =
   match String.sub st.input start (st.pos - start) with
   | "true" -> Bool true
   | "false" -> Bool false
-  | s -> raise (Lex_error (Printf.sprintf "unknown identifier '%s'" s))
+  | "int" -> IntKw
+  | "bool" -> BoolKw
+  | s -> Identifier s
 
 let peek2 st =
   let pos = st.pos + 1 in
@@ -84,6 +104,9 @@ let gettok st =
       advance st;
       advance st;
       BinaryOp "=="
+  | Some '=' ->
+      advance st;
+      Assign
   | Some '!' when peek2 st = Some '=' ->
       advance st;
       advance st;
@@ -123,5 +146,9 @@ let string_of_token = function
   | Rparen -> ")"
   | Integer x -> string_of_int x
   | Bool x -> string_of_bool x
+  | IntKw -> "int"
+  | BoolKw -> "bool"
+  | Identifier x -> x
   | BinaryOp x -> x
   | UnaryOp x -> x
+  | Assign -> "="

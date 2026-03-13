@@ -9,11 +9,11 @@ let fails err input =
 
 let test_literals _ =
   check ";" ";";
-  check "; ; ; ; ; ; ;" ";;;;;;;";
+  check ";\n;\n;\n;\n;\n;\n;" ";;;;;;;";
   check "42;" "42;";
-  check "42; ;" "42;;";
-  check "1; 2;" "1; 2;";
-  check "; ; 1;" ";; 1;";
+  check "42;\n;" "42;;";
+  check "1;\n2;" "1; 2;";
+  check ";\n;\n1;" ";; 1;";
   check "0;" "0;";
   check "true;" "true;";
   check "false;" "false;"
@@ -85,19 +85,40 @@ let test_unary _ =
   check "!(1 == 2);" "!(1 == 2);"
 
 let test_multiple_statements _ =
-  check "1; 2; 3; 4; 5;" "1; 2; 3; 4; 5;";
-  check "1 + 2; 3 * 4;" "1 + 2; 3 * 4;"
+  check "1;\n2;\n3;\n4;\n5;" "1; 2; 3; 4; 5;";
+  check "1 + 2;\n3 * 4;" "1 + 2; 3 * 4;"
+
+let test_var_defs _ =
+  check "int x = 3;" "int x = 3;";
+  check "int x = 1 + 2 * 3;" "int x = 1 + 2 * 3;";
+  check "bool ready = true;" "bool ready = true;";
+  check "bool ok = 1 < 2;" "bool ok = 1 < 2;";
+  check "CustomType value = 3;" "CustomType value = 3;";
+  check "int x = 1;\nint y = 2;" "int x = 1; int y = 2;";
+  check "bool t = true;\nint x = 2;" "bool t = true; int x = 2;";
+  check "{int x = 3;}" "{int x = 3;}";
+  check "{bool x = false;}" "{bool x = false;}";
+  check "{UserType x = 7;}" "{UserType x = 7;}";
+  check "1;\nint x = 2;\n3;" "1; int x = 2; 3;"
 
 let test_compound_statements _ =
   check "{}" "{}";
   check "{1 + 2;}" "{1 + 2;}";
-  check "{1 + 2; 3 * 4;}" "{1 + 2; 3 * 4;}";
-  check "1; {2; 3;} 4;" "1; {2; 3;} 4;";
-  check "{; ;}" "{;;}"
+  check "{1 + 2;\n3 * 4;}" "{1 + 2; 3 * 4;}";
+  check "1;\n{2;\n3;}\n4;" "1; {2; 3;} 4;";
+  check "{;\n;}" "{;;}"
 
 let test_errors _ =
   fails "unexpected end of input" "";
   fails "unexpected end of input" "1 +";
+  fails "expected identifier" "int = 3;";
+  fails "expected '='" "int x 3;";
+  fails "unknown token: ';'" "int x = ;";
+  fails "expected ';'" "int x = 3";
+  fails "expected identifier" "bool = true;";
+  fails "expected '='" "bool x true;";
+  fails "expected identifier" "UserType = 1;";
+  fails "expected '='" "UserType x 1;";
   fails "expected '}'" "{";
   fails "expected ';'" "{1";
   fails "expected '}'" "{1;";
@@ -121,6 +142,7 @@ let tests =
          "mixed_precedence" >:: test_mixed_precedence;
          "unary" >:: test_unary;
          "multiple_statements" >:: test_multiple_statements;
+         "var_defs" >:: test_var_defs;
          "compound_statements" >:: test_compound_statements;
          "errors" >:: test_errors;
        ]

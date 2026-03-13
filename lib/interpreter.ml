@@ -40,6 +40,7 @@ let rec interpret : Ast.expr -> Ast.expr = function
             interpret_seq last_non_empty rest
       in
       interpret_seq EmptyStmt statements
+  | _ -> failwith "todo"
 
 (* short circuiting *)
 and interpret_binary op l r =

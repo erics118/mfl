@@ -71,12 +71,46 @@ and parse_expr st =
   let lhs = parse_primary st in
   parse_binop_rhs st 0 lhs
 
+let parse_type_name st =
+  match st.cur_tok with
+  | Lexer.IntKw ->
+      get_next_token st;
+      Ast.VarType "int"
+  | Lexer.BoolKw ->
+      get_next_token st;
+      Ast.VarType "bool"
+  | Lexer.Identifier type_name ->
+      get_next_token st;
+      Ast.VarType type_name
+  | _ -> raise (Parse_error "expected type") [@coverage off]
+
+let parse_var_def st =
+  let var_type = parse_type_name st in
+  let name =
+    match st.cur_tok with
+    | Lexer.Identifier name ->
+        get_next_token st;
+        name
+    | _ -> raise (Parse_error "expected identifier")
+  in
+  begin match st.cur_tok with
+  | Lexer.Assign -> get_next_token st
+  | _ -> raise (Parse_error "expected '='")
+  end;
+  let init = parse_expr st in
+  match st.cur_tok with
+  | Lexer.Semicolon ->
+      get_next_token st;
+      Ast.VarDef (var_type, name, init)
+  | _ -> raise (Parse_error "expected ';'")
+
 (* statements *)
 let rec parse_statement st =
   match st.cur_tok with
   | Lexer.LBrace ->
       get_next_token st;
       parse_compound_stmt st []
+  | Lexer.IntKw | Lexer.BoolKw | Lexer.Identifier _ -> parse_var_def st
   | Lexer.Semicolon ->
       get_next_token st;
       Ast.EmptyStmt

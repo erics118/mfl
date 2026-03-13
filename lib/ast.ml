@@ -22,6 +22,10 @@ type uop =
   | Neg
   | Not
 
+type var_type = VarType of string
+
+let string_of_var_type (VarType name) = name
+
 (* expressions *)
 type expr =
   | IntLiteral of int
@@ -29,6 +33,8 @@ type expr =
   | BinaryOp of op * expr * expr (* binary operators *)
   | UnaryOp of uop * expr (* unary operators *)
   | Statement of expr (* complete statement (currently just an expr) *)
+  | VarDef of var_type * string * expr
+    (* typed variable definition: <type> <name> = <expr>; *)
   | EmptyStmt
   | CompoundStmt of expr list (* sequence of statements surrounded by braces *)
 
@@ -106,9 +112,14 @@ let rec pp_expr ?(parent_prec = 0) ?(top_level = true) = function
       let s = Printf.sprintf "%s %s %s" lhs_str (string_of_op op) rhs_str in
       if prec < parent_prec then "(" ^ s ^ ")" else s
   | Statement e -> pp_expr ~top_level:false e ^ ";"
+  | VarDef (var_type, name, init) ->
+      Printf.sprintf "%s %s = %s;"
+        (string_of_var_type var_type)
+        name
+        (pp_expr ~top_level:false init)
   | EmptyStmt -> ";"
   | CompoundStmt statements ->
       let body =
-        String.concat " " (List.map (pp_expr ~top_level:false) statements)
+        String.concat "\n" (List.map (pp_expr ~top_level:false) statements)
       in
       if top_level then body else "{" ^ body ^ "}"

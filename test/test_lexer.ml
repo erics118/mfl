@@ -33,6 +33,21 @@ let test_literals _ =
   check [ Bool true ] "true";
   check [ Bool false ] "false"
 
+let test_identifiers_and_keywords _ =
+  check [ IntKw ] "int";
+  check [ BoolKw ] "bool";
+  check [ Identifier "x" ] "x";
+  check [ Identifier "CustomType" ] "CustomType";
+  check [ Identifier "abc1" ] "abc1";
+  check [ Identifier "_a" ] "_a";
+  check [ IntKw; Identifier "x"; Assign; Integer 3; Semicolon ] "int x = 3;";
+  check
+    [ BoolKw; Identifier "x"; Assign; Bool true; Semicolon ]
+    "bool x = true;";
+  check
+    [ Identifier "CustomType"; Identifier "x"; Assign; Integer 3; Semicolon ]
+    "CustomType x = 3;"
+
 let test_parens _ =
   check [ Lparen ] "(";
   check [ Rparen ] ")";
@@ -87,18 +102,16 @@ let test_string_of_token _ =
   assert_equal ")" (Lexer.string_of_token Rparen);
   assert_equal "42" (Lexer.string_of_token (Integer 42));
   assert_equal "true" (Lexer.string_of_token (Bool true));
+  assert_equal "int" (Lexer.string_of_token IntKw);
+  assert_equal "bool" (Lexer.string_of_token BoolKw);
+  assert_equal "x" (Lexer.string_of_token (Identifier "x"));
   assert_equal "+" (Lexer.string_of_token (BinaryOp "+"));
-  assert_equal "!" (Lexer.string_of_token (UnaryOp "!"))
+  assert_equal "!" (Lexer.string_of_token (UnaryOp "!"));
+  assert_equal "=" (Lexer.string_of_token Assign)
 
 let test_errors _ =
-  lex_fails "unknown identifier 'hi'" "hi";
-  lex_fails "unknown identifier 'A'" "A";
-  lex_fails "unknown identifier 'a'" "1a";
-  lex_fails "unknown identifier 'abc1'" "abc1";
-  lex_fails "unknown identifier 'true1'" "true1";
-  lex_fails "unknown identifier 'false2'" "false2";
-  lex_fails "unknown identifier '_'" "_";
-  lex_fails "unknown identifier 'foo'" "foo";
+  lex_fails "invalid numeric literal '1a'" "1a";
+  lex_fails "invalid numeric literal '123abc'" "123abc";
   lex_fails "unexpected character '['" "[";
   lex_fails "unexpected character '@'" "@";
   lex_fails "unexpected character '#'" "#"
@@ -108,6 +121,7 @@ let tests =
   >::: [
          "semicolons" >:: test_semicolons;
          "literals" >:: test_literals;
+         "identifiers_and_keywords" >:: test_identifiers_and_keywords;
          "parens" >:: test_parens;
          "binary_ops" >:: test_binary_ops;
          "unary_ops" >:: test_unary_ops;
