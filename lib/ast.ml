@@ -30,13 +30,25 @@ let string_of_var_type (VarType name) = name
 type expr =
   | IntLiteral of int
   | BoolLiteral of bool
+  | VarRef of string
   | BinaryOp of op * expr * expr (* binary operators *)
   | UnaryOp of uop * expr (* unary operators *)
   | Statement of expr (* complete statement (currently just an expr) *)
-  | VarDef of var_type * string * expr
-    (* typed variable definition: <type> <name> = <expr>; *)
+  | ReturnStmt of expr option
   | EmptyStmt
   | CompoundStmt of expr list (* sequence of statements surrounded by braces *)
+  (* typed variable definition: <type> <name> = <expr>; *)
+  | VarDef of {
+      var_type : var_type;
+      name : string;
+      init : expr;
+    }
+  | FuncDef of {
+      ret_type : var_type;
+      name : string;
+      params : (var_type * string) list;
+      body : expr;
+    }
 
 let precedence = function
   | Or -> 10
@@ -90,9 +102,14 @@ let string_of_uop = function
   | Neg -> "-"
   | Not -> "!"
 
+let string_of_var_type_list l =
+  String.concat ", "
+    (List.map (fun (t, n) -> Printf.sprintf "%s %s" (string_of_var_type t) n) l)
+
 let rec pp_expr ?(parent_prec = 0) ?(top_level = true) = function
   | IntLiteral n -> string_of_int n
   | BoolLiteral b -> string_of_bool b
+  | VarRef name -> name
   | UnaryOp (op, e) ->
       let e_str =
         match e with
@@ -112,14 +129,22 @@ let rec pp_expr ?(parent_prec = 0) ?(top_level = true) = function
       let s = Printf.sprintf "%s %s %s" lhs_str (string_of_op op) rhs_str in
       if prec < parent_prec then "(" ^ s ^ ")" else s
   | Statement e -> pp_expr ~top_level:false e ^ ";"
-  | VarDef (var_type, name, init) ->
-      Printf.sprintf "%s %s = %s;"
-        (string_of_var_type var_type)
-        name
-        (pp_expr ~top_level:false init)
+  | ReturnStmt None -> "return;"
+  | ReturnStmt (Some e) -> "return " ^ pp_expr ~top_level:false e ^ ";"
   | EmptyStmt -> ";"
   | CompoundStmt statements ->
       let body =
         String.concat "\n" (List.map (pp_expr ~top_level:false) statements)
       in
       if top_level then body else "{" ^ body ^ "}"
+  | VarDef { var_type; name; init } ->
+      Printf.sprintf "%s %s = %s;"
+        (string_of_var_type var_type)
+        name
+        (pp_expr ~top_level:false init)
+  | FuncDef { ret_type; name; params; body } ->
+      Printf.sprintf "%s %s(%s) %s"
+        (string_of_var_type ret_type)
+        name
+        (string_of_var_type_list params)
+        (pp_expr ~top_level:false body)

@@ -1,0 +1,5 @@
+int sub(int a, int b) { return a - b; }
+int mul(int a, int b) { return a * b; }
+int is_even(int x) { return (x % 2) == 0; }
+int signum(int x) { return (x > 0) - (x < 0); }
+int avg2(int a, int b) { return (a / 2) + (b / 2) + ((a & 1) && (b & 1)); }

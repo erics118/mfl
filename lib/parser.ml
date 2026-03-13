@@ -8,6 +8,19 @@ exception Parse_error of string
 let create lex_st = { cur_tok = Lexer.Eof; lex = lex_st }
 let get_next_token st = st.cur_tok <- Lexer.gettok st.lex
 
+let consume st tok =
+  if st.cur_tok = tok then get_next_token st
+  else
+    raise
+      (Parse_error (Printf.sprintf "expected '%s'" (Lexer.string_of_token tok)))
+
+let consume_identifier st =
+  match st.cur_tok with
+  | Lexer.Identifier name ->
+      get_next_token st;
+      name
+  | _ -> raise (Parse_error "expected identifier")
+
 let op_of_str s =
   match Ast.op_of_string_opt s with
   | Some op -> op
@@ -24,11 +37,8 @@ let get_tok_precedence st =
 let rec parse_paren_expr st =
   get_next_token st;
   let v = parse_expr st in
-  match st.cur_tok with
-  | Lexer.Rparen ->
-      get_next_token st;
-      v
-  | _ -> raise (Parse_error "expected ')'")
+  consume st Lexer.Rparen;
+  v
 
 and parse_primary st =
   match st.cur_tok with
@@ -38,6 +48,9 @@ and parse_primary st =
   | Lexer.Bool b ->
       get_next_token st;
       Ast.BoolLiteral b
+  | Lexer.Identifier name ->
+      get_next_token st;
+      Ast.VarRef name
   | Lexer.Lparen -> parse_paren_expr st
   | Lexer.BinaryOp "-" ->
       get_next_token st;
@@ -84,53 +97,96 @@ let parse_type_name st =
       Ast.VarType type_name
   | _ -> raise (Parse_error "expected type") [@coverage off]
 
-let parse_var_def st =
-  let var_type = parse_type_name st in
-  let name =
-    match st.cur_tok with
-    | Lexer.Identifier name ->
-        get_next_token st;
-        name
-    | _ -> raise (Parse_error "expected identifier")
-  in
-  begin match st.cur_tok with
-  | Lexer.Assign -> get_next_token st
-  | _ -> raise (Parse_error "expected '='")
-  end;
-  let init = parse_expr st in
+let parse_return_stmt st =
+  consume st Lexer.ReturnKw;
   match st.cur_tok with
   | Lexer.Semicolon ->
-      get_next_token st;
-      Ast.VarDef (var_type, name, init)
-  | _ -> raise (Parse_error "expected ';'")
+      consume st Lexer.Semicolon;
+      Ast.ReturnStmt None
+  | _ ->
+      let e = parse_expr st in
+      consume st Lexer.Semicolon;
+      Ast.ReturnStmt (Some e)
+
+let looks_like_definition st =
+  match st.cur_tok with
+  | Lexer.IntKw | Lexer.BoolKw -> true
+  | Lexer.Identifier _ -> (
+      let lex_lookahead : Lexer.state =
+        { input = st.lex.input; pos = st.lex.pos }
+      in
+      match Lexer.gettok lex_lookahead with
+      | Lexer.Identifier _ -> true
+      | _ -> false)
+  | _ -> false
 
 (* statements *)
 let rec parse_statement st =
   match st.cur_tok with
   | Lexer.LBrace ->
-      get_next_token st;
+      consume st LBrace;
       parse_compound_stmt st []
-  | Lexer.IntKw | Lexer.BoolKw | Lexer.Identifier _ -> parse_var_def st
+  | Lexer.ReturnKw -> parse_return_stmt st
+  | _ when looks_like_definition st -> parse_def st
   | Lexer.Semicolon ->
-      get_next_token st;
+      consume st Lexer.Semicolon;
       Ast.EmptyStmt
-  | _ -> (
+  | _ ->
       let e = parse_expr st in
-      match st.cur_tok with
-      | Lexer.Semicolon ->
-          get_next_token st;
-          Ast.Statement e
-      | _ -> raise (Parse_error "expected ';'"))
+      consume st Lexer.Semicolon;
+      Ast.Statement e
 
 and parse_compound_stmt st rev_stmts =
   match st.cur_tok with
   | Lexer.RBrace ->
-      get_next_token st;
+      consume st Lexer.RBrace;
       Ast.CompoundStmt (List.rev rev_stmts)
   | Lexer.Eof -> raise (Parse_error "expected '}'")
   | _ ->
       let stmt = parse_statement st in
       parse_compound_stmt st (stmt :: rev_stmts)
+
+and parse_param st =
+  let param_type = parse_type_name st in
+  let name = consume_identifier st in
+  (param_type, name)
+
+and parse_param_list st =
+  match st.cur_tok with
+  | Lexer.Rparen -> []
+  | _ ->
+      let rec loop rev_params =
+        let p = parse_param st in
+        match st.cur_tok with
+        | Lexer.Comma ->
+            consume st Lexer.Comma;
+            loop (p :: rev_params)
+        | Lexer.Rparen -> List.rev (p :: rev_params)
+        | _ -> raise (Parse_error "expected ',' or ')'")
+      in
+      loop []
+
+and parse_var_def_tail st var_type name =
+  consume st Lexer.Assign;
+  let init = parse_expr st in
+  consume st Lexer.Semicolon;
+  Ast.VarDef { var_type; name; init }
+
+and parse_func_def_tail st ret_type name =
+  consume st Lexer.Lparen;
+  let params = parse_param_list st in
+  consume st Lexer.Rparen;
+  consume st Lexer.LBrace;
+  let body = parse_compound_stmt st [] in
+  Ast.FuncDef { ret_type; name; params; body }
+
+and parse_def st =
+  let var_type = parse_type_name st in
+  let name = consume_identifier st in
+  match st.cur_tok with
+  | Lexer.Assign -> parse_var_def_tail st var_type name
+  | Lexer.Lparen -> parse_func_def_tail st var_type name
+  | _ -> raise (Parse_error "expected '='")
 
 let parse input =
   let st = create (Lexer.create input) in

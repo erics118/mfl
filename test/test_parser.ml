@@ -86,7 +86,11 @@ let test_unary _ =
 
 let test_multiple_statements _ =
   check "1;\n2;\n3;\n4;\n5;" "1; 2; 3; 4; 5;";
-  check "1 + 2;\n3 * 4;" "1 + 2; 3 * 4;"
+  check "1 + 2;\n3 * 4;" "1 + 2; 3 * 4;";
+  check "a;" "a;";
+  check "a + 1;" "a + 1;";
+  check "a + b * c;" "a + b * c;";
+  check "a == b;" "a == b;"
 
 let test_var_defs _ =
   check "int x = 3;" "int x = 3;";
@@ -100,6 +104,17 @@ let test_var_defs _ =
   check "{bool x = false;}" "{bool x = false;}";
   check "{UserType x = 7;}" "{UserType x = 7;}";
   check "1;\nint x = 2;\n3;" "1; int x = 2; 3;"
+
+let test_returns _ =
+  check "return;" "return;";
+  check "return 1;" "return 1;";
+  check "return 1 + 2 * 3;" "return 1 + 2 * 3;";
+  check "{return true;}" "{return true;}";
+  check "int add(int a, int b) {return a + b;}"
+    "int add(int a, int b) { return a + b; }";
+  check "bool is_ok() {return true;}" "bool is_ok() { return true; }";
+  check "int add(int a, int b) {int x = a + b;\nreturn x;}"
+    "int add(int a, int b) { int x = a + b; return x; }"
 
 let test_compound_statements _ =
   check "{}" "{}";
@@ -117,8 +132,10 @@ let test_errors _ =
   fails "expected ';'" "int x = 3";
   fails "expected identifier" "bool = true;";
   fails "expected '='" "bool x true;";
-  fails "expected identifier" "UserType = 1;";
+  fails "expected ';'" "UserType = 1;";
   fails "expected '='" "UserType x 1;";
+  fails "expected ';'" "return 1";
+  fails "unexpected end of input" "return";
   fails "expected '}'" "{";
   fails "expected ';'" "{1";
   fails "expected '}'" "{1;";
@@ -143,6 +160,7 @@ let tests =
          "unary" >:: test_unary;
          "multiple_statements" >:: test_multiple_statements;
          "var_defs" >:: test_var_defs;
+         "returns" >:: test_returns;
          "compound_statements" >:: test_compound_statements;
          "errors" >:: test_errors;
        ]

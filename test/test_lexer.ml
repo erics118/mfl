@@ -36,6 +36,7 @@ let test_literals _ =
 let test_identifiers_and_keywords _ =
   check [ IntKw ] "int";
   check [ BoolKw ] "bool";
+  check [ ReturnKw ] "return";
   check [ Identifier "x" ] "x";
   check [ Identifier "CustomType" ] "CustomType";
   check [ Identifier "abc1" ] "abc1";
@@ -51,6 +52,7 @@ let test_identifiers_and_keywords _ =
 let test_parens _ =
   check [ Lparen ] "(";
   check [ Rparen ] ")";
+  check [ Comma ] ",";
   check [ Lparen; Integer 1; Rparen ] "(1)";
   check [ LBrace ] "{";
   check [ RBrace ] "}";
@@ -91,11 +93,33 @@ let test_sequences _ =
   check [ Integer 1; BinaryOp "=="; Integer 1 ] "1 == 1";
   check [ Integer 3; BinaryOp "&"; Integer 5 ] "3 & 5";
   check [ Integer 1; Semicolon ] "1;";
-  check [ Integer 1; BinaryOp "+"; Integer 3; Semicolon ] "1 + 3;"
+  check [ Integer 1; BinaryOp "+"; Integer 3; Semicolon ] "1 + 3;";
+  check [ ReturnKw; Integer 1; Semicolon ] "return 1;";
+  check
+    [
+      IntKw;
+      Identifier "f";
+      Lparen;
+      IntKw;
+      Identifier "a";
+      Comma;
+      IntKw;
+      Identifier "b";
+      Rparen;
+      LBrace;
+      ReturnKw;
+      Identifier "a";
+      BinaryOp "+";
+      Identifier "b";
+      Semicolon;
+      RBrace;
+    ]
+    "int f(int a, int b) { return a + b; }"
 
 let test_string_of_token _ =
   assert_equal "EOF" (Lexer.string_of_token Eof);
   assert_equal ";" (Lexer.string_of_token Semicolon);
+  assert_equal "," (Lexer.string_of_token Comma);
   assert_equal "{" (Lexer.string_of_token LBrace);
   assert_equal "}" (Lexer.string_of_token RBrace);
   assert_equal "(" (Lexer.string_of_token Lparen);
@@ -104,6 +128,7 @@ let test_string_of_token _ =
   assert_equal "true" (Lexer.string_of_token (Bool true));
   assert_equal "int" (Lexer.string_of_token IntKw);
   assert_equal "bool" (Lexer.string_of_token BoolKw);
+  assert_equal "return" (Lexer.string_of_token ReturnKw);
   assert_equal "x" (Lexer.string_of_token (Identifier "x"));
   assert_equal "+" (Lexer.string_of_token (BinaryOp "+"));
   assert_equal "!" (Lexer.string_of_token (UnaryOp "!"));

@@ -13,6 +13,8 @@ type token =
   | UnaryOp of string
   | Assign
   | Semicolon
+  | Comma
+  | ReturnKw
   | LBrace
   | RBrace
 
@@ -75,6 +77,7 @@ let read_ident st =
   | "false" -> Bool false
   | "int" -> IntKw
   | "bool" -> BoolKw
+  | "return" -> ReturnKw
   | s -> Identifier s
 
 let peek2 st =
@@ -88,6 +91,9 @@ let gettok st =
   | Some ';' ->
       advance st;
       Semicolon
+  | Some ',' ->
+      advance st;
+      Comma
   | Some '{' ->
       advance st;
       LBrace
@@ -140,6 +146,7 @@ let gettok st =
 let string_of_token = function
   | Eof -> "EOF"
   | Semicolon -> ";"
+  | Comma -> ","
   | LBrace -> "{"
   | RBrace -> "}"
   | Lparen -> "("
@@ -152,3 +159,4 @@ let string_of_token = function
   | BinaryOp x -> x
   | UnaryOp x -> x
   | Assign -> "="
+  | ReturnKw -> "return"
