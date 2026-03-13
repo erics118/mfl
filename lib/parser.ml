@@ -214,7 +214,10 @@ and parse_func_def_tail st ret_type name =
   consume st Lexer.Rparen;
   consume st Lexer.LBrace;
   let body = parse_compound_stmt st [] in
-  Ast.FuncDef { ret_type; name; params; body }
+  match body with 
+  | Ast.CompoundStmt l ->  Ast.FuncDef { ret_type; name; params; body=l }
+  | _ -> failwith "err"
+ 
 
 and parse_def st =
   let var_type = parse_type_name st in

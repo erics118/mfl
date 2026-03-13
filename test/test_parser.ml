@@ -4,59 +4,66 @@ open Mfl
 let check expected input =
   assert_equal ~printer:Fun.id expected (Parser.parse input |> Ast.pp_expr)
 
+let roundtrip expected = check expected expected
+
 let fails err input =
   assert_raises (Parser.Parse_error err) (fun () -> Parser.parse input)
 
 let test_literals _ =
-  check ";" ";";
-  check ";\n;\n;\n;\n;\n;\n;" ";;;;;;;";
-  check "42;" "42;";
-  check "42;\n;" "42;;";
-  check "1;\n2;" "1; 2;";
-  check ";\n;\n1;" ";; 1;";
-  check "0;" "0;";
-  check "true;" "true;";
-  check "false;" "false;"
+  roundtrip ";";
+  roundtrip ";\n;\n;\n;\n;\n;\n;";
+  roundtrip "42;";
+  roundtrip "42;\n;";
+  roundtrip "1;\n2;";
+  roundtrip ";\n;\n1;";
+  roundtrip "0;";
+  roundtrip "true;";
+  roundtrip "false;"
 
 let test_arithmetic _ =
-  check "1 + 2;" "1 + 2;";
-  check "1 - 2;" "1 - 2;";
-  check "3 * 4;" "3 * 4;";
-  check "8 / 2;" "8 / 2;";
-  check "7 % 3;" "7 % 3;"
+  roundtrip "1 + 2;";
+  roundtrip "1 - 2;";
+  roundtrip "3 * 4;";
+  roundtrip "8 / 2;";
+  roundtrip "7 % 3;"
 
 let test_precedence _ =
   (* * binds tighter than + *)
-  check "1 + 2 * 3;" "1+2*3;";
-  check "1 + 2 * 3;" "1 + 2 * 3;";
+  check "1;" "(((1)));";
+  check "1 + 2 * 3;" "1 + (2 * 3);";
+  roundtrip "1 + 2 * 3;";
   (* parens override precedence *)
-  check "(1 + 2) * 3;" "(1 + 2) * 3;";
+  roundtrip "(1 + 2) * 3;";
   (* - and / are left-associative; right-grouped needs parens *)
-  check "8 / (4 / 2);" "8 / (4 / 2);";
-  check "7 - (2 - 1);" "7 - (2 - 1);";
+  roundtrip "8 / (4 / 2);";
+  roundtrip "7 - (2 - 1);";
   (* left-associative default *)
-  check "1 + 2 + 3;" "1 + 2 + 3;";
-  check "1 - 2 - 3;" "1 - 2 - 3;"
+  check "1 + 2 + 3;" "(1 + 2) + 3;";
+  check "1 - 2 - 3;" "(1 - 2) - 3;";
+  check "1 * 2 * 3;" "(1 * 2) * 3;";
+  check "1 / 2 / 3;" "(1 / 2) / 3;"
 
 let test_comparison _ =
-  check "1 < 2;" "1 < 2;";
-  check "1 > 2;" "1 > 2;";
-  check "1 == 2;" "1 == 2;";
-  check "1 != 2;" "1 != 2;";
-  check "1 <= 2;" "1 <= 2;";
-  check "1 >= 2;" "1 >= 2;"
+  roundtrip "1 < 2;";
+  roundtrip "1 > 2;";
+  roundtrip "1 == 2;";
+  roundtrip "1 != 2;";
+  roundtrip "1 <= 2;";
+  roundtrip "1 >= 2;"
 
 let test_boolean_logic _ =
-  check "true && false;" "true && false;";
-  check "true || false;" "true || false;";
+  roundtrip "true && false;";
+  roundtrip "true || false;";
   (* && binds tighter than || *)
-  check "true || true && false;" "true || true && false;";
-  check "(true || true) && false;" "(true || true) && false;"
+  roundtrip "true || true && false;";
+  roundtrip "(true || true) && false;";
+  check "true && true && false;" "(true && true) && false;";
+  check "true || true || false;" "(true || true) || false;"
 
 let test_bitwise _ =
-  check "3 & 5;" "3 & 5;";
-  check "3 | 5;" "3 | 5;";
-  check "3 ^ 5;" "3 ^ 5;";
+  roundtrip "3 & 5;";
+  roundtrip "3 | 5;";
+  roundtrip "3 ^ 5;";
   (* bitwise precedence, highest to lowest: & ^ | *)
   check "1 | 2 ^ 3 & 4;" "1 | (2 ^ (3 & 4));";
   (* arithmetic binds tighter than bitwise *)
@@ -71,76 +78,72 @@ let test_mixed_precedence _ =
   check "1 == 1 || 2 == 3 && 4 == 4;" "1 == 1 || (2 == 3 && 4 == 4);"
 
 let test_unary _ =
-  check "-1;" "-1;";
-  check "-42;" "-42;";
+  roundtrip "-1;";
+  roundtrip "-42;";
   check "-(-5);" "--5;";
-  check "!true;" "!true;";
-  check "!false;" "!false;";
+  roundtrip "!true;";
+  roundtrip "!false;";
   check "!(!true);" "!!true;";
   (* unary binds tighter than binary *)
-  check "-1 + 2;" "-1 + 2;";
-  check "!true && false;" "!true && false;";
+  roundtrip "-1 + 2;";
+  roundtrip "!true && false;";
   (* unary over a binary subexpr requires parens *)
-  check "-(1 + 2);" "-(1 + 2);";
-  check "!(1 == 2);" "!(1 == 2);"
+  roundtrip "-(1 + 2);";
+  roundtrip "!(1 == 2);"
 
 let test_multiple_statements _ =
-  check "1;\n2;\n3;\n4;\n5;" "1; 2; 3; 4; 5;";
-  check "1 + 2;\n3 * 4;" "1 + 2; 3 * 4;";
-  check "a;" "a;";
-  check "a + 1;" "a + 1;";
-  check "a + b * c;" "a + b * c;";
-  check "a == b;" "a == b;"
+  roundtrip "1;\n2;\n3;\n4;\n5;";
+  roundtrip "1 + 2;\n3 * 4;";
+  roundtrip "a;";
+  roundtrip "a + 1;";
+  roundtrip "a + b * c;";
+  roundtrip "a == b;"
 
 let test_var_defs _ =
-  check "int x = 3;" "int x = 3;";
-  check "int x = 1 + 2 * 3;" "int x = 1 + 2 * 3;";
-  check "bool ready = true;" "bool ready = true;";
-  check "bool ok = 1 < 2;" "bool ok = 1 < 2;";
-  check "CustomType value = 3;" "CustomType value = 3;";
-  check "int x = 1;\nint y = 2;" "int x = 1; int y = 2;";
-  check "bool t = true;\nint x = 2;" "bool t = true; int x = 2;";
-  check "{int x = 3;}" "{int x = 3;}";
-  check "{bool x = false;}" "{bool x = false;}";
-  check "{UserType x = 7;}" "{UserType x = 7;}";
-  check "1;\nint x = 2;\n3;" "1; int x = 2; 3;"
+  roundtrip "int x = 3;";
+  roundtrip "int x = 1 + 2 * 3;";
+  roundtrip "bool ready = true;";
+  roundtrip "bool ok = 1 < 2;";
+  roundtrip "CustomType value = 3;";
+  roundtrip "int x = 1;\nint y = 2;";
+  roundtrip "bool t = true;\nint x = 2;";
+  roundtrip "{\n    int x = 3;\n}";
+  roundtrip "{\n    bool x = false;\n}";
+  roundtrip "{\n    UserType x = 7;\n}";
+  roundtrip "1;\nint x = 2;\n3;"
 
 let test_returns _ =
-  check "return;" "return;";
-  check "return 1;" "return 1;";
-  check "return 1 + 2 * 3;" "return 1 + 2 * 3;";
-  check "{return true;}" "{return true;}";
-  check "int add(int a, int b) {return a + b;}"
-    "int add(int a, int b) { return a + b; }";
-  check "bool is_ok() {return true;}" "bool is_ok() { return true; }";
-  check "int add(int a, int b) {int x = a + b;\nreturn x;}"
-    "int add(int a, int b) { int x = a + b; return x; }"
+  roundtrip "return;";
+  roundtrip "return 1;";
+  roundtrip "return 1 + 2 * 3;";
+  roundtrip "{\n    return true;\n}";
+  roundtrip "int add(int a, int b) {\n    return a + b;\n}";
+  roundtrip "bool is_ok() {\n    return true;\n}";
+  roundtrip "int add(int a, int b) {\n    int x = a + b;\n    return x;\n}"
 
 let test_function_calls _ =
-  check "foo();" "foo();";
-  check "foo(1);" "foo(1);";
-  check "foo(1, 2 + 3);" "foo(1, 2 + 3);";
-  check "foo(bar(1), baz(2 + 3));" "foo(bar(1), baz(2 + 3));";
-  check "int x = add(1, 2);" "int x = add(1, 2);";
-  check "return ready();" "return ready();";
-  check "int run() {return add(1, 2 + 3);}"
-    "int run() { return add(1, 2 + 3); }"
+  roundtrip "foo();";
+  roundtrip "foo(1);";
+  roundtrip "foo(1, 2 + 3);";
+  roundtrip "foo(bar(1), baz(2 + 3));";
+  roundtrip "int x = add(1, 2);";
+  roundtrip "return ready();";
+  roundtrip "int run() {\n    return add(1, 2 + 3);\n}"
 
 let test_ternary _ =
-  check "a ? b : c;" "a ? b : c;";
-  check "a + 1 ? b : c * d;" "a + 1 ? b : c * d;";
-  check "a ? b : c ? d : e;" "a ? b : c ? d : e;";
-  check "(a ? b : c) ? d : e;" "(a ? b : c) ? d : e;";
-  check "return a ? b : c;" "return a ? b : c;";
-  check "int pick(int a, int b, int c) {return a ? b : c;}"
-    "int pick(int a, int b, int c) { return a ? b : c; }"
+  roundtrip "a ? b : c;";
+  roundtrip "a + 1 ? b : c * d;";
+  check "a ? b : c ? d : e;" "a ? b : (c ? d : e);";
+  roundtrip "(a ? b : c) ? d : e;";
+  roundtrip "return a ? b : c;";
+  roundtrip "int pick(int a, int b, int c) {\n    return a ? b : c;\n}"
 
 let test_compound_statements _ =
-  check "{}" "{}";
-  check "{1 + 2;}" "{1 + 2;}";
-  check "{1 + 2;\n3 * 4;}" "{1 + 2; 3 * 4;}";
-  check "1;\n{2;\n3;}\n4;" "1; {2; 3;} 4;";
-  check "{;\n;}" "{;;}"
+  roundtrip "{}";
+  roundtrip "{\n    1 + 2;\n}";
+  roundtrip "{\n    1 + 2;\n    3 * 4;\n}";
+  roundtrip "1;\n{\n    2;\n    3;\n}\n4;";
+  roundtrip "{\n    ;\n    ;\n}"
 
 let test_errors _ =
   fails "unexpected end of input" "";
