@@ -45,19 +45,25 @@ let rec pp_value_expr ?(parent_prec = 0) = function
 
 let pad n = String.make (n * 4) ' '
 
-let rec pp_expr ?(top_level = true) ?(indent = 0) = function
+let rec pp_block ~indent stmts =
+  if stmts = [] then "{}"
+  else
+    let body =
+      String.concat "\n"
+        (List.map (pp_expr ~top_level:false ~indent:(indent + 1)) stmts)
+    in
+    "{\n" ^ body ^ "\n}"
+
+and pp_expr ?(top_level = true) ?(indent = 0) = function
   | Statement e -> pad indent ^ pp_value_expr e ^ ";"
   | ReturnStmt None -> pad indent ^ "return;"
   | ReturnStmt (Some e) -> pad indent ^ "return " ^ pp_value_expr e ^ ";"
   | EmptyStmt -> pad indent ^ ";"
-  | CompoundStmt [] when not top_level -> "{}"
   | CompoundStmt statements ->
-      let child_indent = if top_level then indent else indent + 1 in
-      let body =
+      if top_level then
         String.concat "\n"
-          (List.map (pp_expr ~top_level:false ~indent:child_indent) statements)
-      in
-      if top_level then body else "{\n" ^ body ^ "\n}"
+          (List.map (pp_expr ~top_level:false ~indent) statements)
+      else pp_block ~indent statements
   | VarDef { var_type; name; init } ->
       pad indent
       ^ Printf.sprintf "%s %s = %s;"
@@ -65,10 +71,9 @@ let rec pp_expr ?(top_level = true) ?(indent = 0) = function
           name (pp_value_expr init)
   | FuncDef { ret_type; name; params; body } ->
       pad indent
-      ^ Printf.sprintf "%s %s(%s) {\n%s\n}"
+      ^ Printf.sprintf "%s %s(%s) %s"
           (string_of_var_type ret_type)
           name
           (string_of_var_type_list params)
-          (String.concat "\n"
-             (List.map (pp_expr ~top_level:false ~indent:(indent + 1)) body))
+          (pp_block ~indent body)
   | e -> pp_value_expr e

@@ -35,7 +35,7 @@ let get_tok_precedence st =
   | _ -> -1
 
 (* Parse a comma-separated list of items terminated by ')' *)
-let parse_rparen_list parse_item st =
+let parse_rparen_list st parse_item =
   match st.cur_tok with
   | Rparen -> []
   | _ ->
@@ -62,7 +62,7 @@ and parse_identifier_expr st =
   match st.cur_tok with
   | Lparen ->
       consume st Lparen;
-      let args = parse_rparen_list parse_expr st in
+      let args = parse_rparen_list st parse_expr in
       consume st Rparen;
       Ast.FuncCall { name; args }
   | _ -> Ast.VarRef name
@@ -149,10 +149,7 @@ let looks_like_definition st =
   match st.cur_tok with
   | IntKw | BoolKw -> true
   | Identifier _ -> (
-      let lex_lookahead : Lexer.state =
-        { input = st.lex.input; pos = st.lex.pos }
-      in
-      match Lexer.gettok lex_lookahead with
+      match Lexer.peek_next_token st.lex with
       | Identifier _ -> true
       | _ -> false)
   | _ -> false
@@ -196,7 +193,7 @@ and parse_var_def_tail st var_type name =
 
 and parse_func_def_tail st ret_type name =
   consume st Lparen;
-  let params = parse_rparen_list parse_param st in
+  let params = parse_rparen_list st parse_param in
   consume st Rparen;
   consume st LBrace;
   let body = parse_compound_stmt st [] in

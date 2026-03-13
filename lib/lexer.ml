@@ -120,3 +120,9 @@ let gettok st =
   | Some c when is_digit c -> read_number st
   | Some c when is_alpha c -> read_ident st
   | Some c -> raise (Lex_error (Printf.sprintf "unexpected character '%c'" c))
+
+let peek_next_token st =
+  let saved_pos = st.pos in
+  let tok = gettok st in
+  st.pos <- saved_pos;
+  tok
