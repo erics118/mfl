@@ -1,5 +1,5 @@
 (library
  (name mfl)
- (modules ast lexer parser interpreter)
+ (modules ast token lexer parser interpreter pretty)
  (instrumentation
   (backend bisect_ppx)))

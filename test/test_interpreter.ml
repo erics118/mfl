@@ -3,15 +3,15 @@ open Mfl
 
 (* Helpers for parse-based tests *)
 let check_int expected input =
-  assert_equal ~printer:Ast.pp_expr (Ast.IntLiteral expected)
+  assert_equal ~printer:Pretty.pp_expr (Ast.IntLiteral expected)
     (Interpreter.interpret (Parser.parse input))
 
 let check_bool expected input =
-  assert_equal ~printer:Ast.pp_expr (Ast.BoolLiteral expected)
+  assert_equal ~printer:Pretty.pp_expr (Ast.BoolLiteral expected)
     (Interpreter.interpret (Parser.parse input))
 
 let check_empty input =
-  assert_equal ~printer:Ast.pp_expr Ast.EmptyStmt
+  assert_equal ~printer:Pretty.pp_expr Ast.EmptyStmt
     (Interpreter.interpret (Parser.parse input))
 
 let check_type_error msg input =

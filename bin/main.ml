@@ -12,7 +12,7 @@ let () =
     prerr_endline "Usage: mfl <FILE>";
     exit 1);
   let file = Sys.argv.(1) in
-  match read_file file |> Parser.parse |> Ast.pp_expr with
+  match read_file file |> Parser.parse |> Pretty.pp_expr with
   | result -> print_endline result
   | exception Sys_error msg ->
       Printf.eprintf "io error: %s\n" msg;

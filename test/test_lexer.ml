@@ -7,7 +7,7 @@ let tokenize input =
   let st = Lexer.create input in
   let rec loop () =
     match Lexer.gettok st with
-    | Lexer.Eof -> []
+    | Token.Eof -> []
     | tok -> tok :: loop ()
   in
   loop ()
@@ -15,11 +15,11 @@ let tokenize input =
 let check expected input =
   assert_equal
     ~printer:(fun ts ->
-      "[" ^ String.concat "; " (List.map Lexer.string_of_token ts) ^ "]")
+      "[" ^ String.concat "; " (List.map Token.string_of_token ts) ^ "]")
     expected (tokenize input)
 
 let lex_fails err input =
-  assert_raises (Lexer.Lex_error err) (fun () -> tokenize input)
+  assert_raises (Token.Lex_error err) (fun () -> tokenize input)
 
 let test_semicolons _ =
   check [] "";
@@ -129,24 +129,24 @@ let test_sequences _ =
     "int f(int a, int b) { return a + b; }"
 
 let test_string_of_token _ =
-  assert_equal "EOF" (Lexer.string_of_token Eof);
-  assert_equal ";" (Lexer.string_of_token Semicolon);
-  assert_equal "," (Lexer.string_of_token Comma);
-  assert_equal "?" (Lexer.string_of_token QuestionMark);
-  assert_equal ":" (Lexer.string_of_token Colon);
-  assert_equal "{" (Lexer.string_of_token LBrace);
-  assert_equal "}" (Lexer.string_of_token RBrace);
-  assert_equal "(" (Lexer.string_of_token Lparen);
-  assert_equal ")" (Lexer.string_of_token Rparen);
-  assert_equal "42" (Lexer.string_of_token (Integer 42));
-  assert_equal "true" (Lexer.string_of_token (Bool true));
-  assert_equal "int" (Lexer.string_of_token IntKw);
-  assert_equal "bool" (Lexer.string_of_token BoolKw);
-  assert_equal "return" (Lexer.string_of_token ReturnKw);
-  assert_equal "x" (Lexer.string_of_token (Identifier "x"));
-  assert_equal "+" (Lexer.string_of_token (BinaryOp "+"));
-  assert_equal "!" (Lexer.string_of_token (UnaryOp "!"));
-  assert_equal "=" (Lexer.string_of_token Assign)
+  assert_equal "EOF" (Token.string_of_token Eof);
+  assert_equal ";" (Token.string_of_token Semicolon);
+  assert_equal "," (Token.string_of_token Comma);
+  assert_equal "?" (Token.string_of_token QuestionMark);
+  assert_equal ":" (Token.string_of_token Colon);
+  assert_equal "{" (Token.string_of_token LBrace);
+  assert_equal "}" (Token.string_of_token RBrace);
+  assert_equal "(" (Token.string_of_token Lparen);
+  assert_equal ")" (Token.string_of_token Rparen);
+  assert_equal "42" (Token.string_of_token (Integer 42));
+  assert_equal "true" (Token.string_of_token (Bool true));
+  assert_equal "int" (Token.string_of_token IntKw);
+  assert_equal "bool" (Token.string_of_token BoolKw);
+  assert_equal "return" (Token.string_of_token ReturnKw);
+  assert_equal "x" (Token.string_of_token (Identifier "x"));
+  assert_equal "+" (Token.string_of_token (BinaryOp "+"));
+  assert_equal "!" (Token.string_of_token (UnaryOp "!"));
+  assert_equal "=" (Token.string_of_token Assign)
 
 let test_errors _ =
   lex_fails "invalid numeric literal '1a'" "1a";

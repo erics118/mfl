@@ -2,7 +2,7 @@ open OUnit2
 open Mfl
 
 let check expected input =
-  assert_equal ~printer:Fun.id expected (Parser.parse input |> Ast.pp_expr)
+  assert_equal ~printer:Fun.id expected (Parser.parse input |> Pretty.pp_expr)
 
 let roundtrip expected = check expected expected
 

@@ -1,24 +1,4 @@
-exception Lex_error of string
-
-type token =
-  | Eof
-  | Lparen
-  | Rparen
-  | Integer of int
-  | Bool of bool
-  | IntKw
-  | BoolKw
-  | Identifier of string
-  | BinaryOp of string
-  | UnaryOp of string
-  | Assign
-  | Semicolon
-  | Comma
-  | ReturnKw
-  | LBrace
-  | RBrace
-  | QuestionMark
-  | Colon
+open Token
 
 type state = {
   input : string;
@@ -32,32 +12,28 @@ let advance st = st.pos <- st.pos + 1
 let is_digit c = c >= '0' && c <= '9'
 let is_alpha c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c = '_'
 
-let rec skip_whitespace st =
-  match peek st with
-  | Some (' ' | '\t' | '\r' | '\n') ->
-      advance st;
-      skip_whitespace st
-  | _ -> ()
-
-let read_number st =
-  let start = st.pos in
+let advance_while pred st =
   while
     match peek st with
-    | Some c when is_digit c -> true
+    | Some c when pred c -> true
     | _ -> false
   do
     advance st
-  done;
-  (* if see alpha, error *)
+  done
+
+let skip_whitespace st =
+  advance_while
+    (function
+      | ' ' | '\t' | '\r' | '\n' -> true
+      | _ -> false)
+    st
+
+let read_number st =
+  let start = st.pos in
+  advance_while is_digit st;
   match peek st with
   | Some c when is_alpha c ->
-      while
-        match peek st with
-        | Some c when is_alpha c || is_digit c -> true
-        | _ -> false
-      do
-        advance st
-      done;
+      advance_while (fun c -> is_alpha c || is_digit c) st;
       let bad_literal = String.sub st.input start (st.pos - start) in
       raise
         (Lex_error (Printf.sprintf "invalid numeric literal '%s'" bad_literal))
@@ -67,13 +43,7 @@ let read_number st =
 
 let read_ident st =
   let start = st.pos in
-  while
-    match peek st with
-    | Some c when is_alpha c || is_digit c -> true
-    | _ -> false
-  do
-    advance st
-  done;
+  advance_while (fun c -> is_alpha c || is_digit c) st;
   match String.sub st.input start (st.pos - start) with
   | "true" -> Bool true
   | "false" -> Bool false
@@ -150,23 +120,3 @@ let gettok st =
   | Some c when is_digit c -> read_number st
   | Some c when is_alpha c -> read_ident st
   | Some c -> raise (Lex_error (Printf.sprintf "unexpected character '%c'" c))
-
-let string_of_token = function
-  | Eof -> "EOF"
-  | Semicolon -> ";"
-  | Comma -> ","
-  | QuestionMark -> "?"
-  | Colon -> ":"
-  | LBrace -> "{"
-  | RBrace -> "}"
-  | Lparen -> "("
-  | Rparen -> ")"
-  | Integer x -> string_of_int x
-  | Bool x -> string_of_bool x
-  | IntKw -> "int"
-  | BoolKw -> "bool"
-  | Identifier x -> x
-  | BinaryOp x -> x
-  | UnaryOp x -> x
-  | Assign -> "="
-  | ReturnKw -> "return"
