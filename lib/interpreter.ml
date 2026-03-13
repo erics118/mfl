@@ -40,7 +40,7 @@ let rec interpret : Ast.expr -> Ast.expr = function
             interpret_seq last_non_empty rest
       in
       interpret_seq EmptyStmt statements
-  | _ -> failwith "todo"
+  | _ -> failwith "todo" [@coverage off]
 
 (* short circuiting *)
 and interpret_binary op l r =
@@ -85,7 +85,8 @@ and interpret_binop op l r =
   | BoolLiteral a, BoolLiteral b -> (
       match op with
       | Ast.And -> BoolLiteral (a && b)
-      | Ast.Or -> BoolLiteral (a || b)
+      (* short circuiting means a is always false here *)
+      | Ast.Or -> BoolLiteral (a || b) [@coverage off]
       | Ast.Equal -> BoolLiteral (a == b)
       | Ast.Neq -> BoolLiteral (a <> b)
       | _ -> te ())

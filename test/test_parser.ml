@@ -136,7 +136,8 @@ let test_ternary _ =
   check "a ? b : c ? d : e;" "a ? b : (c ? d : e);";
   roundtrip "(a ? b : c) ? d : e;";
   roundtrip "return a ? b : c;";
-  roundtrip "int pick(int a, int b, int c) {\n    return a ? b : c;\n}"
+  roundtrip "int pick(int a, int b, int c) {\n    return a ? b : c;\n}";
+  roundtrip "1 + (a ? b : c);"
 
 let test_compound_statements _ =
   roundtrip "{}";

@@ -41,7 +41,7 @@ let rec pp_value_expr ?(parent_prec = 0) = function
   | FuncCall { name; args } ->
       let args_str = String.concat ", " (List.map pp_value_expr args) in
       Printf.sprintf "%s(%s)" name args_str
-  | _ -> failwith "not a value expr"
+  | _ -> failwith "not a value expr" [@coverage off]
 
 let pad n = String.make (n * 4) ' '
 

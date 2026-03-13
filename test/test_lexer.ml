@@ -151,6 +151,7 @@ let test_string_of_token _ =
 let test_errors _ =
   lex_fails "invalid numeric literal '1a'" "1a";
   lex_fails "invalid numeric literal '123abc'" "123abc";
+  lex_fails "invalid numeric literal '123a4'" "123a4";
   lex_fails "unexpected character '['" "[";
   lex_fails "unexpected character '@'" "@";
   lex_fails "unexpected character '#'" "#"
