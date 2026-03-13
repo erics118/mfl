@@ -1,5 +1,7 @@
 open Token
 
+exception Lex_error of string
+
 type state = {
   input : string;
   mutable pos : int;
@@ -80,10 +82,10 @@ let gettok st =
       RBrace
   | Some '(' ->
       advance st;
-      Lparen
+      LParen
   | Some ')' ->
       advance st;
-      Rparen
+      RParen
   | Some '=' when peek2 st = Some '=' ->
       advance st;
       advance st;

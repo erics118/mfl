@@ -37,7 +37,7 @@ let get_tok_precedence st =
 (* Parse a comma-separated list of items terminated by ')' *)
 let parse_rparen_list st parse_item =
   match st.cur_tok with
-  | Rparen -> []
+  | RParen -> []
   | _ ->
       let rec loop rev_items =
         let item = parse_item st in
@@ -45,7 +45,7 @@ let parse_rparen_list st parse_item =
         | Comma ->
             consume st Comma;
             loop (item :: rev_items)
-        | Rparen -> List.rev (item :: rev_items)
+        | RParen -> List.rev (item :: rev_items)
         | _ -> raise (Parse_error "expected ',' or ')'")
       in
       loop []
@@ -54,16 +54,16 @@ let parse_rparen_list st parse_item =
 let rec parse_paren_expr st =
   get_next_token st;
   let v = parse_expr st in
-  consume st Rparen;
+  consume st RParen;
   v
 
 and parse_identifier_expr st =
   let name = consume_identifier st in
   match st.cur_tok with
-  | Lparen ->
-      consume st Lparen;
+  | LParen ->
+      consume st LParen;
       let args = parse_rparen_list st parse_expr in
-      consume st Rparen;
+      consume st RParen;
       Ast.FuncCall { name; args }
   | _ -> Ast.VarRef name
 
@@ -76,7 +76,7 @@ and parse_primary st =
       get_next_token st;
       Ast.BoolLiteral b
   | Identifier _ -> parse_identifier_expr st
-  | Lparen -> parse_paren_expr st
+  | LParen -> parse_paren_expr st
   | BinaryOp "-" ->
       get_next_token st;
       Ast.UnaryOp (Ast.Neg, parse_primary st)
@@ -192,9 +192,9 @@ and parse_var_def_tail st var_type name =
   Ast.VarDef { var_type; name; init }
 
 and parse_func_def_tail st ret_type name =
-  consume st Lparen;
+  consume st LParen;
   let params = parse_rparen_list st parse_param in
-  consume st Rparen;
+  consume st RParen;
   consume st LBrace;
   let body = parse_compound_stmt st [] in
   Ast.FuncDef { ret_type; name; params; body }
@@ -204,7 +204,7 @@ and parse_def st =
   let name = consume_identifier st in
   match st.cur_tok with
   | Assign -> parse_var_def_tail st var_type name
-  | Lparen -> parse_func_def_tail st var_type name
+  | LParen -> parse_func_def_tail st var_type name
   | _ -> raise (Parse_error "expected '='")
 
 let parse input =

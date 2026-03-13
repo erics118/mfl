@@ -1,9 +1,7 @@
-exception Lex_error of string
-
 type token =
   | Eof
-  | Lparen
-  | Rparen
+  | LParen
+  | RParen
   | Integer of int
   | Bool of bool
   | IntKw
@@ -28,8 +26,8 @@ let string_of_token = function
   | Colon -> ":"
   | LBrace -> "{"
   | RBrace -> "}"
-  | Lparen -> "("
-  | Rparen -> ")"
+  | LParen -> "("
+  | RParen -> ")"
   | Integer x -> string_of_int x
   | Bool x -> string_of_bool x
   | IntKw -> "int"

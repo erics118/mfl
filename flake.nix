@@ -19,6 +19,7 @@
             ocaml
             opam
             dune_3
+            ocamlPackages.odoc
             ocamlPackages.ocaml-lsp
             ocamlPackages.ocamlformat
             ocamlPackages.merlin

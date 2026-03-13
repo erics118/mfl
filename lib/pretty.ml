@@ -50,11 +50,12 @@ let rec pp_block ~indent stmts =
   else
     let body =
       String.concat "\n"
-        (List.map (pp_expr ~top_level:false ~indent:(indent + 1)) stmts)
+        (List.map (pp_expr_ ~top_level:false ~indent:(indent + 1)) stmts)
     in
     "{\n" ^ body ^ "\n}"
 
-and pp_expr ?(top_level = true) ?(indent = 0) = function
+(** private [pp_expr_] function, with optional args *)
+and pp_expr_ ?(top_level = true) ?(indent = 0) = function
   | Statement e -> pad indent ^ pp_value_expr e ^ ";"
   | ReturnStmt None -> pad indent ^ "return;"
   | ReturnStmt (Some e) -> pad indent ^ "return " ^ pp_value_expr e ^ ";"
@@ -62,7 +63,7 @@ and pp_expr ?(top_level = true) ?(indent = 0) = function
   | CompoundStmt statements ->
       if top_level then
         String.concat "\n"
-          (List.map (pp_expr ~top_level:false ~indent) statements)
+          (List.map (pp_expr_ ~top_level:false ~indent) statements)
       else pp_block ~indent statements
   | VarDef { var_type; name; init } ->
       pad indent
@@ -77,3 +78,6 @@ and pp_expr ?(top_level = true) ?(indent = 0) = function
           (string_of_var_type_list params)
           (pp_block ~indent body)
   | e -> pp_value_expr e
+
+(* public function without the optional args *)
+let pp_expr e = pp_expr_ e

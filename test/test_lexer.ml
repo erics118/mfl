@@ -19,7 +19,7 @@ let check expected input =
     expected (tokenize input)
 
 let lex_fails err input =
-  assert_raises (Token.Lex_error err) (fun () -> tokenize input)
+  assert_raises (Lexer.Lex_error err) (fun () -> tokenize input)
 
 let test_semicolons _ =
   check [] "";
@@ -50,12 +50,12 @@ let test_identifiers_and_keywords _ =
     "CustomType x = 3;"
 
 let test_parens _ =
-  check [ Lparen ] "(";
-  check [ Rparen ] ")";
+  check [ LParen ] "(";
+  check [ RParen ] ")";
   check [ Comma ] ",";
   check [ QuestionMark ] "?";
   check [ Colon ] ":";
-  check [ Lparen; Integer 1; Rparen ] "(1)";
+  check [ LParen; Integer 1; RParen ] "(1)";
   check [ LBrace ] "{";
   check [ RBrace ] "}";
   check [ LBrace; Integer 1; Semicolon; RBrace ] "{1;}"
@@ -111,13 +111,13 @@ let test_sequences _ =
     [
       IntKw;
       Identifier "f";
-      Lparen;
+      LParen;
       IntKw;
       Identifier "a";
       Comma;
       IntKw;
       Identifier "b";
-      Rparen;
+      RParen;
       LBrace;
       ReturnKw;
       Identifier "a";
@@ -136,8 +136,8 @@ let test_string_of_token _ =
   assert_equal ":" (Token.string_of_token Colon);
   assert_equal "{" (Token.string_of_token LBrace);
   assert_equal "}" (Token.string_of_token RBrace);
-  assert_equal "(" (Token.string_of_token Lparen);
-  assert_equal ")" (Token.string_of_token Rparen);
+  assert_equal "(" (Token.string_of_token LParen);
+  assert_equal ")" (Token.string_of_token RParen);
   assert_equal "42" (Token.string_of_token (Integer 42));
   assert_equal "true" (Token.string_of_token (Bool true));
   assert_equal "int" (Token.string_of_token IntKw);

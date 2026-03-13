@@ -1,0 +1,25 @@
+(* tokens for the ast *)
+
+(** lexical tokens *)
+type token =
+  | Eof  (** end of input *)
+  | LParen  (** [ ( ] *)
+  | RParen  (** [ ) ] *)
+  | Integer of int  (** integer literal *)
+  | Bool of bool  (** boolean literal *)
+  | IntKw  (** [int] keyword *)
+  | BoolKw  (** [bool] keyword *)
+  | Identifier of string  (** identifier *)
+  | BinaryOp of string  (** binary operator lexeme *)
+  | UnaryOp of string  (** unary operator lexeme *)
+  | Assign  (** [=] *)
+  | Semicolon  (** [;] *)
+  | Comma  (** [,] *)
+  | ReturnKw  (** [return] keyword *)
+  | LBrace  (** [{] *)
+  | RBrace  (** [}] *)
+  | QuestionMark  (** [?] for the ternary operator *)
+  | Colon  (** [:] for the ternary operator*)
+
+(** render a token as a string *)
+val string_of_token : token -> string
