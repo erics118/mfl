@@ -12,6 +12,19 @@
       system:
       let
         pkgs = import nixpkgs { inherit system; };
+        # ocaml llvm does not compile properly on macos
+        ocamlLlvm =
+          if pkgs.stdenv.isDarwin then
+            pkgs.ocamlPackages.llvm.overrideAttrs (old: {
+              postPatch = (old.postPatch or "") + ''
+                substituteInPlace llvm/cmake/modules/AddOCaml.cmake \
+                  --replace-fail '"''${bin}/dll''${name}''${CMAKE_SHARED_LIBRARY_SUFFIX}"' '"''${bin}/dll''${name}.so"'
+                substituteInPlace llvm/cmake/modules/AddOCaml.cmake \
+                  --replace-fail 'ext STREQUAL CMAKE_SHARED_LIBRARY_SUFFIX' 'ext STREQUAL ".so"'
+              '';
+            })
+          else
+            pkgs.ocamlPackages.llvm;
       in
       {
         devShells.default = pkgs.mkShell {
@@ -26,7 +39,7 @@
             ocamlPackages.ounit2
             ocamlPackages.ppxlib
             ocamlPackages.bisect_ppx
-            llvm_19
+            ocamlLlvm
           ];
         };
       }

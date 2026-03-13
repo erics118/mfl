@@ -1,4 +1,6 @@
 (executable
  (public_name mfl)
  (name main)
- (libraries mfl))
+ (libraries mfl)
+ (link_flags
+  (:standard -cclib -lz)))
