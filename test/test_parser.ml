@@ -116,6 +116,16 @@ let test_returns _ =
   check "int add(int a, int b) {int x = a + b;\nreturn x;}"
     "int add(int a, int b) { int x = a + b; return x; }"
 
+let test_function_calls _ =
+  check "foo();" "foo();";
+  check "foo(1);" "foo(1);";
+  check "foo(1, 2 + 3);" "foo(1, 2 + 3);";
+  check "foo(bar(1), baz(2 + 3));" "foo(bar(1), baz(2 + 3));";
+  check "int x = add(1, 2);" "int x = add(1, 2);";
+  check "return ready();" "return ready();";
+  check "int run() {return add(1, 2 + 3);}"
+    "int run() { return add(1, 2 + 3); }"
+
 let test_ternary _ =
   check "a ? b : c;" "a ? b : c;";
   check "a + 1 ? b : c * d;" "a + 1 ? b : c * d;";
@@ -148,6 +158,8 @@ let test_errors _ =
   fails "expected ':'" "a ? b;";
   fails "unexpected end of input" "a ? b :";
   fails "unknown token: ';'" "a ? ; : b;";
+  fails "expected ',' or ')'" "foo(1;";
+  fails "unknown token: ')'" "foo(1,);";
   fails "expected '}'" "{";
   fails "expected ';'" "{1";
   fails "expected '}'" "{1;";
@@ -173,6 +185,7 @@ let tests =
          "multiple_statements" >:: test_multiple_statements;
          "var_defs" >:: test_var_defs;
          "returns" >:: test_returns;
+         "function_calls" >:: test_function_calls;
          "ternary" >:: test_ternary;
          "compound_statements" >:: test_compound_statements;
          "errors" >:: test_errors;

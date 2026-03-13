@@ -40,6 +40,31 @@ let rec parse_paren_expr st =
   consume st Lexer.Rparen;
   v
 
+and parse_call_args st =
+  match st.cur_tok with
+  | Lexer.Rparen -> []
+  | _ ->
+      let rec loop rev_args =
+        let arg = parse_expr st in
+        match st.cur_tok with
+        | Lexer.Comma ->
+            consume st Lexer.Comma;
+            loop (arg :: rev_args)
+        | Lexer.Rparen -> List.rev (arg :: rev_args)
+        | _ -> raise (Parse_error "expected ',' or ')'")
+      in
+      loop []
+
+and parse_identifier_expr st =
+  let name = consume_identifier st in
+  match st.cur_tok with
+  | Lexer.Lparen ->
+      consume st Lexer.Lparen;
+      let args = parse_call_args st in
+      consume st Lexer.Rparen;
+      Ast.FuncCall { name; args }
+  | _ -> Ast.VarRef name
+
 and parse_primary st =
   match st.cur_tok with
   | Lexer.Integer n ->
@@ -48,9 +73,7 @@ and parse_primary st =
   | Lexer.Bool b ->
       get_next_token st;
       Ast.BoolLiteral b
-  | Lexer.Identifier name ->
-      get_next_token st;
-      Ast.VarRef name
+  | Lexer.Identifier _ -> parse_identifier_expr st
   | Lexer.Lparen -> parse_paren_expr st
   | Lexer.BinaryOp "-" ->
       get_next_token st;

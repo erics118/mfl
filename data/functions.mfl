@@ -1,12 +1,37 @@
 
-int sub(int a, int b) { return a - b; }
-int mul(int a, int b) { return a * b; }
-int div_safe(int a, int b) { return b == 0 ? 0 : a / b; }
-int mod_safe(int a, int b) { return b == 0 ? 0 : a % b; }
-int max2(int a, int b) { return a > b ? a : b; }
-int min2(int a, int b) { return a < b ? a : b; }
-int clamp(int x, int lo, int hi) { return x < lo ? lo : (x > hi ? hi : x); }
-int abs_i(int x) { return x < 0 ? -x : x; }
-int is_even(int x) { return (x % 2) == 0; }
-int signum(int x) { return (x > 0) - (x < 0); }
-int avg2(int a, int b) { return (a / 2) + (b / 2) + ((a & 1) && (b & 1)); }
+int sub(int a, int b) {
+    return a - b;
+}
+int mul(int a, int b) {
+    return a * b;
+}
+int div_safe(int a, int b) {
+    return b == 0 ? 0 : a / b;
+}
+int mod_safe(int a, int b) {
+    return b == 0 ? 0 : a % b;
+}
+int max2(int a, int b) {
+    return a > b ? a : b;
+}
+int min2(int a, int b) {
+    return a < b ? a : b;
+}
+int clamp(int x, int lo, int hi) {
+    return x < lo ? lo : (x > hi ? hi : x);
+}
+int abs_i(int x) {
+    return x < 0 ? -x : x;
+}
+int is_even(int x) {
+    return (x % 2) == 0;
+}
+int signum(int x) {
+    return (x > 0) - (x < 0);
+}
+int avg2(int a, int b) {
+    return (a / 2) + (b / 2) + ((a & 1) && (b & 1));
+}
+int lcm(int a, int b) {
+    int g = gcd(a, b); return g == 0 ? 0 : (a / g) * b;
+}

@@ -50,6 +50,10 @@ type expr =
       params : (var_type * string) list;
       body : expr;
     }
+  | FuncCall of {
+      name : string;
+      args : expr list;
+    }
 
 let precedence = function
   | Or -> 10
@@ -162,3 +166,8 @@ let rec pp_expr ?(parent_prec = 0) ?(top_level = true) = function
         name
         (string_of_var_type_list params)
         (pp_expr ~top_level:false body)
+  | FuncCall { name; args } ->
+      let args_str =
+        String.concat ", " (List.map (pp_expr ~top_level:false) args)
+      in
+      Printf.sprintf "%s(%s)" name args_str

@@ -97,7 +97,14 @@ let test_sequences _ =
   check [ Integer 1; Semicolon ] "1;";
   check [ Integer 1; BinaryOp "+"; Integer 3; Semicolon ] "1 + 3;";
   check
-    [ Identifier "a"; QuestionMark; Identifier "b"; Colon; Identifier "c"; Semicolon ]
+    [
+      Identifier "a";
+      QuestionMark;
+      Identifier "b";
+      Colon;
+      Identifier "c";
+      Semicolon;
+    ]
     "a ? b : c;";
   check [ ReturnKw; Integer 1; Semicolon ] "return 1;";
   check

@@ -1,5 +1,5 @@
 (library
  (name mfl)
  (modules ast lexer parser interpreter)
- (preprocess
-  (pps bisect_ppx)))
+ (instrumentation
+  (backend bisect_ppx)))
