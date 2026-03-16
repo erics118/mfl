@@ -42,4 +42,4 @@ _coverage
 # direnv/devenv stuff
 .direnv
 .devenv
-
+.envrc
