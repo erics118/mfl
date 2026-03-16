@@ -16,8 +16,9 @@ c implemented in ocaml using llvm from scratch
 - [x] `return` statements
 - [x] basic function definitions and calls
 - [x] function definitions with parameters and different return types
-- [ ] `while` loops
-- [ ] variable scoping
+- [x] `for loops` loops
+- [x] `while` loops
+
 
 
 ## how to run
