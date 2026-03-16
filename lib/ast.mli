@@ -30,37 +30,40 @@ type var_type = VarType of string
 (** render a variable type as a string *)
 val string_of_var_type : var_type -> string
 
-(** expressions and statements *)
+(** expressions *)
 type expr =
   | IntLiteral of int  (** integer literal *)
   | BoolLiteral of bool  (** boolean literal *)
   | VarRef of string  (** variable reference *)
   | BinaryOp of op * expr * expr
       (** [expr1 op expr2] is a binary operator application *)
-  | UnaryOp of uop * expr  (** unary operator application *)
-  | Statement of expr  (** expression statement *)
-  | ReturnStmt of expr option
-      (** return statement, ie [return expr;] or [return;] *)
-  | EmptyStmt  (** empty statement, ie [;] *)
-  | CompoundStmt of expr list
-      (** block of statements, ie [stmt; stmt; stmt;] *)
+  | UnaryOp of uop * expr  (** [op expr] is a unary operator application, *)
   | Ternary of expr * expr * expr
-      (** ternary operator, ie [expr1 ? expr2 : expr3] *)
+      (** [expr1 ? expr2 : expr3] is the ternary operator *)
+  | FuncCall of {
+      name : string;
+      args : expr list;
+    }  (** [name(args)] is a function call *)
+
+(** statements *)
+type stmt =
+  | ExprStmt of expr  (** [expr;] is a single expression *)
+  | ReturnStmt of expr option
+      (** [return expr;] or [return;] returns a value from a function *)
+  | EmptyStmt  (** [;] is an empty statement *)
+  | CompoundStmt of stmt list
+      (** sequence of statements surrounded by braces *)
   | VarDef of {
       var_type : var_type;
       name : string;
       init : expr;
-    }  (** variable definition with initializer, ie [var_type name = init;] *)
+    }  (** [var_type name = init;] defines a variable with an initial value *)
   | FuncDef of {
       ret_type : var_type;
       name : string;
       params : (var_type * string) list;
-      body : expr list;
-    }  (** function definition, ie [ret_type name(params...) { body }] *)
-  | FuncCall of {
-      name : string;
-      args : expr list;
-    }  (** function call, ie [name(args...)] *)
+      body : stmt list;
+    }  (** [ret_type name(params) { body }] defines a function *)
 
 (** [precedence op] returns the binding precedence of [op] higher numbers bind
     more tightly *)

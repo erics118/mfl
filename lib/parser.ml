@@ -168,7 +168,7 @@ let rec parse_statement st =
   | _ ->
       let e = parse_expr st in
       consume st Semicolon;
-      Ast.Statement e
+      Ast.ExprStmt e
 
 and parse_compound_stmt st rev_stmts =
   match st.cur_tok with

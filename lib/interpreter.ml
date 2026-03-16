@@ -13,49 +13,35 @@ let type_error op operands =
     (Type_error
        (Printf.sprintf "%s: invalid operand type%s (%s)" op plural typs))
 
-let rec interpret : Ast.expr -> Ast.expr = function
+(** interprets an expression *)
+let rec interpret_expr : Ast.expr -> Ast.expr = function
   | IntLiteral _ as n -> n
   | BoolLiteral _ as b -> b
   | UnaryOp (Neg, e) -> (
-      match interpret e with
+      match interpret_expr e with
       | IntLiteral n -> IntLiteral (-n)
       | v -> type_error (Ast.string_of_uop Neg) [ type_of v ])
   | UnaryOp (Not, e) -> (
-      match interpret e with
+      match interpret_expr e with
       | BoolLiteral b -> BoolLiteral (not b)
       | v -> type_error (Ast.string_of_uop Not) [ type_of v ])
   | BinaryOp (op, l, r) -> interpret_binary op l r
-  | Statement e -> interpret e
-  | EmptyStmt -> EmptyStmt
-  | CompoundStmt statements ->
-      let rec interpret_seq last_non_empty = function
-        | [] -> last_non_empty
-        | stmt :: rest ->
-            let value = interpret stmt in
-            let last_non_empty =
-              match value with
-              | EmptyStmt -> last_non_empty
-              | _ -> value
-            in
-            interpret_seq last_non_empty rest
-      in
-      interpret_seq EmptyStmt statements
   | _ -> failwith "todo" [@coverage off]
 
-(* short circuiting *)
+(** interprets a binary logical operation with short circuiting *)
 and interpret_binary op l r =
   match op with
   | Ast.And -> (
-      match interpret l with
+      match interpret_expr l with
       | BoolLiteral false -> BoolLiteral false
-      | l_val -> interpret_binop Ast.And l_val (interpret r))
+      | l_val -> interpret_binop Ast.And l_val (interpret_expr r))
   | Ast.Or -> (
-      match interpret l with
+      match interpret_expr l with
       | BoolLiteral true -> BoolLiteral true
-      | l_val -> interpret_binop Ast.Or l_val (interpret r))
-  | _ -> interpret_binop op (interpret l) (interpret r)
+      | l_val -> interpret_binop Ast.Or l_val (interpret_expr r))
+  | _ -> interpret_binop op (interpret_expr l) (interpret_expr r)
 
-(* actual evaluates the binary operators *)
+(** evaluates all binary operators *)
 and interpret_binop op l r =
   let te () = type_error (Ast.string_of_op op) [ type_of l; type_of r ] in
   match (l, r) with
@@ -91,3 +77,15 @@ and interpret_binop op l r =
       | Ast.Neq -> BoolLiteral (a <> b)
       | _ -> te ())
   | _ -> te ()
+
+let rec interpret : Ast.stmt -> Ast.expr option = function
+  | ExprStmt e -> Some (interpret_expr e)
+  | EmptyStmt -> None
+  | CompoundStmt stmts ->
+      List.fold_left
+        (fun last stmt ->
+          match interpret stmt with
+          | None -> last
+          | some -> some)
+        None stmts
+  | _ -> failwith "todo" [@coverage off]

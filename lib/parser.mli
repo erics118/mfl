@@ -5,4 +5,4 @@ exception Parse_error of string
 
 (** [parse input] parses [input] into an ast
     @raise Parse_error if the input is malformed *)
-val parse : string -> Ast.expr
+val parse : string -> Ast.stmt

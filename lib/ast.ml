@@ -31,14 +31,19 @@ type expr =
   | IntLiteral of int
   | BoolLiteral of bool
   | VarRef of string
-  | BinaryOp of op * expr * expr (* binary operators *)
-  | UnaryOp of uop * expr (* unary operators *)
-  | Statement of expr (* complete statement (currently just an expr) *)
+  | BinaryOp of op * expr * expr
+  | UnaryOp of uop * expr
+  | Ternary of expr * expr * expr
+  | FuncCall of {
+      name : string;
+      args : expr list;
+    }
+
+type stmt =
+  | ExprStmt of expr
   | ReturnStmt of expr option
   | EmptyStmt
-  | CompoundStmt of expr list (* sequence of statements surrounded by braces *)
-  | Ternary of expr * expr * expr (* ternary operator *)
-  (* typed variable definition: <type> <name> = <expr>; *)
+  | CompoundStmt of stmt list
   | VarDef of {
       var_type : var_type;
       name : string;
@@ -48,11 +53,7 @@ type expr =
       ret_type : var_type;
       name : string;
       params : (var_type * string) list;
-      body : expr list; (* list of Statement *)
-    }
-  | FuncCall of {
-      name : string;
-      args : expr list;
+      body : stmt list;
     }
 
 let precedence = function

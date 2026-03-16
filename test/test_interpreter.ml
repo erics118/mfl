@@ -2,16 +2,20 @@ open OUnit2
 open Mfl
 
 (* Helpers for parse-based tests *)
+let pp_opt_expr = function
+  | None -> "(none)"
+  | Some e -> Pretty.pp_expr e
+
 let check_int expected input =
-  assert_equal ~printer:Pretty.pp_expr (Ast.IntLiteral expected)
+  assert_equal ~printer:pp_opt_expr (Some (Ast.IntLiteral expected))
     (Interpreter.interpret (Parser.parse input))
 
 let check_bool expected input =
-  assert_equal ~printer:Pretty.pp_expr (Ast.BoolLiteral expected)
+  assert_equal ~printer:pp_opt_expr (Some (Ast.BoolLiteral expected))
     (Interpreter.interpret (Parser.parse input))
 
 let check_empty input =
-  assert_equal ~printer:Pretty.pp_expr Ast.EmptyStmt
+  assert_equal ~printer:pp_opt_expr None
     (Interpreter.interpret (Parser.parse input))
 
 let check_type_error msg input =
