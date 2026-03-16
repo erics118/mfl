@@ -63,6 +63,9 @@ and codegen_stmt = function
       codegen_func ret_type name params body
   | Ast.ReturnStmt (Some e) -> ignore (Llvm.build_ret (codegen_expr e) builder)
   | Ast.ReturnStmt None -> ignore (Llvm.build_ret_void builder)
+  | Ast.ExprStmt e -> ignore (codegen_expr e)
+  | Ast.EmptyStmt -> ()
+  | Ast.CompoundStmt stmts -> List.iter codegen_stmt stmts
   | _ -> failwith "unimplemented"
 
 let codegen_program stmts =
