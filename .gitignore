@@ -43,3 +43,6 @@ _coverage
 .direnv
 .devenv
 .envrc
+
+# compiler output
+out/

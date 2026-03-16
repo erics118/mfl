@@ -12,11 +12,25 @@ let () =
     prerr_endline "Usage: mfl <FILE>";
     exit 1);
   let file = Sys.argv.(1) in
-  match read_file file |> Parser.parse |> Pretty.pp_stmt with
-  | result -> print_endline result
-  | exception Sys_error msg ->
-      Printf.eprintf "io error: %s\n" msg;
-      exit 1
-  | exception Parser.Parse_error msg ->
-      Printf.eprintf "parse error: %s\n" msg;
-      exit 1
+  let stmt =
+    match read_file file with
+    | s -> (
+        match Parser.parse s with
+        | stmt -> stmt
+        | exception Parser.Parse_error msg ->
+            Printf.eprintf "parse error: %s\n" msg;
+            exit 1)
+    | exception Sys_error msg ->
+        Printf.eprintf "io error: %s\n" msg;
+        exit 1
+  in
+  let expr =
+    match stmt with
+    | Ast.ExprStmt e -> e
+    | Ast.CompoundStmt [ Ast.ExprStmt e ] -> e
+    | _ ->
+        Printf.eprintf "error: expected a single expression statement\n";
+        exit 1
+  in
+  Codegen.codegen_program expr;
+  print_string (Codegen.emit_ir ())
