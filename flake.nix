@@ -18,23 +18,38 @@
 
       perSystem =
         { pkgs, ... }:
+        let
+          # ocaml llvm bindings do not compile properly on macos without this fix
+          ocamlLlvm =
+            if pkgs.stdenv.isDarwin then
+              pkgs.ocamlPackages.llvm.overrideAttrs (old: {
+                postPatch = (old.postPatch or "") + ''
+                  substituteInPlace llvm/cmake/modules/AddOCaml.cmake \
+                    --replace-fail '"''${bin}/dll''${name}''${CMAKE_SHARED_LIBRARY_SUFFIX}"' '"''${bin}/dll''${name}.so"'
+                  substituteInPlace llvm/cmake/modules/AddOCaml.cmake \
+                    --replace-fail 'ext STREQUAL CMAKE_SHARED_LIBRARY_SUFFIX' 'ext STREQUAL ".so"'
+                '';
+              })
+            else
+              pkgs.ocamlPackages.llvm;
+        in
         {
           devShells.default = pkgs.mkShell {
             packages = with pkgs; [
-            ocaml
-            opam
-            dune_3
-            ocamlPackages.odoc
-            ocamlPackages.ocaml-lsp
-            ocamlPackages.ocamlformat
-            ocamlPackages.merlin
-            ocamlPackages.utop
-            ocamlPackages.ounit2
-            ocamlPackages.ppxlib
-            ocamlPackages.bisect_ppx
-            llvm_19
-          ];
+              ocaml
+              opam
+              dune_3
+              ocamlPackages.odoc
+              ocamlPackages.ocaml-lsp
+              ocamlPackages.ocamlformat
+              ocamlPackages.merlin
+              ocamlPackages.utop
+              ocamlPackages.ounit2
+              ocamlPackages.ppxlib
+              ocamlPackages.bisect_ppx
+              ocamlLlvm
+            ];
+          };
         };
-      };
     };
 }
