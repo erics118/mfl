@@ -69,8 +69,18 @@ type stmt =
       then_body : stmt;
       else_body : stmt option;
     }
-      (** [if (cond) { if_body }] or [if (cond) { if_body } else { else_body }]
-          is an if-else statement *)
+      (** [if (cond) if_body] or [if (cond) if_body else else_body] is an
+          if-else statement *)
+  | WhileLoop of {
+      cond : expr;
+      body : stmt;
+    }  (** [while (cond) body] is a while loop *)
+  | ForLoop of {
+      init : stmt;
+      cond : expr;
+      incr : expr;
+      body : stmt;
+    }  (** [for (init; cond; incr) body] is a while loop *)
 
 (** [precedence op] returns the binding precedence of [op] higher numbers bind
     more tightly *)

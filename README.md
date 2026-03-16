@@ -10,14 +10,14 @@ c-like language implemented in ocaml from scratch
 - [x] interpreter with type checking
 - [x] support for statements with `;`
 - [x] add statement blocks blocks with  `{}`
-- [ ] `int` variable declarations and assignment
-- [ ] `bool`/`_Bool` variable declarations and assignment
-- [ ] `if`/`else` control flow
+- [x] `int` variable declarations and assignment
+- [x] `bool`/`_Bool` variable declarations and assignment
+- [x] `if`/`else` control flow
+- [x] `return` statements
+- [x] basic function definitions and calls
+- [x] function definitions with parameters and different return types
 - [ ] `while` loops
 - [ ] variable scoping
-- [ ] `return` statements
-- [ ] basic function definitions and calls
-- [ ] function definitions with parameters and different return types
 
 
 ## how to run

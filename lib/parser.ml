@@ -162,6 +162,8 @@ let rec parse_statement st =
       Ast.CompoundStmt (parse_compound_stmt st [])
   | ReturnKw -> parse_return_stmt st
   | IfKw -> parse_if st
+  | WhileKw -> parse_while st
+  | ForKw -> parse_for st
   | _ when looks_like_definition st -> parse_def st
   | Semicolon ->
       consume st Semicolon;
@@ -223,6 +225,25 @@ and parse_if st =
     | _ -> None
   in
   If { cond; then_body; else_body }
+
+and parse_while st =
+  consume st WhileKw;
+  consume st LParen;
+  let cond = parse_expr st in
+  consume st RParen;
+  let body = parse_statement st in
+  Ast.WhileLoop { cond; body }
+
+and parse_for st =
+  consume st ForKw;
+  consume st LParen;
+  let init = parse_statement st in
+  let cond = parse_expr st in
+  consume st Semicolon;
+  let incr = parse_expr st in
+  consume st RParen;
+  let body = parse_statement st in
+  Ast.ForLoop { init; cond; incr; body }
 
 let parse input =
   let st = create (Lexer.create input) in

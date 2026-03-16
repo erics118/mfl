@@ -37,6 +37,10 @@ let test_identifiers_and_keywords _ =
   check [ IntKw ] "int";
   check [ BoolKw ] "bool";
   check [ ReturnKw ] "return";
+  check [ IfKw ] "if";
+  check [ ElseKw ] "else";
+  check [ WhileKw ] "while";
+  check [ ForKw ] "for";
   check [ Identifier "x" ] "x";
   check [ Identifier "CustomType" ] "CustomType";
   check [ Identifier "abc1" ] "abc1";
@@ -143,6 +147,10 @@ let test_string_of_token _ =
   assert_equal "int" (Token.string_of_token IntKw);
   assert_equal "bool" (Token.string_of_token BoolKw);
   assert_equal "return" (Token.string_of_token ReturnKw);
+  assert_equal "if" (Token.string_of_token IfKw);
+  assert_equal "else" (Token.string_of_token ElseKw);
+  assert_equal "while" (Token.string_of_token WhileKw);
+  assert_equal "for" (Token.string_of_token ForKw);
   assert_equal "x" (Token.string_of_token (Identifier "x"));
   assert_equal "+" (Token.string_of_token (BinaryOp "+"));
   assert_equal "!" (Token.string_of_token (UnaryOp "!"));

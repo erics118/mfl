@@ -154,6 +154,15 @@ let test_if _ =
   roundtrip
     "if (true) {\n    1;\n} else if (false) {\n    2;\n} else {\n    3;\n}"
 
+let test_while _ =
+  roundtrip "while (true) {}";
+  roundtrip "while (i < 10) {\n    i + 1;\n}";
+  roundtrip "while (true) {\n    if (x) {\n        return;\n    }\n}"
+
+let test_for _ =
+  roundtrip "for (int i = 0; i < 10; i + 1) {\n    i;\n}";
+  roundtrip "for (int i = 0; i < n; i + 1) {}"
+
 let test_errors _ =
   fails "unexpected end of input" "";
   fails "unexpected end of input" "1 +";
@@ -201,6 +210,8 @@ let tests =
          "ternary" >:: test_ternary;
          "compound_statements" >:: test_compound_statements;
          "if" >:: test_if;
+         "while" >:: test_while;
+         "for" >:: test_for;
          "errors" >:: test_errors;
        ]
 

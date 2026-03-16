@@ -15,6 +15,8 @@ type token =
   | ReturnKw
   | IfKw
   | ElseKw
+  | WhileKw
+  | ForKw
   | LBrace
   | RBrace
   | QuestionMark
@@ -41,3 +43,5 @@ let string_of_token = function
   | ReturnKw -> "return"
   | IfKw -> "if"
   | ElseKw -> "else"
+  | WhileKw -> "while"
+  | ForKw -> "for"

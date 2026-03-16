@@ -18,6 +18,8 @@ type token =
   | ReturnKw  (** [return] keyword *)
   | IfKw  (** [if] keyword *)
   | ElseKw  (** [else] keyword *)
+  | WhileKw  (** [while] keyword *)
+  | ForKw  (** [for] keyword *)
   | LBrace  (** [{] *)
   | RBrace  (** [}] *)
   | QuestionMark  (** [?] for the ternary operator *)

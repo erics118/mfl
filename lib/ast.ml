@@ -60,6 +60,16 @@ type stmt =
       then_body : stmt;
       else_body : stmt option;
     }
+  | WhileLoop of {
+      cond : expr;
+      body : stmt;
+    }
+  | ForLoop of {
+      init : stmt;
+      cond : expr;
+      incr : expr;
+      body : stmt;
+    }
 
 let precedence = function
   | Or -> 10
