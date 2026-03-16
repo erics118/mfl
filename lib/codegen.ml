@@ -41,26 +41,39 @@ and codegen_expr = function
   | Ast.BinaryOp (op, lhs, rhs) -> codegen_binop op lhs rhs
   | _ -> failwith "unimplemented"
 
-let codegen_program expr =
-  let printint_ty =
-    Llvm.function_type (Llvm.void_type context) [| int_type |]
+and llvm_type = function
+  | Ast.VarType "int" -> int_type
+  | Ast.VarType "bool" -> bool_type
+  | Ast.VarType t -> failwith ("unknown type: " ^ t)
+
+and codegen_func ret_type name params body =
+  let param_types =
+    Array.of_list (List.map (fun (t, _) -> llvm_type t) params)
   in
-  let printint_fn = Llvm.declare_function "printint" printint_ty the_module in
-  let printbool_ty =
-    Llvm.function_type (Llvm.void_type context) [| bool_type |]
-  in
-  let printbool_fn =
-    Llvm.declare_function "printbool" printbool_ty the_module
-  in
-  let main_ty = Llvm.function_type (Llvm.i32_type context) [||] in
-  let main_fn = Llvm.define_function "main" main_ty the_module in
-  Llvm.position_at_end (Llvm.entry_block main_fn) builder;
-  let result = codegen_expr expr in
-  let print_fn, print_ty =
-    if Llvm.type_of result = int_type then (printint_fn, printint_ty)
-    else (printbool_fn, printbool_ty)
-  in
-  ignore (Llvm.build_call print_ty print_fn [| result |] "" builder);
-  ignore (Llvm.build_ret (Llvm.const_int (Llvm.i32_type context) 0) builder)
+  let ty = Llvm.function_type (llvm_type ret_type) param_types in
+  let fn = Llvm.define_function name ty the_module in
+  List.iteri
+    (fun i (_, pname) -> Llvm.set_value_name pname (Llvm.param fn i))
+    params;
+  Llvm.position_at_end (Llvm.entry_block fn) builder;
+  List.iter codegen_stmt body
+
+and codegen_stmt = function
+  | Ast.FuncDef { ret_type; name; params; body } ->
+      codegen_func ret_type name params body
+  | Ast.ReturnStmt (Some e) -> ignore (Llvm.build_ret (codegen_expr e) builder)
+  | Ast.ReturnStmt None -> ignore (Llvm.build_ret_void builder)
+  | _ -> failwith "unimplemented"
+
+let codegen_program stmts =
+  ignore
+    (Llvm.declare_function "printint"
+       (Llvm.function_type (Llvm.void_type context) [| int_type |])
+       the_module);
+  ignore
+    (Llvm.declare_function "printbool"
+       (Llvm.function_type (Llvm.void_type context) [| bool_type |])
+       the_module);
+  List.iter codegen_stmt stmts
 
 let emit_ir () = Llvm.string_of_llmodule the_module

@@ -24,13 +24,10 @@ let () =
         Printf.eprintf "io error: %s\n" msg;
         exit 1
   in
-  let expr =
+  let stmts =
     match stmt with
-    | Ast.ExprStmt e -> e
-    | Ast.CompoundStmt [ Ast.ExprStmt e ] -> e
-    | _ ->
-        Printf.eprintf "error: expected a single expression statement\n";
-        exit 1
+    | Ast.CompoundStmt stmts -> stmts
+    | _ -> [ stmt ]
   in
-  Codegen.codegen_program expr;
+  Codegen.codegen_program stmts;
   print_string (Codegen.emit_ir ())
