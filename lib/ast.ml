@@ -71,7 +71,7 @@ type stmt =
   | ForLoop of {
       init : stmt;
       cond : expr;
-      incr : expr;
+      incr : stmt;
       body : stmt;
     }
 

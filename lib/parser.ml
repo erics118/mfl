@@ -246,7 +246,7 @@ and parse_for st =
   let init = parse_statement st in
   let cond = parse_expr st in
   consume st Semicolon;
-  let incr = parse_expr st in
+  let incr = parse_statement st in
   consume st RParen;
   let body = parse_statement st in
   Ast.ForLoop { init; cond; incr; body }

@@ -117,7 +117,7 @@ and pp_stmt_internal ?(top_level = true) ?(indent = 0) stmt =
         Printf.sprintf "while (%s) %s" (pp_expr_ cond) (pp_body body)
     | ForLoop { init; cond; incr; body } ->
         Printf.sprintf "for (%s; %s; %s) %s" (pp_for_init init) (pp_expr_ cond)
-          (pp_expr_ incr) (pp_body body)
+          (pp_stmt_internal incr) (pp_body body)
   in
   p ^ rest
 

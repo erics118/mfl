@@ -116,6 +116,53 @@ and codegen_if cond then_body else_body =
   (* all future codegen continues in the merge block *)
   Llvm.position_at_end merge_bb builder
 
+and codegen_while_loop cond body =
+  let fn = Llvm.block_parent (Llvm.insertion_block builder) in
+  let cond_bb = Llvm.append_block context "while_cond" fn in
+  let body_bb = Llvm.append_block context "while_body" fn in
+  let after_bb = Llvm.append_block context "while_after" fn in
+  (* go into cond *)
+  ignore (Llvm.build_br cond_bb builder);
+  (* evaluate cond, then branch *)
+  Llvm.position_at_end cond_bb builder;
+  let c = codegen_expr cond in
+  ignore (Llvm.build_cond_br c body_bb after_bb builder);
+  (* run the body, then jump back to cond *)
+  Llvm.position_at_end body_bb builder;
+  codegen_stmt body;
+  br_if_open cond_bb;
+  Llvm.position_at_end after_bb builder
+
+and codegen_for_loop init cond incr body =
+  let fn = Llvm.block_parent (Llvm.insertion_block builder) in
+  let init_bb = Llvm.append_block context "for_init" fn in
+  let cond_bb = Llvm.append_block context "for_cond" fn in
+  let incr_bb = Llvm.append_block context "for_incr" fn in
+  let body_bb = Llvm.append_block context "for_body" fn in
+  let after_bb = Llvm.append_block context "for_after" fn in
+  (* execute init first *)
+  ignore (Llvm.build_br init_bb builder);
+  Llvm.position_at_end init_bb builder;
+  codegen_stmt init;
+
+  (* go into cond *)
+  ignore (Llvm.build_br cond_bb builder);
+  (* evaluate cond, then branch *)
+  Llvm.position_at_end cond_bb builder;
+  let c = codegen_expr cond in
+  ignore (Llvm.build_cond_br c body_bb after_bb builder);
+  (* run the body *)
+  Llvm.position_at_end body_bb builder;
+  codegen_stmt body;
+  (* jump back to incr *)
+  br_if_open incr_bb;
+  (* run the incr *)
+  Llvm.position_at_end incr_bb builder;
+  codegen_stmt incr;
+  (* jump back to cond *)
+  br_if_open cond_bb;
+  Llvm.position_at_end after_bb builder
+
 and codegen_ternary cond then_e else_e =
   let c = codegen_expr cond in
   let fn = Llvm.block_parent (Llvm.insertion_block builder) in
@@ -189,8 +236,9 @@ and codegen_stmt = function
           ignore (Llvm.build_store (codegen_expr value) ptr builder)
       | None -> failwith ("undefined variable: " ^ name))
   | Ast.If { cond; then_body; else_body } -> codegen_if cond then_body else_body
-  | Ast.WhileLoop _ -> failwith "todo"
-  | Ast.ForLoop _ -> failwith "todo"
+  | Ast.WhileLoop { cond; body } -> codegen_while_loop cond body
+  | Ast.ForLoop { init; cond; incr; body } ->
+      codegen_for_loop init cond incr body
 
 let codegen_program stmts =
   let printint_ty =

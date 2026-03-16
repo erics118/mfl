@@ -82,7 +82,7 @@ type stmt =
   | ForLoop of {
       init : stmt;
       cond : expr;
-      incr : expr;
+      incr : stmt;
       body : stmt;
     }  (** [for (init; cond; incr) body] is a while loop *)
 
