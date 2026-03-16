@@ -7,9 +7,10 @@ let () =
 let builder = Llvm.builder context
 let int_type = Llvm.i32_type context
 let bool_type = Llvm.i1_type context
+let locals : (string, Llvm.lltype * Llvm.llvalue) Hashtbl.t = Hashtbl.create 16
 
 (* config to enable/disable ssa, only so we can see the un-optimized values *)
-let ssa = false
+let ssa = true
 
 let codegen_int n =
   if ssa then Llvm.const_int int_type n
@@ -43,6 +44,11 @@ and codegen_expr = function
   | Ast.IntLiteral n -> codegen_int n
   | Ast.BoolLiteral b -> Llvm.const_int bool_type (if b then 1 else 0)
   | Ast.BinaryOp (op, lhs, rhs) -> codegen_binop op lhs rhs
+  | Ast.VarRef name -> begin
+      match Hashtbl.find_opt locals name with
+      | Some (ty, ptr) -> Llvm.build_load ty ptr name builder
+      | None -> failwith ("undefined variable: " ^ name)
+    end
   | _ -> failwith "unimplemented"
 
 and llvm_type = function
@@ -56,8 +62,16 @@ and codegen_func ret_type name params body =
   in
   let ty = Llvm.function_type (llvm_type ret_type) param_types in
   let fn = Llvm.define_function name ty the_module in
+  Hashtbl.clear locals;
   List.iteri
-    (fun i (_, pname) -> Llvm.set_value_name pname (Llvm.param fn i))
+    (fun i (ptype, pname) ->
+      let param = Llvm.param fn i in
+      Llvm.set_value_name pname param;
+      Llvm.position_at_end (Llvm.entry_block fn) builder;
+      let ty = llvm_type ptype in
+      let ptr = Llvm.build_alloca ty pname builder in
+      ignore (Llvm.build_store param ptr builder);
+      Hashtbl.replace locals pname (ty, ptr))
     params;
   Llvm.position_at_end (Llvm.entry_block fn) builder;
   List.iter codegen_stmt body
@@ -70,7 +84,19 @@ and codegen_stmt = function
   | Ast.ExprStmt e -> ignore (codegen_expr e)
   | Ast.EmptyStmt -> ()
   | Ast.CompoundStmt stmts -> List.iter codegen_stmt stmts
-  | _ -> failwith "unimplemented"
+  | Ast.VarDef { var_type; name; init } ->
+      let ty = llvm_type var_type in
+      let ptr = Llvm.build_alloca ty name builder in
+      ignore (Llvm.build_store (codegen_expr init) ptr builder);
+      Hashtbl.replace locals name (ty, ptr)
+  | Ast.AssignStmt { name; value } -> (
+      match Hashtbl.find_opt locals name with
+      | Some (_, ptr) ->
+          ignore (Llvm.build_store (codegen_expr value) ptr builder)
+      | None -> failwith ("undefined variable: " ^ name))
+  | Ast.If _ -> failwith "todo"
+  | Ast.WhileLoop _ -> failwith "todo"
+  | Ast.ForLoop _ -> failwith "todo"
 
 let codegen_program stmts =
   ignore
