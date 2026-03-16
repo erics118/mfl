@@ -74,7 +74,10 @@ and codegen_func ret_type name params body =
       Hashtbl.replace locals pname (ty, ptr))
     params;
   Llvm.position_at_end (Llvm.entry_block fn) builder;
-  List.iter codegen_stmt body
+  List.iter codegen_stmt body;
+  (* add return 0; to main if missing *)
+  if (not (block_terminated ())) && name = "main" then
+    ignore (Llvm.build_ret (Llvm.const_null (llvm_type ret_type)) builder)
 
 and codegen_stmt = function
   | Ast.FuncDef { ret_type; name; params; body } ->
