@@ -52,6 +52,8 @@ let read_ident st =
   | "int" -> IntKw
   | "bool" -> BoolKw
   | "return" -> ReturnKw
+  | "if" -> IfKw
+  | "else" -> ElseKw
   | s -> Identifier s
 
 let peek2 st =

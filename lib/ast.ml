@@ -55,6 +55,11 @@ type stmt =
       params : (var_type * string) list;
       body : stmt list;
     }
+  | If of {
+      cond : expr;
+      then_body : stmt;
+      else_body : stmt option;
+    }
 
 let precedence = function
   | Or -> 10

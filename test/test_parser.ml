@@ -146,6 +146,14 @@ let test_compound_statements _ =
   roundtrip "1;\n{\n    2;\n    3;\n}\n4;";
   roundtrip "{\n    ;\n    ;\n}"
 
+let test_if _ =
+  roundtrip "if (true) {}";
+  roundtrip "if (true) {\n    1;\n}";
+  roundtrip "if (true) {\n    1;\n} else {\n    2;\n}";
+  roundtrip "if (true) {\n    1;\n} else if (false) {\n    2;\n}";
+  roundtrip
+    "if (true) {\n    1;\n} else if (false) {\n    2;\n} else {\n    3;\n}"
+
 let test_errors _ =
   fails "unexpected end of input" "";
   fails "unexpected end of input" "1 +";
@@ -192,6 +200,7 @@ let tests =
          "function_calls" >:: test_function_calls;
          "ternary" >:: test_ternary;
          "compound_statements" >:: test_compound_statements;
+         "if" >:: test_if;
          "errors" >:: test_errors;
        ]
 

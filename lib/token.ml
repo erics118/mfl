@@ -13,6 +13,8 @@ type token =
   | Semicolon
   | Comma
   | ReturnKw
+  | IfKw
+  | ElseKw
   | LBrace
   | RBrace
   | QuestionMark
@@ -37,3 +39,5 @@ let string_of_token = function
   | UnaryOp x -> x
   | Assign -> "="
   | ReturnKw -> "return"
+  | IfKw -> "if"
+  | ElseKw -> "else"

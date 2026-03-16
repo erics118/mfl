@@ -16,6 +16,8 @@ type token =
   | Semicolon  (** [;] *)
   | Comma  (** [,] *)
   | ReturnKw  (** [return] keyword *)
+  | IfKw  (** [if] keyword *)
+  | ElseKw  (** [else] keyword *)
   | LBrace  (** [{] *)
   | RBrace  (** [}] *)
   | QuestionMark  (** [?] for the ternary operator *)

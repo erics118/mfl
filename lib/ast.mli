@@ -64,6 +64,13 @@ type stmt =
       params : (var_type * string) list;
       body : stmt list;
     }  (** [ret_type name(params) { body }] defines a function *)
+  | If of {
+      cond : expr;
+      then_body : stmt;
+      else_body : stmt option;
+    }
+      (** [if (cond) { if_body }] or [if (cond) { if_body } else { else_body }]
+          is an if-else statement *)
 
 (** [precedence op] returns the binding precedence of [op] higher numbers bind
     more tightly *)

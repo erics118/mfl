@@ -78,5 +78,27 @@ and pp_stmt_internal ?(top_level = true) ?(indent = 0) = function
           name
           (string_of_var_type_list params)
           (pp_block_ ~indent body)
+  | If { cond; then_body; else_body } -> begin
+      (* recursively check the statement, so we handle the else-if properly *)
+      let rec pp_body stmt =
+        match stmt with
+        | CompoundStmt stmts -> pp_block_ ~indent stmts
+        | If { cond; then_body; else_body } -> (
+            match else_body with
+            | Some e ->
+                Printf.sprintf "if (%s) %s else %s" (pp_expr_ cond)
+                  (pp_body then_body) (pp_body e)
+            | None ->
+                Printf.sprintf "if (%s) %s" (pp_expr_ cond) (pp_body then_body))
+        | s -> pp_block_ ~indent [ s ]
+      in
+      pad indent
+      ^
+      match else_body with
+      | Some e ->
+          Printf.sprintf "if (%s) %s else %s" (pp_expr_ cond)
+            (pp_body then_body) (pp_body e)
+      | None -> Printf.sprintf "if (%s) %s" (pp_expr_ cond) (pp_body then_body)
+    end
 
 let pp_stmt s = pp_stmt_internal s

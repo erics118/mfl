@@ -161,6 +161,7 @@ let rec parse_statement st =
       consume st LBrace;
       Ast.CompoundStmt (parse_compound_stmt st [])
   | ReturnKw -> parse_return_stmt st
+  | IfKw -> parse_if st
   | _ when looks_like_definition st -> parse_def st
   | Semicolon ->
       consume st Semicolon;
@@ -206,6 +207,22 @@ and parse_def st =
   | Assign -> parse_var_def_tail st var_type name
   | LParen -> parse_func_def_tail st var_type name
   | _ -> raise (Parse_error "expected '='")
+
+and parse_if st =
+  consume st IfKw;
+  consume st LParen;
+  let cond = parse_expr st in
+  consume st RParen;
+  let then_body = parse_statement st in
+  let else_body =
+    match st.cur_tok with
+    | ElseKw ->
+        consume st ElseKw;
+        let s = parse_statement st in
+        Some s
+    | _ -> None
+  in
+  If { cond; then_body; else_body }
 
 let parse input =
   let st = create (Lexer.create input) in
