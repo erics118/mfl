@@ -1,4 +1,8 @@
 int main() {
-    int x = 1 + 2 + 5;
-    return x;
+    int a = 1 + 2 + 5;
+    int b = 10;
+    bool c = true;
+    int d = true;
+    int z = (b = 1);
+    return z;
 }

@@ -85,7 +85,12 @@ and codegen_expr = function
   | FuncCall { name; args } -> codegen_func_call name args
   | Ast.Assign { name; value } -> (
       match Hashtbl.find_opt locals name with
-      | Some (_, ptr) -> Llvm.build_store (codegen_expr value) ptr builder
+      | Some (_, ptr) ->
+          (* codegen, then return the assigned value, so we can do int x = y =
+             2 *)
+          let v = codegen_expr value in
+          ignore (Llvm.build_store v ptr builder);
+          v
       | None -> failwith ("undefined variable: " ^ name))
 
 (* true if the current block already ends with a terminator (ret, br, etc.) *)
