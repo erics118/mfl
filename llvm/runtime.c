@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-void printint(int64_t i) {
-  printf("%lld\n", (long long)i);
+void printint(int32_t i) {
+  printf("%d\n", i);
 }
 
 void printbool(int b) {

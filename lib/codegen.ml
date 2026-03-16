@@ -1,7 +1,7 @@
 let context = Llvm.global_context ()
 let the_module = Llvm.create_module context "mfl"
 let builder = Llvm.builder context
-let int_type = Llvm.i64_type context
+let int_type = Llvm.i32_type context
 let bool_type = Llvm.i1_type context
 
 (* config to enable/disable ssa, only so we can see the un-optimized values *)
