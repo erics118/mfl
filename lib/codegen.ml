@@ -4,17 +4,19 @@ let builder = Llvm.builder context
 let int_type = Llvm.i64_type context
 let bool_type = Llvm.i1_type context
 
-(* optionally disable ssa so we can see exact code in the ll *)
-let rec integer_to_llvm n =
-  if false then Llvm.const_int int_type n
+(* config to enable/disable ssa, only so we can see the un-optimized values *)
+let ssa = false
+
+let codegen_int n =
+  if ssa then Llvm.const_int int_type n
   else
     let ptr = Llvm.build_alloca int_type "numptr" builder in
     ignore (Llvm.build_store (Llvm.const_int int_type n) ptr builder);
     Llvm.build_load int_type ptr "num" builder
 
-and binary_to_llvm op lhs rhs =
-  let lv = expr_to_llvm lhs in
-  let rv = expr_to_llvm rhs in
+let rec codegen_binop op lhs rhs =
+  let lv = codegen_expr lhs in
+  let rv = codegen_expr rhs in
   match op with
   | Ast.Add -> Llvm.build_add lv rv "addtmp" builder
   | Ast.Sub -> Llvm.build_sub lv rv "subtmp" builder
@@ -33,10 +35,10 @@ and binary_to_llvm op lhs rhs =
   | Ast.BitOr -> Llvm.build_or lv rv "bortmp" builder
   | Ast.BitXor -> Llvm.build_xor lv rv "xortmp" builder
 
-and expr_to_llvm = function
-  | Ast.IntLiteral n -> integer_to_llvm n
+and codegen_expr = function
+  | Ast.IntLiteral n -> codegen_int n
   | Ast.BoolLiteral b -> Llvm.const_int bool_type (if b then 1 else 0)
-  | Ast.BinaryOp (op, lhs, rhs) -> binary_to_llvm op lhs rhs
+  | Ast.BinaryOp (op, lhs, rhs) -> codegen_binop op lhs rhs
   | _ -> failwith "unimplemented"
 
 let codegen_program expr =
@@ -53,7 +55,7 @@ let codegen_program expr =
   let main_ty = Llvm.function_type (Llvm.i32_type context) [||] in
   let main_fn = Llvm.define_function "main" main_ty the_module in
   Llvm.position_at_end (Llvm.entry_block main_fn) builder;
-  let result = expr_to_llvm expr in
+  let result = codegen_expr expr in
   let print_fn, print_ty =
     if Llvm.type_of result = int_type then (printint_fn, printint_ty)
     else (printbool_fn, printbool_ty)
