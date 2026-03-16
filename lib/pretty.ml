@@ -39,6 +39,7 @@ let rec pp_expr_ ?(parent_prec = 0) = function
   | FuncCall { name; args } ->
       let args_str = String.concat ", " (List.map pp_expr_ args) in
       Printf.sprintf "%s(%s)" name args_str
+  | Assign { name; value } -> Printf.sprintf "%s = %s" name (pp_expr_ value)
 
 let pp_expr e = pp_expr_ e
 
@@ -71,17 +72,6 @@ and pp_stmt_internal ?(top_level = true) ?(indent = 0) stmt =
       end
     | s -> pp_block_ ~indent [ s ]
   in
-  let pp_for_init = function
-    | VarDef { var_type; name; init } ->
-        Printf.sprintf "%s %s = %s"
-          (string_of_var_type var_type)
-          name (pp_expr_ init)
-    | AssignStmt { name; value } ->
-        Printf.sprintf "%s = %s" name (pp_expr_ value)
-    | ExprStmt e -> pp_expr_ e
-    | EmptyStmt -> ""
-    | _ -> assert false
-  in
   let rest =
     match stmt with
     | ExprStmt e -> pp_expr_ e ^ ";"
@@ -93,8 +83,6 @@ and pp_stmt_internal ?(top_level = true) ?(indent = 0) stmt =
           String.concat "\n"
             (List.map (pp_stmt_internal ~top_level:false ~indent) stmts)
         else pp_block_ ~indent stmts
-    | AssignStmt { name; value } ->
-        Printf.sprintf "%s = %s;" name (pp_expr_ value)
     | VarDef { var_type; name; init } ->
         Printf.sprintf "%s %s = %s;"
           (string_of_var_type var_type)
@@ -116,8 +104,8 @@ and pp_stmt_internal ?(top_level = true) ?(indent = 0) stmt =
     | WhileLoop { cond; body } ->
         Printf.sprintf "while (%s) %s" (pp_expr_ cond) (pp_body body)
     | ForLoop { init; cond; incr; body } ->
-        Printf.sprintf "for (%s; %s; %s) %s" (pp_for_init init) (pp_expr_ cond)
-          (pp_stmt_internal incr) (pp_body body)
+        Printf.sprintf "for (%s; %s; %s) %s" (pp_stmt_internal init)
+          (pp_expr_ cond) (pp_expr_ incr) (pp_body body)
   in
   p ^ rest
 

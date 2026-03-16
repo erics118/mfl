@@ -38,6 +38,10 @@ type expr =
       name : string;
       args : expr list;
     }
+  | Assign of {
+      name : string;
+      value : expr;
+    }
 
 type stmt =
   | ExprStmt of expr
@@ -60,10 +64,6 @@ type stmt =
       then_body : stmt;
       else_body : stmt option;
     }
-  | AssignStmt of {
-      name : string;
-      value : expr;
-    }
   | WhileLoop of {
       cond : expr;
       body : stmt;
@@ -71,7 +71,7 @@ type stmt =
   | ForLoop of {
       init : stmt;
       cond : expr;
-      incr : stmt;
+      incr : expr;
       body : stmt;
     }
 

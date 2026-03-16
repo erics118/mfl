@@ -83,6 +83,10 @@ and codegen_expr = function
   | UnaryOp (op, expr) -> codegen_uop op expr
   | Ternary (cond, then_e, else_e) -> codegen_ternary cond then_e else_e
   | FuncCall { name; args } -> codegen_func_call name args
+  | Ast.Assign { name; value } -> (
+      match Hashtbl.find_opt locals name with
+      | Some (_, ptr) -> Llvm.build_store (codegen_expr value) ptr builder
+      | None -> failwith ("undefined variable: " ^ name))
 
 (* true if the current block already ends with a terminator (ret, br, etc.) *)
 and block_terminated () =
@@ -133,7 +137,7 @@ and codegen_while_loop cond body =
   br_if_open cond_bb;
   Llvm.position_at_end after_bb builder
 
-and codegen_for_loop init cond incr body =
+and codegen_for_loop init cond (incr : Ast.expr) body =
   let fn = Llvm.block_parent (Llvm.insertion_block builder) in
   let init_bb = Llvm.append_block context "for_init" fn in
   let cond_bb = Llvm.append_block context "for_cond" fn in
@@ -158,7 +162,7 @@ and codegen_for_loop init cond incr body =
   br_if_open incr_bb;
   (* run the incr *)
   Llvm.position_at_end incr_bb builder;
-  codegen_stmt incr;
+  ignore (codegen_expr incr);
   (* jump back to cond *)
   br_if_open cond_bb;
   Llvm.position_at_end after_bb builder
@@ -230,11 +234,6 @@ and codegen_stmt = function
       let ptr = Llvm.build_alloca ty name builder in
       ignore (Llvm.build_store (codegen_expr init) ptr builder);
       Hashtbl.replace locals name (ty, ptr)
-  | Ast.AssignStmt { name; value } -> (
-      match Hashtbl.find_opt locals name with
-      | Some (_, ptr) ->
-          ignore (Llvm.build_store (codegen_expr value) ptr builder)
-      | None -> failwith ("undefined variable: " ^ name))
   | Ast.If { cond; then_body; else_body } -> codegen_if cond then_body else_body
   | Ast.WhileLoop { cond; body } -> codegen_while_loop cond body
   | Ast.ForLoop { init; cond; incr; body } ->

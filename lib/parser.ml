@@ -65,6 +65,10 @@ and parse_identifier_expr st =
       let args = parse_rparen_list st parse_expr in
       consume st RParen;
       Ast.FuncCall { name; args }
+  | Assign ->
+      consume st Assign;
+      let value = parse_expr st in
+      Ast.Assign { name; value }
   | _ -> Ast.VarRef name
 
 and parse_primary st =
@@ -164,12 +168,6 @@ let rec parse_statement st =
   | IfKw -> parse_if st
   | WhileKw -> parse_while st
   | ForKw -> parse_for st
-  | Identifier name when Lexer.peek_next_token st.lex = Assign ->
-      get_next_token st;
-      consume st Assign;
-      let value = parse_expr st in
-      consume st Semicolon;
-      Ast.AssignStmt { name; value }
   | _ when looks_like_definition st -> parse_def st
   | Semicolon ->
       consume st Semicolon;
@@ -246,7 +244,7 @@ and parse_for st =
   let init = parse_statement st in
   let cond = parse_expr st in
   consume st Semicolon;
-  let incr = parse_statement st in
+  let incr = parse_expr st in
   consume st RParen;
   let body = parse_statement st in
   Ast.ForLoop { init; cond; incr; body }

@@ -44,6 +44,10 @@ type expr =
       name : string;
       args : expr list;
     }  (** [name(args)] is a function call *)
+  | Assign of {
+      name : string;
+      value : expr;
+    }  (** [name = value] assigns a value to an existing variable *)
 
 (** statements *)
 type stmt =
@@ -71,10 +75,6 @@ type stmt =
     }
       (** [if (cond) if_body] or [if (cond) if_body else else_body] is an
           if-else statement *)
-  | AssignStmt of {
-      name : string;
-      value : expr;
-    }  (** [name = value;] assigns a value to an existing variable *)
   | WhileLoop of {
       cond : expr;
       body : stmt;
@@ -82,7 +82,7 @@ type stmt =
   | ForLoop of {
       init : stmt;
       cond : expr;
-      incr : stmt;
+      incr : expr;
       body : stmt;
     }  (** [for (init; cond; incr) body] is a while loop *)
 
