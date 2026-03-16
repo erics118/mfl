@@ -28,6 +28,7 @@
                     --replace-fail '"''${bin}/dll''${name}''${CMAKE_SHARED_LIBRARY_SUFFIX}"' '"''${bin}/dll''${name}.so"'
                   substituteInPlace llvm/cmake/modules/AddOCaml.cmake \
                     --replace-fail 'ext STREQUAL CMAKE_SHARED_LIBRARY_SUFFIX' 'ext STREQUAL ".so"'
+                  sed -i '/-Wl,-rpath.*CAMLORIGIN/d' llvm/cmake/modules/AddOCaml.cmake
                 '';
               })
             else
