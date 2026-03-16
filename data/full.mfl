@@ -1,0 +1,9 @@
+int main() {
+    int x = 5;
+    printbool(x == 3);
+    if (x == 3) {
+        printint(x);
+    } else {
+        printint(x - 1);
+    }
+}

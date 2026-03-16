@@ -11,6 +11,11 @@ let bool_type = Llvm.i1_type context
 (* maps variable names to (type, alloca ptr) within the current function *)
 let locals : (string, Llvm.lltype * Llvm.llvalue) Hashtbl.t = Hashtbl.create 16
 
+(* in llvm, pointers are opaque so we can't get the type info from it. instead,
+   we manually the type info. in the future, implement a typechecker to do this
+   instead *)
+let func_types : (string, Llvm.lltype) Hashtbl.t = Hashtbl.create 16
+
 (* when true, emit integer constants directly instead of alloca/store/load *)
 let ssa = true
 
@@ -48,7 +53,23 @@ and codegen_uop op expr =
   | Ast.Neg -> Llvm.build_neg v "" builder
   | Ast.Not -> Llvm.build_not v "nottmp" builder
 
-and codegen_func_call _name _args = failwith ""
+and codegen_func_call name args =
+  let fn =
+    match Llvm.lookup_function name the_module with
+    | Some f -> f
+    | None -> failwith ("undefined function: " ^ name)
+  in
+  let fn_ty =
+    match Hashtbl.find_opt func_types name with
+    | Some t -> t
+    | None -> failwith ("unknown function type: " ^ name)
+  in
+  let arg_vals = Array.of_list (List.map codegen_expr args) in
+  (* if fun_ty is void, then it doesn't need a name *)
+  let name =
+    if Llvm.return_type fn_ty = Llvm.void_type context then "" else "calltmp"
+  in
+  Llvm.build_call fn_ty fn arg_vals name builder
 
 and codegen_expr = function
   | Ast.IntLiteral n -> codegen_int n
@@ -128,6 +149,7 @@ and codegen_func ret_type name params body =
   in
   let ty = Llvm.function_type (llvm_type ret_type) param_types in
   let fn = Llvm.define_function name ty the_module in
+  Hashtbl.replace func_types name ty;
   (* clear scope for each function. no global variables atm *)
   Hashtbl.clear locals;
   (* allocate each param on the stack and store the incoming value, so params
@@ -171,14 +193,16 @@ and codegen_stmt = function
   | Ast.ForLoop _ -> failwith "todo"
 
 let codegen_program stmts =
-  ignore
-    (Llvm.declare_function "printint"
-       (Llvm.function_type (Llvm.void_type context) [| int_type |])
-       the_module);
-  ignore
-    (Llvm.declare_function "printbool"
-       (Llvm.function_type (Llvm.void_type context) [| bool_type |])
-       the_module);
+  let printint_ty =
+    Llvm.function_type (Llvm.void_type context) [| int_type |]
+  in
+  ignore (Llvm.declare_function "printint" printint_ty the_module);
+  Hashtbl.replace func_types "printint" printint_ty;
+  let printbool_ty =
+    Llvm.function_type (Llvm.void_type context) [| bool_type |]
+  in
+  ignore (Llvm.declare_function "printbool" printbool_ty the_module);
+  Hashtbl.replace func_types "printbool" printbool_ty;
   List.iter codegen_stmt stmts
 
 let emit_ir () = Llvm.string_of_llmodule the_module
