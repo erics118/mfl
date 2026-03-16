@@ -1,6 +1,6 @@
 # mfl
 
-c-like language implemented in ocaml from scratch
+c implemented in ocaml using llvm from scratch
 
 ## features
 
@@ -34,7 +34,13 @@ dune exec mfl -- "1 * 8 >= 2 && 1 / 0;" # true, short circuits and doesn't error
 
 ## sources
 
+initial code is based off of, but written in ocaml instead of haskell: [Daniel J. Harvey's blog](https://danieljharvey.github.io/llvm-compiler-part-1/) 
+
 resources:
-- https://danieljharvey.github.io/llvm-compiler-part-1/
-- https://blog.josephmorag.com/posts/mcc1/
-- http://troydm.github.io/blog/2014/03/29/writing-micro-compiler-in-ocaml/
+- https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/index.html
+- https://blog.josephmorag.com/posts/mcc1/  
+- https://mapping-high-level-constructs-to-llvm-ir.readthedocs.io/en/latest/
+
+possible code resources:
+- https://github.com/arbipher/llvm-ocaml-tutorial/
+- https://github.com/adamrk/llvm-ocaml-tutorial
