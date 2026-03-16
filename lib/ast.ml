@@ -60,6 +60,10 @@ type stmt =
       then_body : stmt;
       else_body : stmt option;
     }
+  | AssignStmt of {
+      name : string;
+      value : expr;
+    }
   | WhileLoop of {
       cond : expr;
       body : stmt;

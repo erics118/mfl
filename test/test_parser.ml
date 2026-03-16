@@ -159,9 +159,15 @@ let test_while _ =
   roundtrip "while (i < 10) {\n    i + 1;\n}";
   roundtrip "while (true) {\n    if (x) {\n        return;\n    }\n}"
 
+let test_assign _ =
+  roundtrip "x = 1;";
+  roundtrip "x = 1 + 2;";
+  roundtrip "{\n    x = 0;\n    x = x + 1;\n}"
+
 let test_for _ =
   roundtrip "for (int i = 0; i < 10; i + 1) {\n    i;\n}";
-  roundtrip "for (int i = 0; i < n; i + 1) {}"
+  roundtrip "for (int i = 0; i < n; i + 1) {}";
+  roundtrip "for (x = 0; x < 10; x + 1) {\n    x;\n}"
 
 let test_errors _ =
   fails "unexpected end of input" "";
@@ -172,7 +178,7 @@ let test_errors _ =
   fails "expected ';'" "int x = 3";
   fails "expected identifier" "bool = true;";
   fails "expected '='" "bool x true;";
-  fails "expected ';'" "UserType = 1;";
+  (* fails "expected ';'" "UserType = 1;"; *)
   fails "expected '='" "UserType x 1;";
   fails "expected ';'" "return 1";
   fails "unexpected end of input" "return";
@@ -210,6 +216,7 @@ let tests =
          "ternary" >:: test_ternary;
          "compound_statements" >:: test_compound_statements;
          "if" >:: test_if;
+         "assign" >:: test_assign;
          "while" >:: test_while;
          "for" >:: test_for;
          "errors" >:: test_errors;

@@ -71,6 +71,10 @@ type stmt =
     }
       (** [if (cond) if_body] or [if (cond) if_body else else_body] is an
           if-else statement *)
+  | AssignStmt of {
+      name : string;
+      value : expr;
+    }  (** [name = value;] assigns a value to an existing variable *)
   | WhileLoop of {
       cond : expr;
       body : stmt;

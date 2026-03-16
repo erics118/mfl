@@ -164,6 +164,12 @@ let rec parse_statement st =
   | IfKw -> parse_if st
   | WhileKw -> parse_while st
   | ForKw -> parse_for st
+  | Identifier name when Lexer.peek_next_token st.lex = Assign ->
+      get_next_token st;
+      consume st Assign;
+      let value = parse_expr st in
+      consume st Semicolon;
+      Ast.AssignStmt { name; value }
   | _ when looks_like_definition st -> parse_def st
   | Semicolon ->
       consume st Semicolon;

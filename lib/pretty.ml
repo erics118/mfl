@@ -61,51 +61,64 @@ and pp_stmt_internal ?(top_level = true) ?(indent = 0) stmt =
   let rec pp_body stmt =
     match stmt with
     | CompoundStmt stmts -> pp_block_ ~indent stmts
-    | If { cond; then_body; else_body } ->
-        (match else_body with
-         | Some e ->
-             Printf.sprintf "if (%s) %s else %s" (pp_expr_ cond)
-               (pp_body then_body) (pp_body e)
-         | None ->
-             Printf.sprintf "if (%s) %s" (pp_expr_ cond) (pp_body then_body))
+    | If { cond; then_body; else_body } -> begin
+        match else_body with
+        | Some e ->
+            Printf.sprintf "if (%s) %s else %s" (pp_expr_ cond)
+              (pp_body then_body) (pp_body e)
+        | None ->
+            Printf.sprintf "if (%s) %s" (pp_expr_ cond) (pp_body then_body)
+      end
     | s -> pp_block_ ~indent [ s ]
   in
   let pp_for_init = function
     | VarDef { var_type; name; init } ->
-        Printf.sprintf "%s %s = %s" (string_of_var_type var_type) name (pp_expr_ init)
+        Printf.sprintf "%s %s = %s"
+          (string_of_var_type var_type)
+          name (pp_expr_ init)
+    | AssignStmt { name; value } ->
+        Printf.sprintf "%s = %s" name (pp_expr_ value)
     | ExprStmt e -> pp_expr_ e
     | EmptyStmt -> ""
     | _ -> assert false
   in
-  match stmt with
-  | ExprStmt e -> p ^ pp_expr_ e ^ ";"
-  | ReturnStmt None -> p ^ "return;"
-  | ReturnStmt (Some e) -> p ^ "return " ^ pp_expr_ e ^ ";"
-  | EmptyStmt -> p ^ ";"
-  | CompoundStmt stmts ->
-      if top_level then
-        String.concat "\n"
-          (List.map (pp_stmt_internal ~top_level:false ~indent) stmts)
-      else pp_block_ ~indent stmts
-  | VarDef { var_type; name; init } ->
-      p ^ Printf.sprintf "%s %s = %s;" (string_of_var_type var_type) name (pp_expr_ init)
-  | FuncDef { ret_type; name; params; body } ->
-      p ^ Printf.sprintf "%s %s(%s) %s"
-            (string_of_var_type ret_type)
-            name
-            (string_of_var_type_list params)
-            (pp_block_ ~indent body)
-  | If { cond; then_body; else_body } ->
-      p ^ (match else_body with
-           | Some e ->
-               Printf.sprintf "if (%s) %s else %s" (pp_expr_ cond)
-                 (pp_body then_body) (pp_body e)
-           | None ->
-               Printf.sprintf "if (%s) %s" (pp_expr_ cond) (pp_body then_body))
-  | WhileLoop { cond; body } ->
-      p ^ Printf.sprintf "while (%s) %s" (pp_expr_ cond) (pp_body body)
-  | ForLoop { init; cond; incr; body } ->
-      p ^ Printf.sprintf "for (%s; %s; %s) %s"
-            (pp_for_init init) (pp_expr_ cond) (pp_expr_ incr) (pp_body body)
+  let rest =
+    match stmt with
+    | ExprStmt e -> pp_expr_ e ^ ";"
+    | ReturnStmt None -> "return;"
+    | ReturnStmt (Some e) -> "return " ^ pp_expr_ e ^ ";"
+    | EmptyStmt -> ";"
+    | CompoundStmt stmts ->
+        if top_level then
+          String.concat "\n"
+            (List.map (pp_stmt_internal ~top_level:false ~indent) stmts)
+        else pp_block_ ~indent stmts
+    | AssignStmt { name; value } ->
+        Printf.sprintf "%s = %s;" name (pp_expr_ value)
+    | VarDef { var_type; name; init } ->
+        Printf.sprintf "%s %s = %s;"
+          (string_of_var_type var_type)
+          name (pp_expr_ init)
+    | FuncDef { ret_type; name; params; body } ->
+        Printf.sprintf "%s %s(%s) %s"
+          (string_of_var_type ret_type)
+          name
+          (string_of_var_type_list params)
+          (pp_block_ ~indent body)
+    | If { cond; then_body; else_body } -> begin
+        match else_body with
+        | Some e ->
+            Printf.sprintf "if (%s) %s else %s" (pp_expr_ cond)
+              (pp_body then_body) (pp_body e)
+        | None ->
+            Printf.sprintf "if (%s) %s" (pp_expr_ cond) (pp_body then_body)
+      end
+    | WhileLoop { cond; body } ->
+        Printf.sprintf "while (%s) %s" (pp_expr_ cond) (pp_body body)
+    | ForLoop { init; cond; incr; body } ->
+        Printf.sprintf "for (%s; %s; %s) %s" (pp_for_init init) (pp_expr_ cond)
+          (pp_expr_ incr) (pp_body body)
+  in
+  p ^ rest
 
 let pp_stmt s = pp_stmt_internal s
