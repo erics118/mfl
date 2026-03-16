@@ -23,14 +23,23 @@ c implemented in ocaml using llvm from scratch
 
 ## how to run
 
-currently, it returns the value of the last expression in the input
+the compiler emits LLVM IR to stdout. compile and link with `clang` and the runtime:
 
 ```sh
-# evaluate an expression
-dune exec mfl -- "1 + 2 * 3;" # 7
-dune exec mfl -- "1 + 2; 4 + 5;" # 9
-dune exec mfl -- "1 <= 3;" # true
-dune exec mfl -- "1 * 8 >= 2 && 1 / 0;" # true, short circuits and doesn't error
+# compile to IR
+dune exec mfl -- program.mfl > program.ll
+
+# link with runtime and produce a binary
+clang llvm/runtime.c program.ll -o program
+
+# run
+./program
+```
+
+or as a one-liner:
+
+```sh
+dune exec mfl -- program.mfl | clang llvm/runtime.c -x ir - -o program && ./program
 ```
 
 ## sources
