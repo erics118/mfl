@@ -1,0 +1,113 @@
+open Ast
+
+type type_error =
+  | UnknownType of string
+  | UnboundVariable of string
+  | UnboundFunction of string
+  | ArityMismatch of string * int * int (* name, expected, got *)
+  | InfixTypeMismatch of op * typ * typ
+  | UnaryTypeMismatch of uop * typ
+  | TypeMismatch of typ * typ (* expected, got *)
+  | CondNotBool of typ
+
+exception Type_error of pos * type_error
+
+let string_of_typ = function
+  | Int -> "int"
+  | Bool -> "bool"
+  | Void -> "void"
+
+let string_of_type_error = function
+  | UnknownType t -> Printf.sprintf "unknown type '%s'" t
+  | UnboundVariable x -> Printf.sprintf "unbound variable '%s'" x
+  | UnboundFunction f -> Printf.sprintf "unbound function '%s'" f
+  | ArityMismatch (f, expected, got) ->
+      Printf.sprintf "'%s' expects %d argument(s) but got %d" f expected got
+  | InfixTypeMismatch (op, lt, rt) ->
+      Printf.sprintf "operator '%s': type mismatch between '%s' and '%s'"
+        (string_of_op op) (string_of_typ lt) (string_of_typ rt)
+  | UnaryTypeMismatch (op, t) ->
+      Printf.sprintf "operator '%s': invalid operand type '%s'"
+        (string_of_uop op) (string_of_typ t)
+  | TypeMismatch (expected, got) ->
+      Printf.sprintf "expected type '%s' but got '%s'" (string_of_typ expected)
+        (string_of_typ got)
+  | CondNotBool t ->
+      Printf.sprintf "condition must be 'bool' but got '%s'" (string_of_typ t)
+
+type func_sig = {
+  params : typ list;
+  ret : typ;
+}
+
+type env = {
+  vars : (string, typ) Hashtbl.t;
+  funcs : (string, func_sig) Hashtbl.t;
+  return_typ : typ option;
+}
+
+let typ_of_var_type pos = function
+  | VarType "int" -> Int
+  | VarType "bool" -> Bool
+  | VarType "void" -> Void
+  | VarType t -> raise (Type_error (pos, UnknownType t))
+
+let expr_typ : checked expr -> typ = function
+  | IntLiteral (ann, _) -> typ_of ann
+  | BoolLiteral (ann, _) -> typ_of ann
+  | VarRef (ann, _) -> typ_of ann
+  | BinaryOp (ann, _, _, _) -> typ_of ann
+  | UnaryOp (ann, _, _) -> typ_of ann
+  | Ternary (ann, _, _, _) -> typ_of ann
+  | FuncCall (ann, _, _) -> typ_of ann
+  | Assign (ann, _, _) -> typ_of ann
+
+let rec typecheck_expr env = function
+  | IntLiteral (ann, n) -> IntLiteral (Checked (pos_of ann, Int), n)
+  | BoolLiteral (ann, b) -> BoolLiteral (Checked (pos_of ann, Bool), b)
+  | BinaryOp (ann, op, lhs, rhs) ->
+      let lhs' = typecheck_expr env lhs in
+      let rhs' = typecheck_expr env rhs in
+      let lt = expr_typ lhs' and rt = expr_typ rhs' in
+      let pos = pos_of ann in
+      let err e = raise (Type_error (pos, e)) in
+      let result_typ =
+        match op with
+        | Add
+        | Sub
+        | Mul
+        | Div
+        | Mod
+        | BitAnd
+        | BitOr
+        | BitXor
+        | LShift
+        | RShift ->
+            if lt = Int && rt = Int then Int
+            else err (InfixTypeMismatch (op, lt, rt))
+        | Less | Leq | Greater | Geq ->
+            if lt = Int && rt = Int then Bool
+            else err (InfixTypeMismatch (op, lt, rt))
+        | And | Or ->
+            if lt = Bool && rt = Bool then Bool
+            else err (InfixTypeMismatch (op, lt, rt))
+        | Equal | Neq ->
+            if lt = rt then Bool else err (InfixTypeMismatch (op, lt, rt))
+      in
+      BinaryOp (Checked (pos, result_typ), op, lhs', rhs')
+  | VarRef (_, _) -> failwith "todo"
+  | UnaryOp (ann, op, e) ->
+      let e' = typecheck_expr env e in
+      let t = expr_typ e' in
+      let pos = pos_of ann in
+      let err e = raise (Type_error (pos, e)) in
+      let result_typ =
+        match op with
+        | Not -> if t = Bool then Bool else err (UnaryTypeMismatch (op, t))
+        | Neg | Compl ->
+            if t = Int then Int else err (UnaryTypeMismatch (op, t))
+      in
+      UnaryOp (Checked (pos, result_typ), op, e')
+  | Ternary (_, _, _, _) -> failwith "todo"
+  | FuncCall (_, _, _) -> failwith "todo"
+  | Assign (_, _, _) -> failwith "todo"

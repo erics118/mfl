@@ -1,7 +1,7 @@
 (library
  (name mfl)
  (public_name mfl)
- (modules ast token lexer parser pretty codegen)
+ (modules ast token lexer parser typechecker pretty codegen)
  (libraries llvm)
  (instrumentation
   (backend bisect_ppx)))

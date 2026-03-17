@@ -1,5 +1,5 @@
 (tests
- (names test_lexer test_parser)
+ (names test_lexer test_parser test_typechecker)
  (libraries mfl ounit2)
  (instrumentation
   (backend bisect_ppx))

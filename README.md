@@ -146,6 +146,9 @@ resources:
 - https://blog.josephmorag.com/posts/mcc1/
 - https://mapping-high-level-constructs-to-llvm-ir.readthedocs.io/en/latest/
 
+gadt:
+- https://ocaml.org/manual/5.4/gadts-tutorial.html
+
 possible code resources:
 - https://github.com/arbipher/llvm-ocaml-tutorial/
 - https://github.com/adamrk/llvm-ocaml-tutorial
