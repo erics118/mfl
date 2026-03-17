@@ -36,6 +36,7 @@
         in
         {
           devShells.default = pkgs.mkShell {
+            NIX_CFLAGS_COMPILE = "-Wno-override-module";
             packages = with pkgs; [
               ocaml
               opam
