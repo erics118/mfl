@@ -154,12 +154,16 @@ let test_if _ =
   roundtrip "if (true) {\n    1;\n} else {\n    2;\n}";
   roundtrip "if (true) {\n    1;\n} else if (false) {\n    2;\n}";
   roundtrip
-    "if (true) {\n    1;\n} else if (false) {\n    2;\n} else {\n    3;\n}"
+    "if (true) {\n    1;\n} else if (false) {\n    2;\n} else {\n    3;\n}";
+  check "if (true) {\n    return;\n}" "if (true) return;";
+  check "if (true) {\n    return;\n} else {\n    return;\n}"
+    "if (true) return; else return;"
 
 let test_while _ =
   roundtrip "while (true) {}";
   roundtrip "while (i < 10) {\n    i + 1;\n}";
-  roundtrip "while (true) {\n    if (x) {\n        return;\n    }\n}"
+  roundtrip "while (true) {\n    if (x) {\n        return;\n    }\n}";
+  check "while (true) {\n    return;\n}" "while (true) return;"
 
 let test_assign _ =
   roundtrip "x = 1;";
@@ -169,7 +173,9 @@ let test_assign _ =
 let test_for _ =
   roundtrip "for (int i = 0; i < 10; i + 1) {\n    i;\n}";
   roundtrip "for (int i = 0; i < n; i + 1) {}";
-  roundtrip "for (x = 0; x < 10; x + 1) {\n    x;\n}"
+  roundtrip "for (x = 0; x < 10; x + 1) {\n    x;\n}";
+  check "for (int i = 0; i < 10; i + 1) {\n    return;\n}"
+    "for (int i = 0; i < 10; i + 1) return;"
 
 let test_errors _ =
   fails "unexpected end of input" "";

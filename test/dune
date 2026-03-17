@@ -3,8 +3,6 @@
  (libraries mfl ounit2)
  (instrumentation
   (backend bisect_ppx))
- (deps
-  (glob_files_rec ../data/*))
  (action
   (chdir
    %{workspace_root}

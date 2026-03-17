@@ -1,0 +1,9 @@
+int cmp(int x, int y) {
+    bool a = x == y;
+    bool b = x != y;
+    bool c = x < y;
+    bool d = x <= y;
+    bool e = x > y;
+    bool r = x >= y;
+    return 0;
+}

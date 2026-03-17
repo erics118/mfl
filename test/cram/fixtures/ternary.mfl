@@ -1,0 +1,3 @@
+int ternary(bool cond, int x, int y) {
+    return cond ? x : y;
+}

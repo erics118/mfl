@@ -1,0 +1,6 @@
+int bitwise(int x, int y) {
+    int a = x & y;
+    int b = x | y;
+    int c = x ^ y;
+    return c;
+}

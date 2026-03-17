@@ -1,0 +1,5 @@
+int unary(int x, bool b) {
+    int a = -x;
+    bool c = !b;
+    return a;
+}

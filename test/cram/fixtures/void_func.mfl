@@ -1,0 +1,7 @@
+void greet(int x) {
+    printint(x);
+}
+
+int main() {
+    greet(42);
+}

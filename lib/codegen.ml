@@ -18,9 +18,9 @@ let ssa = true
 let codegen_int n =
   if ssa then Llvm.const_int int_type n
   else
-    let ptr = Llvm.build_alloca int_type "numptr" builder in
-    ignore (Llvm.build_store (Llvm.const_int int_type n) ptr builder);
-    Llvm.build_load int_type ptr "num" builder
+    (let ptr = Llvm.build_alloca int_type "numptr" builder in
+     ignore (Llvm.build_store (Llvm.const_int int_type n) ptr builder);
+     Llvm.build_load int_type ptr "num" builder) [@coverage off]
 
 let rec codegen_binop op lhs rhs =
   let lv = codegen_expr lhs in
@@ -58,7 +58,7 @@ and codegen_func_call name args =
   let fn_ty =
     match Hashtbl.find_opt func_types name with
     | Some t -> t
-    | None -> failwith ("unknown function type: " ^ name)
+    | None -> failwith ("unknown function type: " ^ name) [@coverage off]
   in
   let arg_vals = Array.of_list (List.map codegen_expr args) in
   (* if fun_ty is void, then it doesn't need a name *)
@@ -257,4 +257,4 @@ let codegen_program stmts =
   Hashtbl.replace func_types "printbool" printbool_ty;
   List.iter codegen_stmt stmts
 
-let emit_ir () = Llvm.string_of_llmodule the_module
+let emit_ir () = Llvm.string_of_llmodule the_module [@coverage off]

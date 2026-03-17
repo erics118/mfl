@@ -1,0 +1,7 @@
+int bool_ops(bool x, bool y) {
+    bool a = x && y;
+    bool b = x || y;
+    bool c = true;
+    bool d = false;
+    return 0;
+}
