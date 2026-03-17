@@ -10,4 +10,4 @@ exception Div_by_zero of Ast.pos
     or [None] if no value was produced.
     @raise Type_error if operand types are invalid
     @raise Div_by_zero on division by zero *)
-val interpret : Ast.stmt -> Ast.parsed Ast.expr option
+val interpret : Ast.parsed Ast.stmt -> Ast.parsed Ast.expr option

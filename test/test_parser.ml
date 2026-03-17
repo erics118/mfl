@@ -9,7 +9,7 @@ let roundtrip expected = check expected expected
 let fails err input =
   match Parser.parse input with
   | _ -> assert_failure (Printf.sprintf "expected Parse_error for: %s" input)
-  | exception (Parser.Parse_error (_, m)) -> assert_equal ~printer:Fun.id err m
+  | exception Parser.Parse_error (_, m) -> assert_equal ~printer:Fun.id err m
 
 let test_literals _ =
   roundtrip ";";

@@ -77,40 +77,40 @@ type 'a expr =
   | Assign : 'a ann * string * 'a expr -> 'a expr
 
 (** statements *)
-type stmt =
-  | ExprStmt of parsed expr  (** [expr;] is a single expression *)
-  | ReturnStmt of parsed expr option
+type 'a stmt =
+  | ExprStmt of 'a expr  (** [expr;] is a single expression *)
+  | ReturnStmt of 'a expr option
       (** [return expr;] or [return;] returns a value from a function *)
   | EmptyStmt  (** [;] is an empty statement *)
-  | CompoundStmt of stmt list
+  | CompoundStmt of 'a stmt list
       (** sequence of statements surrounded by braces *)
   | VarDef of {
       var_type : var_type;
       name : string;
-      init : parsed expr;
+      init : 'a expr;
     }  (** [var_type name = init;] defines a variable with an initial value *)
   | FuncDef of {
       ret_type : var_type;
       name : string;
       params : (var_type * string) list;
-      body : stmt list;
+      body : 'a stmt list;
     }  (** [ret_type name(params) { body }] defines a function *)
   | If of {
-      cond : parsed expr;
-      then_body : stmt;
-      else_body : stmt option;
+      cond : 'a expr;
+      then_body : 'a stmt;
+      else_body : 'a stmt option;
     }
       (** [if (cond) if_body] or [if (cond) if_body else else_body] is an
           if-else statement *)
   | WhileLoop of {
-      cond : parsed expr;
-      body : stmt;
+      cond : 'a expr;
+      body : 'a stmt;
     }  (** [while (cond) body] is a while loop *)
   | ForLoop of {
-      init : stmt;
-      cond : parsed expr;
-      incr : parsed expr;
-      body : stmt;
+      init : 'a stmt;
+      cond : 'a expr;
+      incr : 'a expr;
+      body : 'a stmt;
     }  (** [for (init; cond; incr) body] is a for loop *)
 
 (** [precedence op] returns the binding precedence of [op] higher numbers bind

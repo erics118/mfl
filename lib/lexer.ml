@@ -13,19 +13,20 @@ type state = {
   mutable tok_col : int;
 }
 
-let create input = { input; pos = 0; line = 1; col = 1; tok_line = 1; tok_col = 1 }
+let create input =
+  { input; pos = 0; line = 1; col = 1; tok_line = 1; tok_col = 1 }
+
 let has_more st = st.pos < String.length st.input
 let peek st = if has_more st then Some st.input.[st.pos] else None
 
 let advance st =
-  (if has_more st && st.input.[st.pos] = '\n' then (
-     st.line <- st.line + 1;
-     st.col <- 1)
-   else st.col <- st.col + 1);
+  if has_more st && st.input.[st.pos] = '\n' then (
+    st.line <- st.line + 1;
+    st.col <- 1)
+  else st.col <- st.col + 1;
   st.pos <- st.pos + 1
 
 let tok_pos st = Ast.{ line = st.tok_line; col = st.tok_col }
-
 let is_digit c = c >= '0' && c <= '9'
 let is_alpha c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c = '_'
 
@@ -53,7 +54,9 @@ let read_number st =
       advance_while (fun c -> is_alpha c || is_digit c) st;
       let bad_literal = String.sub st.input start (st.pos - start) in
       raise
-        (Lex_error (tok_pos st, Printf.sprintf "invalid numeric literal '%s'" bad_literal))
+        (Lex_error
+           ( tok_pos st,
+             Printf.sprintf "invalid numeric literal '%s'" bad_literal ))
   | _ ->
       let literal = String.sub st.input start (st.pos - start) in
       TokInt (int_of_string literal)
@@ -155,7 +158,9 @@ let next_token st =
       TokBinaryOp (String.make 1 op)
   | Some c when is_digit c -> read_number st
   | Some c when is_alpha c -> read_ident st
-  | Some c -> raise (Lex_error (tok_pos st, Printf.sprintf "unexpected character '%c'" c))
+  | Some c ->
+      raise
+        (Lex_error (tok_pos st, Printf.sprintf "unexpected character '%c'" c))
 
 let peek_token st =
   let saved_pos = st.pos in

@@ -32,9 +32,8 @@ let op_of_str s =
   | Some op -> op
   | None ->
       raise
-        (Parse_error
-           (Ast.dummy_pos, Printf.sprintf "unknown operator '%s'" s))
-        [@coverage off]
+        (Parse_error (Ast.dummy_pos, Printf.sprintf "unknown operator '%s'" s))
+      [@coverage off]
 
 let cur_precedence st =
   match st.cur_tok with
@@ -101,8 +100,7 @@ and parse_primary st =
   | TokEof -> raise (Parse_error (pos, "unexpected end of input"))
   | _ ->
       raise
-        (Parse_error
-           (pos, "unknown token: '" ^ string_of_token st.cur_tok ^ "'"))
+        (Parse_error (pos, "unknown token: '" ^ string_of_token st.cur_tok ^ "'"))
 
 and parse_binop_rhs st expr_prec lhs =
   let prec = cur_precedence st in

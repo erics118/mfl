@@ -22,7 +22,7 @@ let check expected input =
 let lex_fails err input =
   match tokenize input with
   | _ -> assert_failure (Printf.sprintf "expected Lex_error for: %s" input)
-  | exception (Lexer.Lex_error (_, m)) -> assert_equal ~printer:Fun.id err m
+  | exception Lexer.Lex_error (_, m) -> assert_equal ~printer:Fun.id err m
 
 let test_semicolons _ =
   check [] "";

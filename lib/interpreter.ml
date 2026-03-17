@@ -80,7 +80,7 @@ and interpret_binop pos op l r =
       | _ -> te ())
   | _ -> te ()
 
-let rec interpret : Ast.stmt -> Ast.parsed Ast.expr option = function
+let rec interpret : Ast.parsed Ast.stmt -> Ast.parsed Ast.expr option = function
   | ExprStmt e -> Some (interpret_expr e)
   | EmptyStmt -> None
   | CompoundStmt stmts ->

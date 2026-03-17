@@ -71,36 +71,36 @@ type 'a expr =
   | FuncCall : 'a ann * string * 'a expr list -> 'a expr
   | Assign : 'a ann * string * 'a expr -> 'a expr
 
-type stmt =
-  | ExprStmt of parsed expr
-  | ReturnStmt of parsed expr option
+type 'a stmt =
+  | ExprStmt of 'a expr
+  | ReturnStmt of 'a expr option
   | EmptyStmt
-  | CompoundStmt of stmt list
+  | CompoundStmt of 'a stmt list
   | VarDef of {
       var_type : var_type;
       name : string;
-      init : parsed expr;
+      init : 'a expr;
     }
   | FuncDef of {
       ret_type : var_type;
       name : string;
       params : (var_type * string) list;
-      body : stmt list;
+      body : 'a stmt list;
     }
   | If of {
-      cond : parsed expr;
-      then_body : stmt;
-      else_body : stmt option;
+      cond : 'a expr;
+      then_body : 'a stmt;
+      else_body : 'a stmt option;
     }
   | WhileLoop of {
-      cond : parsed expr;
-      body : stmt;
+      cond : 'a expr;
+      body : 'a stmt;
     }
   | ForLoop of {
-      init : stmt;
-      cond : parsed expr;
-      incr : parsed expr;
-      body : stmt;
+      init : 'a stmt;
+      cond : 'a expr;
+      incr : 'a expr;
+      body : 'a stmt;
     }
 
 let precedence = function

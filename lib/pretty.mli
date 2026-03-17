@@ -4,4 +4,4 @@
 val pp_expr : Ast.parsed Ast.expr -> string
 
 (** [pp_stmt s] renders a statement into a formatted source string *)
-val pp_stmt : Ast.stmt -> string
+val pp_stmt : Ast.parsed Ast.stmt -> string

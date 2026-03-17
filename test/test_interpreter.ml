@@ -20,7 +20,8 @@ let check_bool expected input =
       assert_equal ~printer:string_of_bool expected b
   | result ->
       assert_failure
-        (Printf.sprintf "expected bool %b, got: %s" expected (pp_opt_expr result))
+        (Printf.sprintf "expected bool %b, got: %s" expected
+           (pp_opt_expr result))
 
 let check_empty input =
   assert_equal ~printer:pp_opt_expr None
@@ -29,7 +30,7 @@ let check_empty input =
 let check_type_error msg input =
   match Parser.parse input |> Interpreter.interpret with
   | _ -> assert_failure (Printf.sprintf "expected Type_error for: %s" input)
-  | exception (Interpreter.Type_error (_, m)) ->
+  | exception Interpreter.Type_error (_, m) ->
       assert_equal ~printer:Fun.id msg m
 
 let test_literals _ =
@@ -61,10 +62,10 @@ let test_arithmetic _ =
   (* division by zero *)
   (match Interpreter.interpret (Parser.parse "1 / 0;") with
   | _ -> assert_failure "expected Div_by_zero"
-  | exception (Interpreter.Div_by_zero _) -> ());
+  | exception Interpreter.Div_by_zero _ -> ());
   (match Interpreter.interpret (Parser.parse "5 % 0;") with
   | _ -> assert_failure "expected Div_by_zero"
-  | exception (Interpreter.Div_by_zero _) -> ());
+  | exception Interpreter.Div_by_zero _ -> ());
   (* precedence *)
   check_int 7 "1 + 2 * 3;";
   check_int 9 "(1 + 2) * 3;";
@@ -146,10 +147,10 @@ let test_boolean_logic _ =
   check_bool true "true || (1 / 0 == 0);";
   (match Interpreter.interpret (Parser.parse "true && (1 / 0 == 0);") with
   | _ -> assert_failure "expected Div_by_zero"
-  | exception (Interpreter.Div_by_zero _) -> ());
-  (match Interpreter.interpret (Parser.parse "false || (1 / 0 == 0);") with
+  | exception Interpreter.Div_by_zero _ -> ());
+  match Interpreter.interpret (Parser.parse "false || (1 / 0 == 0);") with
   | _ -> assert_failure "expected Div_by_zero"
-  | exception (Interpreter.Div_by_zero _) -> ())
+  | exception Interpreter.Div_by_zero _ -> ()
 
 let test_bitwise _ =
   (* 011 & 101 = 001 *)
