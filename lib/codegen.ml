@@ -44,8 +44,8 @@ let rec codegen_binop op lhs rhs =
   | Ast.Leq -> Llvm.build_icmp Llvm.Icmp.Sle lv rv "letmp" builder
   | Ast.Greater -> Llvm.build_icmp Llvm.Icmp.Sgt lv rv "gttmp" builder
   | Ast.Geq -> Llvm.build_icmp Llvm.Icmp.Sge lv rv "getmp" builder
-  | Ast.And -> Llvm.build_and lv rv "andtmp" builder
-  | Ast.Or -> Llvm.build_or lv rv "ortmp" builder
+  | Ast.And | Ast.Or ->
+      assert false (* implemented separately *) [@coverage off]
   | Ast.BitAnd -> Llvm.build_and lv rv "bandtmp" builder
   | Ast.BitOr -> Llvm.build_or lv rv "bortmp" builder
   | Ast.BitXor -> Llvm.build_xor lv rv "xortmp" builder
@@ -77,9 +77,43 @@ and codegen_func_call name args =
   in
   Llvm.build_call fn_ty fn arg_vals name builder
 
+and codegen_and_binop lhs rhs =
+  let lv = codegen_expr lhs in
+  let lhs_bb = Llvm.insertion_block builder in
+  let fn = Llvm.block_parent lhs_bb in
+  let rhs_bb = Llvm.append_block context "and_rhs" fn in
+  let merge_bb = Llvm.append_block context "and_merge" fn in
+  (* if lhs is false, jump to merge. else evaluate rhs *)
+  ignore (Llvm.build_cond_br lv rhs_bb merge_bb builder);
+  Llvm.position_at_end rhs_bb builder;
+  let rv = codegen_expr rhs in
+  let rhs_bb' = Llvm.insertion_block builder in
+  ignore (Llvm.build_br merge_bb builder);
+  (* select either lhs or rhs *)
+  Llvm.position_at_end merge_bb builder;
+  Llvm.build_phi [ (lv, lhs_bb); (rv, rhs_bb') ] "andtmp" builder
+
+and codegen_or_binop lhs rhs =
+  let lv = codegen_expr lhs in
+  let lhs_bb = Llvm.insertion_block builder in
+  let fn = Llvm.block_parent lhs_bb in
+  let rhs_bb = Llvm.append_block context "or_rhs" fn in
+  let merge_bb = Llvm.append_block context "or_merge" fn in
+  (* if lhs is true, jump to merge. evaluate rhs *)
+  ignore (Llvm.build_cond_br lv merge_bb rhs_bb builder);
+  Llvm.position_at_end rhs_bb builder;
+  let rv = codegen_expr rhs in
+  let rhs_bb' = Llvm.insertion_block builder in
+  ignore (Llvm.build_br merge_bb builder);
+  (* select either lhs or rhs *)
+  Llvm.position_at_end merge_bb builder;
+  Llvm.build_phi [ (lv, lhs_bb); (rv, rhs_bb') ] "ortmp" builder
+
 and codegen_expr = function
   | Ast.IntLiteral n -> codegen_int n
   | Ast.BoolLiteral b -> Llvm.const_int bool_type (if b then 1 else 0)
+  | Ast.BinaryOp (Ast.And, lhs, rhs) -> codegen_and_binop lhs rhs
+  | Ast.BinaryOp (Ast.Or, lhs, rhs) -> codegen_or_binop lhs rhs
   | Ast.BinaryOp (op, lhs, rhs) -> codegen_binop op lhs rhs
   | Ast.VarRef name -> (
       (* load the value from the variable's alloca *)

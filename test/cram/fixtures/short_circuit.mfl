@@ -1,0 +1,11 @@
+bool side(int n) {
+    printint(n);
+    return true;
+}
+
+int main() {
+    bool a = false && side(1);
+    bool b = true  || side(2);
+    bool c = true  && side(3);
+    bool d = false || side(4);
+}

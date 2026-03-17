@@ -19,7 +19,7 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [x] arithmetic: `+`, `-`, `*`, `/`, `%`
 - [x] bitwise: `&`, `|`, `^`, `~`, `<<`, `>>`
 - [x] comparison: `==`, `!=`, `<`, `<=`, `>`, `>=`
-- [x] logical: `&&`, `||`, `!` (note: `&&`/`||` don't short-circuit yet)
+- [x] logical: `&&`, `||`, `!`
 - [x] unary negation: `-`
 - [x] operator precedence and associativity
 - [x] ternary: `?:`

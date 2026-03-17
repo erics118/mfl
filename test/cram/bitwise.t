@@ -45,8 +45,8 @@
     %b = alloca i32, align 4
     %x5 = load i32, ptr %x1, align 4
     %y6 = load i32, ptr %y2, align 4
-    %shrtmp = ashr i32 %x5, %y6
-    store i32 %shrtmp, ptr %b, align 4
+    %ashrtmp = ashr i32 %x5, %y6
+    store i32 %ashrtmp, ptr %b, align 4
     %a7 = load i32, ptr %a, align 4
     %b8 = load i32, ptr %b, align 4
     %addtmp = add i32 %a7, %b8

@@ -1,0 +1,8 @@
+bool safe_div(int x, int y) {
+    return y != 0 && x / y > 0;
+}
+
+int main() {
+    printbool(safe_div(10, 2));
+    printbool(safe_div(10, 0));
+}
