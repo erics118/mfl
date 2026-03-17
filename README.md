@@ -1,19 +1,106 @@
 # mfl
 
-subset of c implemented in ocaml compiled to LLVM IR, written in ocaml
+subset of C implemented in OCaml, compiled to LLVM IR
 
 ## features
 
-- [x] integers, booleans, arithmetic, bitwise, comparison, logical operators
+**types**
+- [x] `int`, `bool`, `void`
+- [ ] `char`, `short`, `long`, `long long`, unsigned variants
+- [ ] `float`, `double`
+- [ ] pointer types: `int *p`
+- [ ] array types: `int a[10]`
+- [ ] `struct`, `union`
+- [ ] `enum`
+- [ ] `typedef`
+- [ ] function pointer types
+
+**operators**
+- [x] arithmetic: `+`, `-`, `*`, `/`, `%`
+- [x] bitwise: `&`, `|`, `^`
+- [x] comparison: `==`, `!=`, `<`, `<=`, `>`, `>=`
+- [x] logical: `&&`, `||`, `!` (note: `&&`/`||` don't short-circuit yet)
+- [x] unary negation: `-`
 - [x] operator precedence and associativity
-- [x] interpreter with type checking (old, now it's a compiler)
-- [x] statements and blocks
-- [x] variable declarations and assignment of `int` and `bool` types
+- [x] ternary: `?:`
+- [ ] bitwise complement `~`
+- [ ] shift operators `<<`, `>>`
+- [ ] compound assignment: `+=`, `-=`, `*=`, `/=`, `&=`, `|=`, `^=`, `<<=`, `>>=`
+- [ ] increment/decrement: `++`, `--` (pre and post)
+- [ ] `sizeof`
+- [ ] comma operator
+
+**expressions**
+- [x] integer and boolean literals
+- [x] variable references
+- [x] assignment as expression (`int z = (x = 3)`)
+- [x] function calls
+- [ ] cast expressions: `(int)x`
+- [ ] address-of `&x` and dereference `*p`
+- [ ] subscript `a[i]`
+- [ ] member access `s.x`, `s->x`
+- [ ] char literals: `'a'`
+- [ ] string literals: `"hello"`
+- [ ] adjacent string literal concatenation: `"foo" "bar"`
+- [ ] string escape sequences: `\n`, `\t`, `\0`, `\\`, `\"`, `\xNN`
+- [ ] hex/octal/float literals: `0xFF`, `0777`, `3.14`
+- [ ] integer suffixes: `42UL`, `1LL`
+
+**statements**
+- [x] variable declarations with initializer: `int x = 0`
 - [x] `if`/`else`
-- [x] `while` and `for` loops
+- [x] `while`, `for`
 - [x] `return`
-- [x] function definitions and calls (`int`, `bool`, `void` return types)
-- [x] ternary expressions
+- [x] blocks / compound statements
+- [ ] `break`, `continue`
+- [ ] `do`/`while`
+- [ ] `switch`/`case`/`default`
+- [ ] `goto` and labels
+- [ ] `for` with optional init/cond/incr (e.g. `for (;;)`)
+- [ ] `for` init declaration: `for (int i = 0; ...)`
+- [ ] uninitialized declarations: `int x;`
+- [ ] multiple declarators: `int x = 0, y = 1;`
+
+**functions**
+- [x] definitions and calls with parameters
+- [x] `int`, `bool`, `void` return types
+- [x] implicit `return 0` for `main`, implicit `ret void` for void functions
+- [ ] forward declarations: `int foo(int x);`
+- [ ] `extern` declarations
+- [ ] variadic functions: `va_list`, `va_start`, `va_end`
+- [ ] `(void)` parameter list: `void foo(void)` vs `void foo()`
+
+**scoping**
+- [x] function scope
+- [ ] block scoping
+- [ ] global variables
+- [ ] `static` local variables
+- [ ] `static`, `const`, `extern`, `volatile` qualifiers
+
+**types**
+- [ ] array-to-pointer decay: `int a[10]; int *p = a`
+- [ ] integer promotion and implicit conversion rules
+- [ ] `<stddef.h>` types: `size_t`, `ptrdiff_t`, `offsetof`
+- [ ] `<stdint.h>` types: `int32_t`, `uint64_t`, etc.
+
+**comments**
+- [ ] `//` line comments
+- [ ] `/* */` block comments
+
+**preprocessor**
+- [ ] `#include`
+- [ ] `#define` / `#undef` — object-like and function-like macros
+- [ ] `#` stringification and `##` token pasting
+- [ ] variadic macros: `#define log(...) __VA_ARGS__`
+- [ ] `#ifdef` / `#ifndef` / `#if` / `#elif` / `#else` / `#endif`
+- [ ] `defined()` operator
+- [ ] `#pragma`
+- [ ] `#error`, `#line`
+- [ ] predefined macros: `__FILE__`, `__LINE__`, `__func__`, `__DATE__`, `__TIME__`
+- [ ] multiline macros with `\` continuation
+
+**other**
+- [ ] `NULL`
 
 ## usage
 
