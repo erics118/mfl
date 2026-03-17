@@ -1,9 +1,5 @@
 let context = Llvm.global_context ()
 let the_module = Llvm.create_module context "mfl"
-
-let () =
-  Llvm.set_target_triple (Llvm_target.Target.default_triple ()) the_module
-
 let builder = Llvm.builder context
 let int_type = Llvm.i32_type context
 let bool_type = Llvm.i1_type context
