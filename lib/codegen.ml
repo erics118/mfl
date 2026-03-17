@@ -12,9 +12,6 @@ let locals : (string, Llvm.lltype * Llvm.llvalue) Hashtbl.t = Hashtbl.create 16
    instead *)
 let func_types : (string, Llvm.lltype) Hashtbl.t = Hashtbl.create 16
 
-(* when true, emit integer constants directly instead of alloca/store/load *)
-let ssa = true
-
 (* true if the current block already ends with a terminator (ret, br, etc.) *)
 let block_terminated () =
   Llvm.block_terminator (Llvm.insertion_block builder) <> None
@@ -30,12 +27,7 @@ let llvm_type = function
   | Ast.VarType "void" -> Llvm.void_type context
   | Ast.VarType t -> failwith ("unknown type: " ^ t)
 
-let codegen_int n =
-  if ssa then Llvm.const_int int_type n
-  else
-    (let ptr = Llvm.build_alloca int_type "numptr" builder in
-     ignore (Llvm.build_store (Llvm.const_int int_type n) ptr builder);
-     Llvm.build_load int_type ptr "num" builder) [@coverage off]
+let codegen_int n = Llvm.const_int int_type n
 
 let rec codegen_binop op lhs rhs =
   let lv = codegen_expr lhs in
