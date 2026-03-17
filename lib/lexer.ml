@@ -41,95 +41,95 @@ let read_number st =
         (Lex_error (Printf.sprintf "invalid numeric literal '%s'" bad_literal))
   | _ ->
       let literal = String.sub st.input start (st.pos - start) in
-      Integer (int_of_string literal)
+      TokInt (int_of_string literal)
 
 let read_ident st =
   let start = st.pos in
   advance_while (fun c -> is_alpha c || is_digit c) st;
   match String.sub st.input start (st.pos - start) with
-  | "true" -> Bool true
-  | "false" -> Bool false
-  | "int" -> IntKw
-  | "bool" -> BoolKw
-  | "return" -> ReturnKw
-  | "if" -> IfKw
-  | "else" -> ElseKw
-  | "while" -> WhileKw
-  | "for" -> ForKw
-  | "void" -> VoidKw
-  | s -> Identifier s
+  | "true" -> TokBool true
+  | "false" -> TokBool false
+  | "int" -> TokIntKw
+  | "bool" -> TokBoolKw
+  | "return" -> TokReturnKw
+  | "if" -> TokIfKw
+  | "else" -> TokElseKw
+  | "while" -> TokWhileKw
+  | "for" -> TokForKw
+  | "void" -> TokVoidKw
+  | s -> TokIdent s
 
 let peek2 st =
   let pos = st.pos + 1 in
   if pos < String.length st.input then Some st.input.[pos] else None
 
-let gettok st =
+let next_token st =
   skip_whitespace st;
   match peek st with
-  | None -> Eof
+  | None -> TokEof
   | Some ';' ->
       advance st;
-      Semicolon
+      TokSemicolon
   | Some ',' ->
       advance st;
-      Comma
+      TokComma
   | Some '?' ->
       advance st;
-      QuestionMark
+      TokQuestion
   | Some ':' ->
       advance st;
-      Colon
+      TokColon
   | Some '{' ->
       advance st;
-      LBrace
+      TokLBrace
   | Some '}' ->
       advance st;
-      RBrace
+      TokRBrace
   | Some '(' ->
       advance st;
-      LParen
+      TokLParen
   | Some ')' ->
       advance st;
-      RParen
+      TokRParen
   | Some '=' when peek2 st = Some '=' ->
       advance st;
       advance st;
-      BinaryOp "=="
+      TokBinaryOp "=="
   | Some '=' ->
       advance st;
-      Assign
+      TokAssign
   | Some '!' when peek2 st = Some '=' ->
       advance st;
       advance st;
-      BinaryOp "!="
+      TokBinaryOp "!="
   | Some '<' when peek2 st = Some '=' ->
       advance st;
       advance st;
-      BinaryOp "<="
+      TokBinaryOp "<="
   | Some '>' when peek2 st = Some '=' ->
       advance st;
       advance st;
-      BinaryOp ">="
+      TokBinaryOp ">="
   | Some '&' when peek2 st = Some '&' ->
       advance st;
       advance st;
-      BinaryOp "&&"
+      TokBinaryOp "&&"
   | Some '|' when peek2 st = Some '|' ->
       advance st;
       advance st;
-      BinaryOp "||"
+      TokBinaryOp "||"
   | Some '!' ->
       advance st;
-      UnaryOp "!"
+      TokUnaryOp "!"
   | Some (('+' | '-' | '*' | '/' | '%' | '<' | '>' | '&' | '|' | '^') as op) ->
       advance st;
-      BinaryOp (String.make 1 op)
+      TokBinaryOp (String.make 1 op)
   | Some c when is_digit c -> read_number st
   | Some c when is_alpha c -> read_ident st
   | Some c -> raise (Lex_error (Printf.sprintf "unexpected character '%c'" c))
 
-let peek_next_token st =
+let peek_token st =
   let saved_pos = st.pos in
-  let tok = gettok st in
+  let tok = next_token st in
   st.pos <- saved_pos;
   tok

@@ -1,49 +1,61 @@
 type token =
-  | Eof
-  | LParen
-  | RParen
-  | Integer of int
-  | Bool of bool
-  | IntKw
-  | BoolKw
-  | Identifier of string
-  | BinaryOp of string
-  | UnaryOp of string
-  | Assign
-  | Semicolon
-  | Comma
-  | ReturnKw
-  | IfKw
-  | ElseKw
-  | WhileKw
-  | ForKw
-  | VoidKw
-  | LBrace
-  | RBrace
-  | QuestionMark
-  | Colon
+  (* literals *)
+  | TokInt of int
+  | TokBool of bool
+  (* identifiers *)
+  | TokIdent of string
+  (* keywords *)
+  | TokIntKw
+  | TokBoolKw
+  | TokVoidKw
+  | TokReturnKw
+  | TokIfKw
+  | TokElseKw
+  | TokWhileKw
+  | TokForKw
+  (* operators *)
+  | TokBinaryOp of string
+  | TokUnaryOp of string
+  | TokAssign
+  (* punctuation *)
+  | TokLParen
+  | TokRParen
+  | TokLBrace
+  | TokRBrace
+  | TokSemicolon
+  | TokComma
+  | TokQuestion
+  | TokColon
+  (* special *)
+  | TokEof
 
 let string_of_token = function
-  | Eof -> "EOF"
-  | Semicolon -> ";"
-  | Comma -> ","
-  | QuestionMark -> "?"
-  | Colon -> ":"
-  | LBrace -> "{"
-  | RBrace -> "}"
-  | LParen -> "("
-  | RParen -> ")"
-  | Integer x -> string_of_int x
-  | Bool x -> string_of_bool x
-  | IntKw -> "int"
-  | BoolKw -> "bool"
-  | Identifier x -> x
-  | BinaryOp x -> x
-  | UnaryOp x -> x
-  | Assign -> "="
-  | ReturnKw -> "return"
-  | IfKw -> "if"
-  | ElseKw -> "else"
-  | WhileKw -> "while"
-  | ForKw -> "for"
-  | VoidKw -> "void"
+  (* literals *)
+  | TokInt x -> string_of_int x
+  | TokBool x -> string_of_bool x
+  (* identifiers *)
+  | TokIdent x -> x
+  (* keywords *)
+  | TokIntKw -> "int"
+  | TokBoolKw -> "bool"
+  | TokVoidKw -> "void"
+  | TokReturnKw -> "return"
+  | TokIfKw -> "if"
+  | TokElseKw -> "else"
+  | TokWhileKw -> "while"
+  | TokForKw -> "for"
+  (* operators *)
+  | TokBinaryOp x -> x
+  | TokUnaryOp x -> x
+  | TokAssign -> "="
+  (* punctuation *)
+  | TokLParen -> "("
+  | TokRParen -> ")"
+  | TokLBrace -> "{"
+  | TokRBrace -> "}"
+  | TokSemicolon -> ";"
+  | TokComma -> ","
+  | TokQuestion -> "?"
+  | TokColon -> ":"
+  (* special *)
+  | TokEof -> "EOF"

@@ -15,6 +15,21 @@ let func_types : (string, Llvm.lltype) Hashtbl.t = Hashtbl.create 16
 (* when true, emit integer constants directly instead of alloca/store/load *)
 let ssa = true
 
+(* true if the current block already ends with a terminator (ret, br, etc.) *)
+let block_terminated () =
+  Llvm.block_terminator (Llvm.insertion_block builder) <> None
+
+(* emit an unconditional branch to bb only if the current block isn't already
+   terminated *)
+let br_if_open bb =
+  if not (block_terminated ()) then ignore (Llvm.build_br bb builder)
+
+let llvm_type = function
+  | Ast.VarType "int" -> int_type
+  | Ast.VarType "bool" -> bool_type
+  | Ast.VarType "void" -> Llvm.void_type context
+  | Ast.VarType t -> failwith ("unknown type: " ^ t)
+
 let codegen_int n =
   if ssa then Llvm.const_int int_type n
   else
@@ -76,9 +91,9 @@ and codegen_expr = function
       match Hashtbl.find_opt locals name with
       | Some (ty, ptr) -> Llvm.build_load ty ptr name builder
       | None -> failwith ("undefined variable: " ^ name))
-  | UnaryOp (op, expr) -> codegen_uop op expr
-  | Ternary (cond, then_e, else_e) -> codegen_ternary cond then_e else_e
-  | FuncCall { name; args } -> codegen_func_call name args
+  | Ast.UnaryOp (op, expr) -> codegen_uop op expr
+  | Ast.Ternary (cond, then_e, else_e) -> codegen_ternary cond then_e else_e
+  | Ast.FuncCall { name; args } -> codegen_func_call name args
   | Ast.Assign { name; value } -> (
       match Hashtbl.find_opt locals name with
       | Some (_, ptr) ->
@@ -88,15 +103,6 @@ and codegen_expr = function
           ignore (Llvm.build_store v ptr builder);
           v
       | None -> failwith ("undefined variable: " ^ name))
-
-(* true if the current block already ends with a terminator (ret, br, etc.) *)
-and block_terminated () =
-  Llvm.block_terminator (Llvm.insertion_block builder) <> None
-
-(* emit an unconditional branch to bb only if the current block isn't already
-   terminated *)
-and br_if_open bb =
-  if not (block_terminated ()) then ignore (Llvm.build_br bb builder)
 
 and codegen_if cond then_body else_body =
   let c = codegen_expr cond in
@@ -190,13 +196,7 @@ and codegen_ternary cond then_e else_e =
   (* phi, to select value from whichever branch was taken *)
   Llvm.build_phi [ (tv, then_bb'); (ev, else_bb') ] "ternary" builder
 
-and llvm_type = function
-  | Ast.VarType "int" -> int_type
-  | Ast.VarType "bool" -> bool_type
-  | Ast.VarType "void" -> Llvm.void_type context
-  | Ast.VarType t -> failwith ("unknown type: " ^ t)
-
-and codegen_func ret_type name params body =
+and codegen_func_def ret_type name params body =
   let param_types =
     Array.of_list (List.map (fun (t, _) -> llvm_type t) params)
   in
@@ -228,7 +228,7 @@ and codegen_func ret_type name params body =
 
 and codegen_stmt = function
   | Ast.FuncDef { ret_type; name; params; body } ->
-      codegen_func ret_type name params body
+      codegen_func_def ret_type name params body
   | Ast.ReturnStmt (Some e) -> ignore (Llvm.build_ret (codegen_expr e) builder)
   | Ast.ReturnStmt None -> ignore (Llvm.build_ret_void builder)
   | Ast.ExprStmt e -> ignore (codegen_expr e)

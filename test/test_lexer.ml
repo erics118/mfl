@@ -1,13 +1,14 @@
 open OUnit2
 open Mfl
+open Token
 
-(* Lex an entire input string into a token list, stopping at Eof. Parser streams
-   the tokens instead, lexing only as needed *)
+(* Lex an entire input string into a token list, stopping at TokEof. Parser
+   streams the tokens instead, lexing only as needed *)
 let tokenize input =
   let st = Lexer.create input in
   let rec loop () =
-    match Lexer.gettok st with
-    | Token.Eof -> []
+    match Lexer.next_token st with
+    | TokEof -> []
     | tok -> tok :: loop ()
   in
   loop ()
@@ -15,7 +16,7 @@ let tokenize input =
 let check expected input =
   assert_equal
     ~printer:(fun ts ->
-      "[" ^ String.concat "; " (List.map Token.string_of_token ts) ^ "]")
+      "[" ^ String.concat "; " (List.map string_of_token ts) ^ "]")
     expected (tokenize input)
 
 let lex_fails err input =
@@ -23,139 +24,141 @@ let lex_fails err input =
 
 let test_semicolons _ =
   check [] "";
-  check [ Semicolon ] ";";
-  check [ Semicolon; Semicolon; Semicolon; Semicolon ] ";;;  ;"
+  check [ TokSemicolon ] ";";
+  check [ TokSemicolon; TokSemicolon; TokSemicolon; TokSemicolon ] ";;;  ;"
 
 let test_literals _ =
-  check [ Integer 0 ] "0";
-  check [ Integer 42 ] "42";
-  check [ Integer 123 ] "123";
-  check [ Bool true ] "true";
-  check [ Bool false ] "false"
+  check [ TokInt 0 ] "0";
+  check [ TokInt 42 ] "42";
+  check [ TokInt 123 ] "123";
+  check [ TokBool true ] "true";
+  check [ TokBool false ] "false"
 
 let test_identifiers_and_keywords _ =
-  check [ IntKw ] "int";
-  check [ BoolKw ] "bool";
-  check [ ReturnKw ] "return";
-  check [ IfKw ] "if";
-  check [ ElseKw ] "else";
-  check [ WhileKw ] "while";
-  check [ ForKw ] "for";
-  check [ VoidKw ] "void";
-  check [ Identifier "x" ] "x";
-  check [ Identifier "CustomType" ] "CustomType";
-  check [ Identifier "abc1" ] "abc1";
-  check [ Identifier "_a" ] "_a";
-  check [ IntKw; Identifier "x"; Assign; Integer 3; Semicolon ] "int x = 3;";
+  check [ TokIntKw ] "int";
+  check [ TokBoolKw ] "bool";
+  check [ TokReturnKw ] "return";
+  check [ TokIfKw ] "if";
+  check [ TokElseKw ] "else";
+  check [ TokWhileKw ] "while";
+  check [ TokForKw ] "for";
+  check [ TokVoidKw ] "void";
+  check [ TokIdent "x" ] "x";
+  check [ TokIdent "CustomType" ] "CustomType";
+  check [ TokIdent "abc1" ] "abc1";
+  check [ TokIdent "_a" ] "_a";
   check
-    [ BoolKw; Identifier "x"; Assign; Bool true; Semicolon ]
+    [ TokIntKw; TokIdent "x"; TokAssign; TokInt 3; TokSemicolon ]
+    "int x = 3;";
+  check
+    [ TokBoolKw; TokIdent "x"; TokAssign; TokBool true; TokSemicolon ]
     "bool x = true;";
   check
-    [ Identifier "CustomType"; Identifier "x"; Assign; Integer 3; Semicolon ]
+    [ TokIdent "CustomType"; TokIdent "x"; TokAssign; TokInt 3; TokSemicolon ]
     "CustomType x = 3;"
 
 let test_parens _ =
-  check [ LParen ] "(";
-  check [ RParen ] ")";
-  check [ Comma ] ",";
-  check [ QuestionMark ] "?";
-  check [ Colon ] ":";
-  check [ LParen; Integer 1; RParen ] "(1)";
-  check [ LBrace ] "{";
-  check [ RBrace ] "}";
-  check [ LBrace; Integer 1; Semicolon; RBrace ] "{1;}"
+  check [ TokLParen ] "(";
+  check [ TokRParen ] ")";
+  check [ TokComma ] ",";
+  check [ TokQuestion ] "?";
+  check [ TokColon ] ":";
+  check [ TokLParen; TokInt 1; TokRParen ] "(1)";
+  check [ TokLBrace ] "{";
+  check [ TokRBrace ] "}";
+  check [ TokLBrace; TokInt 1; TokSemicolon; TokRBrace ] "{1;}"
 
 let test_binary_ops _ =
-  check [ BinaryOp "+" ] "+";
-  check [ BinaryOp "-" ] "-";
-  check [ BinaryOp "*" ] "*";
-  check [ BinaryOp "/" ] "/";
-  check [ BinaryOp "%" ] "%";
-  check [ BinaryOp "<" ] "<";
-  check [ BinaryOp ">" ] ">";
-  check [ BinaryOp "==" ] "==";
-  check [ BinaryOp "!=" ] "!=";
-  check [ BinaryOp "<=" ] "<=";
-  check [ BinaryOp ">=" ] ">=";
-  check [ BinaryOp "&&" ] "&&";
-  check [ BinaryOp "||" ] "||";
-  check [ BinaryOp "&" ] "&";
-  check [ BinaryOp "|" ] "|";
-  check [ BinaryOp "^" ] "^"
+  check [ TokBinaryOp "+" ] "+";
+  check [ TokBinaryOp "-" ] "-";
+  check [ TokBinaryOp "*" ] "*";
+  check [ TokBinaryOp "/" ] "/";
+  check [ TokBinaryOp "%" ] "%";
+  check [ TokBinaryOp "<" ] "<";
+  check [ TokBinaryOp ">" ] ">";
+  check [ TokBinaryOp "==" ] "==";
+  check [ TokBinaryOp "!=" ] "!=";
+  check [ TokBinaryOp "<=" ] "<=";
+  check [ TokBinaryOp ">=" ] ">=";
+  check [ TokBinaryOp "&&" ] "&&";
+  check [ TokBinaryOp "||" ] "||";
+  check [ TokBinaryOp "&" ] "&";
+  check [ TokBinaryOp "|" ] "|";
+  check [ TokBinaryOp "^" ] "^"
 
 let test_unary_ops _ =
-  check [ UnaryOp "!" ] "!";
+  check [ TokUnaryOp "!" ] "!";
   (* != takes priority over ! *)
-  check [ BinaryOp "!=" ] "!="
+  check [ TokBinaryOp "!=" ] "!="
 
 let test_whitespace _ =
-  check [ Integer 1; BinaryOp "+"; Integer 2 ] "1 + 2";
-  check [ Integer 1; BinaryOp "+"; Integer 2 ] "1+2";
-  check [ Integer 1; BinaryOp "+"; Integer 2 ] "  1  +  2  ";
-  check [ Integer 1; BinaryOp "+"; Integer 2 ] "1\t+\n2\r"
+  check [ TokInt 1; TokBinaryOp "+"; TokInt 2 ] "1 + 2";
+  check [ TokInt 1; TokBinaryOp "+"; TokInt 2 ] "1+2";
+  check [ TokInt 1; TokBinaryOp "+"; TokInt 2 ] "  1  +  2  ";
+  check [ TokInt 1; TokBinaryOp "+"; TokInt 2 ] "1\t+\n2\r"
 
 let test_sequences _ =
-  check [ Bool true; BinaryOp "&&"; Bool false ] "true && false";
-  check [ UnaryOp "!"; Bool true ] "!true";
-  check [ Integer 1; BinaryOp "=="; Integer 1 ] "1 == 1";
-  check [ Integer 3; BinaryOp "&"; Integer 5 ] "3 & 5";
-  check [ Integer 1; Semicolon ] "1;";
-  check [ Integer 1; BinaryOp "+"; Integer 3; Semicolon ] "1 + 3;";
+  check [ TokBool true; TokBinaryOp "&&"; TokBool false ] "true && false";
+  check [ TokUnaryOp "!"; TokBool true ] "!true";
+  check [ TokInt 1; TokBinaryOp "=="; TokInt 1 ] "1 == 1";
+  check [ TokInt 3; TokBinaryOp "&"; TokInt 5 ] "3 & 5";
+  check [ TokInt 1; TokSemicolon ] "1;";
+  check [ TokInt 1; TokBinaryOp "+"; TokInt 3; TokSemicolon ] "1 + 3;";
   check
     [
-      Identifier "a";
-      QuestionMark;
-      Identifier "b";
-      Colon;
-      Identifier "c";
-      Semicolon;
+      TokIdent "a";
+      TokQuestion;
+      TokIdent "b";
+      TokColon;
+      TokIdent "c";
+      TokSemicolon;
     ]
     "a ? b : c;";
-  check [ ReturnKw; Integer 1; Semicolon ] "return 1;";
+  check [ TokReturnKw; TokInt 1; TokSemicolon ] "return 1;";
   check
     [
-      IntKw;
-      Identifier "f";
-      LParen;
-      IntKw;
-      Identifier "a";
-      Comma;
-      IntKw;
-      Identifier "b";
-      RParen;
-      LBrace;
-      ReturnKw;
-      Identifier "a";
-      BinaryOp "+";
-      Identifier "b";
-      Semicolon;
-      RBrace;
+      TokIntKw;
+      TokIdent "f";
+      TokLParen;
+      TokIntKw;
+      TokIdent "a";
+      TokComma;
+      TokIntKw;
+      TokIdent "b";
+      TokRParen;
+      TokLBrace;
+      TokReturnKw;
+      TokIdent "a";
+      TokBinaryOp "+";
+      TokIdent "b";
+      TokSemicolon;
+      TokRBrace;
     ]
     "int f(int a, int b) { return a + b; }"
 
 let test_string_of_token _ =
-  assert_equal "EOF" (Token.string_of_token Eof);
-  assert_equal ";" (Token.string_of_token Semicolon);
-  assert_equal "," (Token.string_of_token Comma);
-  assert_equal "?" (Token.string_of_token QuestionMark);
-  assert_equal ":" (Token.string_of_token Colon);
-  assert_equal "{" (Token.string_of_token LBrace);
-  assert_equal "}" (Token.string_of_token RBrace);
-  assert_equal "(" (Token.string_of_token LParen);
-  assert_equal ")" (Token.string_of_token RParen);
-  assert_equal "42" (Token.string_of_token (Integer 42));
-  assert_equal "true" (Token.string_of_token (Bool true));
-  assert_equal "int" (Token.string_of_token IntKw);
-  assert_equal "bool" (Token.string_of_token BoolKw);
-  assert_equal "return" (Token.string_of_token ReturnKw);
-  assert_equal "if" (Token.string_of_token IfKw);
-  assert_equal "else" (Token.string_of_token ElseKw);
-  assert_equal "while" (Token.string_of_token WhileKw);
-  assert_equal "for" (Token.string_of_token ForKw);
-  assert_equal "x" (Token.string_of_token (Identifier "x"));
-  assert_equal "+" (Token.string_of_token (BinaryOp "+"));
-  assert_equal "!" (Token.string_of_token (UnaryOp "!"));
-  assert_equal "=" (Token.string_of_token Assign)
+  assert_equal "EOF" (string_of_token TokEof);
+  assert_equal ";" (string_of_token TokSemicolon);
+  assert_equal "," (string_of_token TokComma);
+  assert_equal "?" (string_of_token TokQuestion);
+  assert_equal ":" (string_of_token TokColon);
+  assert_equal "{" (string_of_token TokLBrace);
+  assert_equal "}" (string_of_token TokRBrace);
+  assert_equal "(" (string_of_token TokLParen);
+  assert_equal ")" (string_of_token TokRParen);
+  assert_equal "42" (string_of_token (TokInt 42));
+  assert_equal "true" (string_of_token (TokBool true));
+  assert_equal "int" (string_of_token TokIntKw);
+  assert_equal "bool" (string_of_token TokBoolKw);
+  assert_equal "return" (string_of_token TokReturnKw);
+  assert_equal "if" (string_of_token TokIfKw);
+  assert_equal "else" (string_of_token TokElseKw);
+  assert_equal "while" (string_of_token TokWhileKw);
+  assert_equal "for" (string_of_token TokForKw);
+  assert_equal "x" (string_of_token (TokIdent "x"));
+  assert_equal "+" (string_of_token (TokBinaryOp "+"));
+  assert_equal "!" (string_of_token (TokUnaryOp "!"));
+  assert_equal "=" (string_of_token TokAssign)
 
 let test_errors _ =
   lex_fails "invalid numeric literal '1a'" "1a";

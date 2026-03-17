@@ -84,7 +84,7 @@ type stmt =
       cond : expr;
       incr : expr;
       body : stmt;
-    }  (** [for (init; cond; incr) body] is a while loop *)
+    }  (** [for (init; cond; incr) body] is a for loop *)
 
 (** [precedence op] returns the binding precedence of [op] higher numbers bind
     more tightly *)
