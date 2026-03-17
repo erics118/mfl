@@ -1,0 +1,16 @@
+bool is_prime(int n) {
+    for (int d = 2; d * d <= n; d = d + 1) {
+        if (n % d == 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+int main() {
+    for (int n = 2; n < 100; n = n + 1) {
+        if (is_prime(n)) printint(n);
+    }
+
+    return 0;
+}

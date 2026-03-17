@@ -1,29 +1,21 @@
 # mfl
 
-c implemented in ocaml using llvm from scratch
+subset of c implemented in ocaml compiled to LLVM IR, written in ocaml
 
 ## features
 
-- [x] lexer for integers, booleans, parens, unary and binary operators
-- [x] parser for basic integer and boolean expressions
-- [x] handle operator predecence and associativity correctly
-- [x] interpreter with type checking
-- [x] support for statements with `;`
-- [x] add statement blocks blocks with  `{}`
-- [x] `int` variable declarations and assignment
-- [x] `bool`/`_Bool` variable declarations and assignment
-- [x] `if`/`else` control flow
-- [x] `return` statements
-- [x] basic function definitions and calls
-- [x] function definitions with parameters and different return types
-- [x] `for loops` loops
-- [x] `while` loops
+- [x] integers, booleans, arithmetic, bitwise, comparison, logical operators
+- [x] operator precedence and associativity
+- [x] interpreter with type checking (old, now it's a compiler)
+- [x] statements and blocks
+- [x] variable declarations and assignment of `int` and `bool` types
+- [x] `if`/`else`
+- [x] `while` and `for` loops
+- [x] `return`
+- [x] function definitions and calls (`int`, `bool`, `void` return types)
+- [x] ternary expressions
 
-
-
-## how to run
-
-the compiler emits LLVM IR to stdout. compile and link with `clang` and the runtime:
+## usage
 
 ```sh
 # compile to IR
@@ -42,13 +34,31 @@ or as a one-liner:
 dune exec mfl -- program.mfl | clang llvm/runtime.c -x ir - -o program && ./program
 ```
 
+## examples
+
+located under `examples/`
+
+- `factorial.mfl`: prints the factorial of 10
+- `fibonacci.mfl`: prints the first 10 Fibonacci numbers
+- `primes.mfl`: prints the primes under 100
+
+## testing
+
+```sh
+# run tests
+dune test
+
+# run test with coverage
+dune test --instrument-with bisect_ppx --force
+```
+
 ## sources
 
 initial code is based off of, but written in ocaml instead of haskell: [Daniel J. Harvey's blog](https://danieljharvey.github.io/llvm-compiler-part-1/) 
 
 resources:
 - https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/index.html
-- https://blog.josephmorag.com/posts/mcc1/  
+- https://blog.josephmorag.com/posts/mcc1/
 - https://mapping-high-level-constructs-to-llvm-ir.readthedocs.io/en/latest/
 
 possible code resources:
