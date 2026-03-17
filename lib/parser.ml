@@ -87,6 +87,9 @@ and parse_primary st =
   | TokUnaryOp "!" ->
       advance st;
       Ast.UnaryOp (Ast.Not, parse_primary st)
+  | TokUnaryOp "~" ->
+      advance st;
+      Ast.UnaryOp (Ast.Compl, parse_primary st)
   | TokEof -> raise (Parse_error "unexpected end of input")
   | _ ->
       raise

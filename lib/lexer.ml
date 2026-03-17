@@ -102,10 +102,18 @@ let next_token st =
       advance st;
       advance st;
       TokBinaryOp "!="
+  | Some '<' when peek2 st = Some '<' ->
+      advance st;
+      advance st;
+      TokBinaryOp "<<"
   | Some '<' when peek2 st = Some '=' ->
       advance st;
       advance st;
       TokBinaryOp "<="
+  | Some '>' when peek2 st = Some '>' ->
+      advance st;
+      advance st;
+      TokBinaryOp ">>"
   | Some '>' when peek2 st = Some '=' ->
       advance st;
       advance st;
@@ -121,6 +129,9 @@ let next_token st =
   | Some '!' ->
       advance st;
       TokUnaryOp "!"
+  | Some '~' ->
+      advance st;
+      TokUnaryOp "~"
   | Some (('+' | '-' | '*' | '/' | '%' | '<' | '>' | '&' | '|' | '^') as op) ->
       advance st;
       TokBinaryOp (String.make 1 op)

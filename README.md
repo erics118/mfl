@@ -17,14 +17,12 @@ subset of C implemented in OCaml, compiled to LLVM IR
 
 **operators**
 - [x] arithmetic: `+`, `-`, `*`, `/`, `%`
-- [x] bitwise: `&`, `|`, `^`
+- [x] bitwise: `&`, `|`, `^`, `~`, `<<`, `>>`
 - [x] comparison: `==`, `!=`, `<`, `<=`, `>`, `>=`
 - [x] logical: `&&`, `||`, `!` (note: `&&`/`||` don't short-circuit yet)
 - [x] unary negation: `-`
 - [x] operator precedence and associativity
 - [x] ternary: `?:`
-- [ ] bitwise complement `~`
-- [ ] shift operators `<<`, `>>`
 - [ ] compound assignment: `+=`, `-=`, `*=`, `/=`, `&=`, `|=`, `^=`, `<<=`, `>>=`
 - [ ] increment/decrement: `++`, `--` (pre and post)
 - [ ] `sizeof`

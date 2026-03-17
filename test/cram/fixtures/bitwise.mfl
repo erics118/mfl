@@ -4,3 +4,13 @@ int bitwise(int x, int y) {
     int c = x ^ y;
     return c;
 }
+
+int shift(int x, int y) {
+    int a = x << y;
+    int b = x >> y;
+    return a + b;
+}
+
+int compl_test(int x) {
+    return ~x;
+}

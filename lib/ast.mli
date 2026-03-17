@@ -18,11 +18,14 @@ type op =
   | BitAnd  (** [ & ] *)
   | BitOr  (** [ | ] *)
   | BitXor  (** [ ^ ] *)
+  | LShift  (** [ << ] *)
+  | RShift  (** [ >> ] *)
 
 (** unary operators *)
 type uop =
   | Neg  (** numeric negation *)
   | Not  (** logical negation *)
+  | Compl  (** bitwise complement *)
 
 (** variable and return types *)
 type var_type = VarType of string

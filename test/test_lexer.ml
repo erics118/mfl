@@ -84,10 +84,19 @@ let test_binary_ops _ =
   check [ TokBinaryOp "||" ] "||";
   check [ TokBinaryOp "&" ] "&";
   check [ TokBinaryOp "|" ] "|";
-  check [ TokBinaryOp "^" ] "^"
+  check [ TokBinaryOp "^" ] "^";
+  check [ TokBinaryOp "<<" ] "<<";
+  check [ TokBinaryOp ">>" ] ">>";
+  (* << and >> take priority over < and > *)
+  check [ TokBinaryOp "<<"; TokInt 1 ] "<< 1";
+  check [ TokBinaryOp ">>"; TokInt 1 ] ">> 1";
+  (* <= and >= still work *)
+  check [ TokBinaryOp "<=" ] "<=";
+  check [ TokBinaryOp ">=" ] ">="
 
 let test_unary_ops _ =
   check [ TokUnaryOp "!" ] "!";
+  check [ TokUnaryOp "~" ] "~";
   (* != takes priority over ! *)
   check [ TokBinaryOp "!=" ] "!="
 

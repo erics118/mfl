@@ -64,10 +64,19 @@ let test_bitwise _ =
   roundtrip "3 & 5;";
   roundtrip "3 | 5;";
   roundtrip "3 ^ 5;";
+  roundtrip "3 << 1;";
+  roundtrip "3 >> 1;";
   (* bitwise precedence, highest to lowest: & ^ | *)
   check "1 | 2 ^ 3 & 4;" "1 | (2 ^ (3 & 4));";
   (* arithmetic binds tighter than bitwise *)
-  check "1 + 2 & 3;" "(1 + 2) & 3;"
+  check "1 + 2 & 3;" "(1 + 2) & 3;";
+  (* arithmetic binds tighter than shift *)
+  check "1 << 2 + 3;" "1 << (2 + 3);";
+  check "1 + 2 << 3;" "(1 + 2) << 3;";
+  (* shift binds tighter than bitwise & *)
+  check "1 & 2 << 3;" "1 & (2 << 3);";
+  (* shift is left-associative *)
+  check "1 << 2 << 3;" "(1 << 2) << 3;"
 
 let test_mixed_precedence _ =
   (* comparison lower than arithmetic *)
@@ -84,12 +93,17 @@ let test_unary _ =
   roundtrip "!true;";
   roundtrip "!false;";
   check "!(!true);" "!!true;";
+  roundtrip "~x;";
+  check "~(~x);" "~~x;";
   (* unary binds tighter than binary *)
   roundtrip "-1 + 2;";
   roundtrip "!true && false;";
+  roundtrip "~x + 1;";
+  roundtrip "~x << 1;";
   (* unary over a binary subexpr requires parens *)
   roundtrip "-(1 + 2);";
-  roundtrip "!(1 == 2);"
+  roundtrip "!(1 == 2);";
+  roundtrip "~(1 + 2);"
 
 let test_multiple_statements _ =
   roundtrip "1;\n2;\n3;\n4;\n5;";

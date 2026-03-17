@@ -49,12 +49,15 @@ let rec codegen_binop op lhs rhs =
   | Ast.BitAnd -> Llvm.build_and lv rv "bandtmp" builder
   | Ast.BitOr -> Llvm.build_or lv rv "bortmp" builder
   | Ast.BitXor -> Llvm.build_xor lv rv "xortmp" builder
+  | Ast.LShift -> Llvm.build_shl lv rv "shltmp" builder
+  | Ast.RShift -> Llvm.build_ashr lv rv "ashrtmp" builder
 
 and codegen_uop op expr =
   let v = codegen_expr expr in
   match op with
   | Ast.Neg -> Llvm.build_neg v "" builder
   | Ast.Not -> Llvm.build_not v "nottmp" builder
+  | Ast.Compl -> Llvm.build_not v "compltmp" builder
 
 and codegen_func_call name args =
   let fn =

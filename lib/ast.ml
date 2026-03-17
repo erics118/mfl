@@ -16,11 +16,14 @@ type op =
   | BitAnd
   | BitOr
   | BitXor
+  | LShift
+  | RShift
 
 (* unary operators *)
 type uop =
   | Neg
   | Not
+  | Compl
 
 type var_type = VarType of string
 
@@ -83,6 +86,7 @@ let precedence = function
   | BitOr -> 50
   | BitXor -> 60
   | BitAnd -> 70
+  | LShift | RShift -> 75
   | Add | Sub -> 80
   | Mul | Div | Mod -> 90
 
@@ -103,6 +107,8 @@ let string_of_op = function
   | BitAnd -> "&"
   | BitOr -> "|"
   | BitXor -> "^"
+  | LShift -> "<<"
+  | RShift -> ">>"
 
 let op_of_string_opt = function
   | "+" -> Some Add
@@ -121,8 +127,11 @@ let op_of_string_opt = function
   | "&" -> Some BitAnd
   | "|" -> Some BitOr
   | "^" -> Some BitXor
+  | "<<" -> Some LShift
+  | ">>" -> Some RShift
   | _ -> None [@coverage off]
 
 let string_of_uop = function
   | Neg -> "-"
   | Not -> "!"
+  | Compl -> "~"
