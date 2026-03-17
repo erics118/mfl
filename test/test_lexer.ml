@@ -20,7 +20,9 @@ let check expected input =
     expected (tokenize input)
 
 let lex_fails err input =
-  assert_raises (Lexer.Lex_error err) (fun () -> tokenize input)
+  match tokenize input with
+  | _ -> assert_failure (Printf.sprintf "expected Lex_error for: %s" input)
+  | exception (Lexer.Lex_error (_, m)) -> assert_equal ~printer:Fun.id err m
 
 let test_semicolons _ =
   check [] "";

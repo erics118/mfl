@@ -110,20 +110,20 @@ and codegen_or_binop lhs rhs =
   Llvm.build_phi [ (lv, lhs_bb); (rv, rhs_bb') ] "ortmp" builder
 
 and codegen_expr = function
-  | Ast.IntLiteral n -> codegen_int n
-  | Ast.BoolLiteral b -> Llvm.const_int bool_type (if b then 1 else 0)
-  | Ast.BinaryOp (Ast.And, lhs, rhs) -> codegen_and_binop lhs rhs
-  | Ast.BinaryOp (Ast.Or, lhs, rhs) -> codegen_or_binop lhs rhs
-  | Ast.BinaryOp (op, lhs, rhs) -> codegen_binop op lhs rhs
-  | Ast.VarRef name -> (
+  | Ast.IntLiteral (_, n) -> codegen_int n
+  | Ast.BoolLiteral (_, b) -> Llvm.const_int bool_type (if b then 1 else 0)
+  | Ast.BinaryOp (_, Ast.And, lhs, rhs) -> codegen_and_binop lhs rhs
+  | Ast.BinaryOp (_, Ast.Or, lhs, rhs) -> codegen_or_binop lhs rhs
+  | Ast.BinaryOp (_, op, lhs, rhs) -> codegen_binop op lhs rhs
+  | Ast.VarRef (_, name) -> (
       (* load the value from the variable's alloca *)
       match Hashtbl.find_opt locals name with
       | Some (ty, ptr) -> Llvm.build_load ty ptr name builder
       | None -> failwith ("undefined variable: " ^ name))
-  | Ast.UnaryOp (op, expr) -> codegen_uop op expr
-  | Ast.Ternary (cond, then_e, else_e) -> codegen_ternary cond then_e else_e
-  | Ast.FuncCall { name; args } -> codegen_func_call name args
-  | Ast.Assign { name; value } -> (
+  | Ast.UnaryOp (_, op, expr) -> codegen_uop op expr
+  | Ast.Ternary (_, cond, then_e, else_e) -> codegen_ternary cond then_e else_e
+  | Ast.FuncCall (_, name, args) -> codegen_func_call name args
+  | Ast.Assign (_, name, value) -> (
       match Hashtbl.find_opt locals name with
       | Some (_, ptr) ->
           (* codegen, then return the assigned value, so we can do int x = y =
@@ -173,7 +173,7 @@ and codegen_while_loop cond body =
   br_if_open cond_bb;
   Llvm.position_at_end after_bb builder
 
-and codegen_for_loop init cond (incr : Ast.expr) body =
+and codegen_for_loop init cond (incr : Ast.parsed Ast.expr) body =
   let fn = Llvm.block_parent (Llvm.insertion_block builder) in
   let init_bb = Llvm.append_block context "for_init" fn in
   let cond_bb = Llvm.append_block context "for_cond" fn in

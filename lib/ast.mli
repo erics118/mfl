@@ -33,29 +33,53 @@ type var_type = VarType of string
 (** render a variable type as a string *)
 val string_of_var_type : var_type -> string
 
+(** source location *)
+type pos = {
+  line : int;
+  col : int;
+}
+
+(** types resolved by the typechecker *)
+type typ =
+  | Int
+  | Bool
+  | Void
+
+(** phantom types marking which compiler phase produced an expr *)
+type parsed
+
+type checked
+
+(** annotation on every expr node; [Parsed] holds position only, [Checked] adds
+    the resolved type *)
+type _ ann =
+  | Parsed : pos -> parsed ann
+  | Checked : pos * typ -> checked ann
+
+(** placeholder position used by the parser until position tracking is added *)
+val dummy_pos : pos
+
+(** extract the source position from any annotation *)
+val pos_of : 'a ann -> pos
+
+(** extract the resolved type from a checked annotation *)
+val typ_of : checked ann -> typ
+
 (** expressions *)
-type expr =
-  | IntLiteral of int  (** integer literal *)
-  | BoolLiteral of bool  (** boolean literal *)
-  | VarRef of string  (** variable reference *)
-  | BinaryOp of op * expr * expr
-      (** [expr1 op expr2] is a binary operator application *)
-  | UnaryOp of uop * expr  (** [op expr] is a unary operator application, *)
-  | Ternary of expr * expr * expr
-      (** [expr1 ? expr2 : expr3] is the ternary operator *)
-  | FuncCall of {
-      name : string;
-      args : expr list;
-    }  (** [name(args)] is a function call *)
-  | Assign of {
-      name : string;
-      value : expr;
-    }  (** [name = value] assigns a value to an existing variable *)
+type 'a expr =
+  | IntLiteral : 'a ann * int -> 'a expr
+  | BoolLiteral : 'a ann * bool -> 'a expr
+  | VarRef : 'a ann * string -> 'a expr
+  | BinaryOp : 'a ann * op * 'a expr * 'a expr -> 'a expr
+  | UnaryOp : 'a ann * uop * 'a expr -> 'a expr
+  | Ternary : 'a ann * 'a expr * 'a expr * 'a expr -> 'a expr
+  | FuncCall : 'a ann * string * 'a expr list -> 'a expr
+  | Assign : 'a ann * string * 'a expr -> 'a expr
 
 (** statements *)
 type stmt =
-  | ExprStmt of expr  (** [expr;] is a single expression *)
-  | ReturnStmt of expr option
+  | ExprStmt of parsed expr  (** [expr;] is a single expression *)
+  | ReturnStmt of parsed expr option
       (** [return expr;] or [return;] returns a value from a function *)
   | EmptyStmt  (** [;] is an empty statement *)
   | CompoundStmt of stmt list
@@ -63,7 +87,7 @@ type stmt =
   | VarDef of {
       var_type : var_type;
       name : string;
-      init : expr;
+      init : parsed expr;
     }  (** [var_type name = init;] defines a variable with an initial value *)
   | FuncDef of {
       ret_type : var_type;
@@ -72,20 +96,20 @@ type stmt =
       body : stmt list;
     }  (** [ret_type name(params) { body }] defines a function *)
   | If of {
-      cond : expr;
+      cond : parsed expr;
       then_body : stmt;
       else_body : stmt option;
     }
       (** [if (cond) if_body] or [if (cond) if_body else else_body] is an
           if-else statement *)
   | WhileLoop of {
-      cond : expr;
+      cond : parsed expr;
       body : stmt;
     }  (** [while (cond) body] is a while loop *)
   | ForLoop of {
       init : stmt;
-      cond : expr;
-      incr : expr;
+      cond : parsed expr;
+      incr : parsed expr;
       body : stmt;
     }  (** [for (init; cond; incr) body] is a for loop *)
 

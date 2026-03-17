@@ -29,32 +29,57 @@ type var_type = VarType of string
 
 let string_of_var_type (VarType name) = name
 
+(* source position *)
+type pos = {
+  line : int;
+  col : int;
+}
+
+(* types inferred/checked by the typechecker *)
+type typ =
+  | Int
+  | Bool
+  | Void
+
+(* phantom types marking which compiler phase produced an expr *)
+type parsed
+type checked
+
+(* annotation carried by every expr node; Parsed holds only position, Checked
+   adds the resolved type *)
+type _ ann =
+  | Parsed : pos -> parsed ann
+  | Checked : pos * typ -> checked ann
+
+let dummy_pos = { line = 0; col = 0 }
+
+let pos_of : type a. a ann -> pos = function
+  | Parsed p -> p
+  | Checked (p, _) -> p
+
+let typ_of : checked ann -> typ = function
+  | Checked (_, t) -> t
+
 (* expressions *)
-type expr =
-  | IntLiteral of int
-  | BoolLiteral of bool
-  | VarRef of string
-  | BinaryOp of op * expr * expr
-  | UnaryOp of uop * expr
-  | Ternary of expr * expr * expr
-  | FuncCall of {
-      name : string;
-      args : expr list;
-    }
-  | Assign of {
-      name : string;
-      value : expr;
-    }
+type 'a expr =
+  | IntLiteral : 'a ann * int -> 'a expr
+  | BoolLiteral : 'a ann * bool -> 'a expr
+  | VarRef : 'a ann * string -> 'a expr
+  | BinaryOp : 'a ann * op * 'a expr * 'a expr -> 'a expr
+  | UnaryOp : 'a ann * uop * 'a expr -> 'a expr
+  | Ternary : 'a ann * 'a expr * 'a expr * 'a expr -> 'a expr
+  | FuncCall : 'a ann * string * 'a expr list -> 'a expr
+  | Assign : 'a ann * string * 'a expr -> 'a expr
 
 type stmt =
-  | ExprStmt of expr
-  | ReturnStmt of expr option
+  | ExprStmt of parsed expr
+  | ReturnStmt of parsed expr option
   | EmptyStmt
   | CompoundStmt of stmt list
   | VarDef of {
       var_type : var_type;
       name : string;
-      init : expr;
+      init : parsed expr;
     }
   | FuncDef of {
       ret_type : var_type;
@@ -63,18 +88,18 @@ type stmt =
       body : stmt list;
     }
   | If of {
-      cond : expr;
+      cond : parsed expr;
       then_body : stmt;
       else_body : stmt option;
     }
   | WhileLoop of {
-      cond : expr;
+      cond : parsed expr;
       body : stmt;
     }
   | ForLoop of {
       init : stmt;
-      cond : expr;
-      incr : expr;
+      cond : parsed expr;
+      incr : parsed expr;
       body : stmt;
     }
 

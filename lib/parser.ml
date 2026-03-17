@@ -5,29 +5,36 @@ type state = {
   lex : Lexer.state;
 }
 
-exception Parse_error of string
+exception Parse_error of Ast.pos * string
 
 let create lex_st = { cur_tok = TokEof; lex = lex_st }
 let advance st = st.cur_tok <- Lexer.next_token st.lex
 
+(* position of the current token *)
+let cur_pos st = Lexer.tok_pos st.lex
+
 let consume st tok =
   if st.cur_tok = tok then advance st
   else
-    raise (Parse_error (Printf.sprintf "expected '%s'" (string_of_token tok)))
+    raise
+      (Parse_error
+         (cur_pos st, Printf.sprintf "expected '%s'" (string_of_token tok)))
 
 let consume_identifier st =
   match st.cur_tok with
   | TokIdent name ->
       advance st;
       name
-  | _ -> raise (Parse_error "expected identifier")
+  | _ -> raise (Parse_error (cur_pos st, "expected identifier"))
 
 let op_of_str s =
   match Ast.op_of_string_opt s with
   | Some op -> op
   | None ->
       raise
-        (Parse_error (Printf.sprintf "unknown operator '%s'" s)) [@coverage off]
+        (Parse_error
+           (Ast.dummy_pos, Printf.sprintf "unknown operator '%s'" s))
+        [@coverage off]
 
 let cur_precedence st =
   match st.cur_tok with
@@ -46,7 +53,7 @@ let parse_rparen_list st parse_item =
             consume st TokComma;
             loop (item :: rev_items)
         | TokRParen -> List.rev (item :: rev_items)
-        | _ -> raise (Parse_error "expected ',' or ')'")
+        | _ -> raise (Parse_error (cur_pos st, "expected ',' or ')'"))
       in
       loop []
 
@@ -57,43 +64,45 @@ let rec parse_paren_expr st =
   consume st TokRParen;
   v
 
-and parse_identifier_expr st =
+and parse_identifier_expr st pos =
   let name = consume_identifier st in
   match st.cur_tok with
   | TokLParen ->
       consume st TokLParen;
       let args = parse_rparen_list st parse_expr in
       consume st TokRParen;
-      Ast.FuncCall { name; args }
+      Ast.FuncCall (Ast.Parsed pos, name, args)
   | TokAssign ->
       consume st TokAssign;
       let value = parse_expr st in
-      Ast.Assign { name; value }
-  | _ -> Ast.VarRef name
+      Ast.Assign (Ast.Parsed pos, name, value)
+  | _ -> Ast.VarRef (Ast.Parsed pos, name)
 
 and parse_primary st =
+  let pos = cur_pos st in
   match st.cur_tok with
   | TokInt n ->
       advance st;
-      Ast.IntLiteral n
+      Ast.IntLiteral (Ast.Parsed pos, n)
   | TokBool b ->
       advance st;
-      Ast.BoolLiteral b
-  | TokIdent _ -> parse_identifier_expr st
+      Ast.BoolLiteral (Ast.Parsed pos, b)
+  | TokIdent _ -> parse_identifier_expr st pos
   | TokLParen -> parse_paren_expr st
   | TokBinaryOp "-" ->
       advance st;
-      Ast.UnaryOp (Ast.Neg, parse_primary st)
+      Ast.UnaryOp (Ast.Parsed pos, Ast.Neg, parse_primary st)
   | TokUnaryOp "!" ->
       advance st;
-      Ast.UnaryOp (Ast.Not, parse_primary st)
+      Ast.UnaryOp (Ast.Parsed pos, Ast.Not, parse_primary st)
   | TokUnaryOp "~" ->
       advance st;
-      Ast.UnaryOp (Ast.Compl, parse_primary st)
-  | TokEof -> raise (Parse_error "unexpected end of input")
+      Ast.UnaryOp (Ast.Parsed pos, Ast.Compl, parse_primary st)
+  | TokEof -> raise (Parse_error (pos, "unexpected end of input"))
   | _ ->
       raise
-        (Parse_error ("unknown token: '" ^ string_of_token st.cur_tok ^ "'"))
+        (Parse_error
+           (pos, "unknown token: '" ^ string_of_token st.cur_tok ^ "'"))
 
 and parse_binop_rhs st expr_prec lhs =
   let prec = cur_precedence st in
@@ -101,6 +110,7 @@ and parse_binop_rhs st expr_prec lhs =
   else
     match st.cur_tok with
     | TokBinaryOp s ->
+        let pos = cur_pos st in
         let op = op_of_str s in
         advance st;
         let rhs = parse_primary st in
@@ -108,7 +118,8 @@ and parse_binop_rhs st expr_prec lhs =
         let rhs =
           if prec < next_prec then parse_binop_rhs st (prec + 1) rhs else rhs
         in
-        parse_binop_rhs st expr_prec (Ast.BinaryOp (op, lhs, rhs))
+        parse_binop_rhs st expr_prec
+          (Ast.BinaryOp (Ast.Parsed pos, op, lhs, rhs))
     | _ -> lhs [@coverage off]
 
 and parse_binary_expr st =
@@ -119,11 +130,12 @@ and parse_conditional_expr st =
   let cond = parse_binary_expr st in
   match st.cur_tok with
   | TokQuestion ->
+      let pos = cur_pos st in
       consume st TokQuestion;
       let then_expr = parse_expr st in
       consume st TokColon;
       let else_expr = parse_conditional_expr st in
-      Ast.Ternary (cond, then_expr, else_expr)
+      Ast.Ternary (Ast.Parsed pos, cond, then_expr, else_expr)
   | _ -> cond
 
 and parse_expr st = parse_conditional_expr st
@@ -142,7 +154,7 @@ let parse_type_name st =
   | TokIdent type_name ->
       advance st;
       Ast.VarType type_name
-  | _ -> raise (Parse_error "expected type") [@coverage off]
+  | _ -> raise (Parse_error (cur_pos st, "expected type")) [@coverage off]
 
 let parse_return_stmt st =
   consume st TokReturnKw;
@@ -188,7 +200,7 @@ and parse_compound_stmt st rev_stmts =
   | TokRBrace ->
       consume st TokRBrace;
       List.rev rev_stmts
-  | TokEof -> raise (Parse_error "expected '}'")
+  | TokEof -> raise (Parse_error (cur_pos st, "expected '}'"))
   | _ ->
       let stmt = parse_statement st in
       parse_compound_stmt st (stmt :: rev_stmts)
@@ -218,7 +230,7 @@ and parse_declaration st =
   match st.cur_tok with
   | TokAssign -> parse_var_def_tail st var_type name
   | TokLParen -> parse_func_def_tail st var_type name
-  | _ -> raise (Parse_error "expected '='")
+  | _ -> raise (Parse_error (cur_pos st, "expected '='"))
 
 and parse_if st =
   consume st TokIfKw;
@@ -258,7 +270,8 @@ and parse_for st =
 let parse input =
   let st = create (Lexer.create input) in
   advance st;
-  if st.cur_tok = TokEof then raise (Parse_error "unexpected end of input")
+  if st.cur_tok = TokEof then
+    raise (Parse_error (cur_pos st, "unexpected end of input"))
   else
     let rec parse_statements rev_stmts =
       let stmt = parse_statement st in

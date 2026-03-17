@@ -1,16 +1,31 @@
 open Token
 
-exception Lex_error of string
+exception Lex_error of Ast.pos * string
 
 type state = {
   input : string;
   mutable pos : int;
+  mutable line : int;
+  mutable col : int;
+  (* position snapshotted at the start of the most-recently-returned token,
+     after skipping whitespace *)
+  mutable tok_line : int;
+  mutable tok_col : int;
 }
 
-let create input = { input; pos = 0 }
+let create input = { input; pos = 0; line = 1; col = 1; tok_line = 1; tok_col = 1 }
 let has_more st = st.pos < String.length st.input
 let peek st = if has_more st then Some st.input.[st.pos] else None
-let advance st = st.pos <- st.pos + 1
+
+let advance st =
+  (if has_more st && st.input.[st.pos] = '\n' then (
+     st.line <- st.line + 1;
+     st.col <- 1)
+   else st.col <- st.col + 1);
+  st.pos <- st.pos + 1
+
+let tok_pos st = Ast.{ line = st.tok_line; col = st.tok_col }
+
 let is_digit c = c >= '0' && c <= '9'
 let is_alpha c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c = '_'
 
@@ -38,7 +53,7 @@ let read_number st =
       advance_while (fun c -> is_alpha c || is_digit c) st;
       let bad_literal = String.sub st.input start (st.pos - start) in
       raise
-        (Lex_error (Printf.sprintf "invalid numeric literal '%s'" bad_literal))
+        (Lex_error (tok_pos st, Printf.sprintf "invalid numeric literal '%s'" bad_literal))
   | _ ->
       let literal = String.sub st.input start (st.pos - start) in
       TokInt (int_of_string literal)
@@ -65,6 +80,9 @@ let peek2 st =
 
 let next_token st =
   skip_whitespace st;
+  (* snapshot position at start of the token being returned *)
+  st.tok_line <- st.line;
+  st.tok_col <- st.col;
   match peek st with
   | None -> TokEof
   | Some ';' ->
@@ -137,10 +155,18 @@ let next_token st =
       TokBinaryOp (String.make 1 op)
   | Some c when is_digit c -> read_number st
   | Some c when is_alpha c -> read_ident st
-  | Some c -> raise (Lex_error (Printf.sprintf "unexpected character '%c'" c))
+  | Some c -> raise (Lex_error (tok_pos st, Printf.sprintf "unexpected character '%c'" c))
 
 let peek_token st =
   let saved_pos = st.pos in
+  let saved_line = st.line in
+  let saved_col = st.col in
+  let saved_tok_line = st.tok_line in
+  let saved_tok_col = st.tok_col in
   let tok = next_token st in
   st.pos <- saved_pos;
+  st.line <- saved_line;
+  st.col <- saved_col;
+  st.tok_line <- saved_tok_line;
+  st.tok_col <- saved_tok_col;
   tok

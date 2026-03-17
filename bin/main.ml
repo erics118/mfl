@@ -17,8 +17,8 @@ let () =
     | s -> (
         match Parser.parse s with
         | stmt -> stmt
-        | exception Parser.Parse_error msg ->
-            Printf.eprintf "parse error: %s\n" msg;
+        | exception Parser.Parse_error ({ line; col }, msg) ->
+            Printf.eprintf "%d:%d: parse error: %s\n" line col msg;
             exit 1)
     | exception Sys_error msg ->
         Printf.eprintf "io error: %s\n" msg;

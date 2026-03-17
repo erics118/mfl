@@ -5,10 +5,10 @@ let string_of_params l =
     (List.map (fun (t, n) -> Printf.sprintf "%s %s" (string_of_var_type t) n) l)
 
 let rec pp_expr_aux ?(parent_prec = 0) = function
-  | IntLiteral n -> string_of_int n
-  | BoolLiteral b -> string_of_bool b
-  | VarRef name -> name
-  | Ternary (e, t, f) ->
+  | IntLiteral (_, n) -> string_of_int n
+  | BoolLiteral (_, b) -> string_of_bool b
+  | VarRef (_, name) -> name
+  | Ternary (_, e, t, f) ->
       let cond_str =
         match e with
         | Ternary _ -> "(" ^ pp_expr_aux e ^ ")"
@@ -18,14 +18,14 @@ let rec pp_expr_aux ?(parent_prec = 0) = function
         Printf.sprintf "%s ? %s : %s" cond_str (pp_expr_aux t) (pp_expr_aux f)
       in
       if parent_prec > 5 then "(" ^ s ^ ")" else s
-  | UnaryOp (op, e) ->
+  | UnaryOp (_, op, e) ->
       let e_str =
         match e with
         | BinaryOp _ | UnaryOp _ -> "(" ^ pp_expr_aux e ^ ")"
         | _ -> pp_expr_aux e
       in
       string_of_uop op ^ e_str
-  | BinaryOp (op, lhs, rhs) ->
+  | BinaryOp (_, op, lhs, rhs) ->
       let prec = precedence op in
       let lhs_str = pp_expr_aux ~parent_prec:prec lhs in
       let rhs_prec =
@@ -36,10 +36,10 @@ let rec pp_expr_aux ?(parent_prec = 0) = function
       let rhs_str = pp_expr_aux ~parent_prec:rhs_prec rhs in
       let s = Printf.sprintf "%s %s %s" lhs_str (string_of_op op) rhs_str in
       if prec < parent_prec then "(" ^ s ^ ")" else s
-  | FuncCall { name; args } ->
+  | FuncCall (_, name, args) ->
       let args_str = String.concat ", " (List.map pp_expr_aux args) in
       Printf.sprintf "%s(%s)" name args_str
-  | Assign { name; value } -> Printf.sprintf "%s = %s" name (pp_expr_aux value)
+  | Assign (_, name, value) -> Printf.sprintf "%s = %s" name (pp_expr_aux value)
 
 let pp_expr e = pp_expr_aux e
 
