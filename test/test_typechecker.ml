@@ -105,6 +105,18 @@ let test_unary_errors _ =
   check_err "operator '-': invalid operand type 'bool'" (un Neg (b true));
   check_err "operator '~': invalid operand type 'bool'" (un Compl (b false))
 
+let tern c t e = Ternary (p, c, t, e)
+
+let test_ternary _ =
+  check_typ Int (tern (b true) (i 1) (i 2));
+  check_typ Bool (tern (b false) (b true) (b false));
+  check_typ Bool (tern (bi Less (i 1) (i 2)) (b true) (b false))
+
+let test_ternary_errors _ =
+  check_err "condition must be 'bool' but got 'int'" (tern (i 1) (i 2) (i 3));
+  check_err "expected type 'int' but got 'bool'" (tern (b true) (i 1) (b false));
+  check_err "expected type 'bool' but got 'int'" (tern (b true) (b false) (i 1))
+
 let tests =
   "typechecker"
   >::: [
@@ -121,6 +133,8 @@ let tests =
          "equality_errors" >:: test_equality_errors;
          "logical_errors" >:: test_logical_errors;
          "unary_errors" >:: test_unary_errors;
+         "ternary" >:: test_ternary;
+         "ternary_errors" >:: test_ternary_errors;
        ]
 
 let _ = run_test_tt_main tests

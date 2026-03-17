@@ -53,61 +53,59 @@ let typ_of_var_type pos = function
   | VarType t -> raise (Type_error (pos, UnknownType t))
 
 let expr_typ : checked expr -> typ = function
-  | IntLiteral (ann, _) -> typ_of ann
-  | BoolLiteral (ann, _) -> typ_of ann
-  | VarRef (ann, _) -> typ_of ann
-  | BinaryOp (ann, _, _, _) -> typ_of ann
-  | UnaryOp (ann, _, _) -> typ_of ann
-  | Ternary (ann, _, _, _) -> typ_of ann
-  | FuncCall (ann, _, _) -> typ_of ann
+  | IntLiteral (ann, _)
+  | BoolLiteral (ann, _)
+  | VarRef (ann, _)
+  | BinaryOp (ann, _, _, _)
+  | UnaryOp (ann, _, _)
+  | Ternary (ann, _, _, _)
+  | FuncCall (ann, _, _)
   | Assign (ann, _, _) -> typ_of ann
+
+let check_infix pos op lt rt =
+  let err () = raise (Type_error (pos, InfixTypeMismatch (op, lt, rt))) in
+  match op with
+  | Add | Sub | Mul | Div | Mod | BitAnd | BitOr | BitXor | LShift | RShift ->
+      if lt = Int && rt = Int then Int else err ()
+  | Less | Leq | Greater | Geq -> if lt = Int && rt = Int then Bool else err ()
+  | And | Or -> if lt = Bool && rt = Bool then Bool else err ()
+  | Equal | Neq -> if lt = rt then Bool else err ()
+
+let check_unary pos op t =
+  let err () = raise (Type_error (pos, UnaryTypeMismatch (op, t))) in
+  match op with
+  | Not -> if t = Bool then Bool else err ()
+  | Neg | Compl -> if t = Int then Int else err ()
+
+let check_ternary pos cond_t then_t else_t =
+  if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
+  if then_t <> else_t then
+    raise (Type_error (pos, TypeMismatch (then_t, else_t)));
+  then_t
 
 let rec typecheck_expr env = function
   | IntLiteral (ann, n) -> IntLiteral (Checked (pos_of ann, Int), n)
   | BoolLiteral (ann, b) -> BoolLiteral (Checked (pos_of ann, Bool), b)
   | BinaryOp (ann, op, lhs, rhs) ->
+      let pos = pos_of ann in
       let lhs' = typecheck_expr env lhs in
       let rhs' = typecheck_expr env rhs in
-      let lt = expr_typ lhs' and rt = expr_typ rhs' in
-      let pos = pos_of ann in
-      let err e = raise (Type_error (pos, e)) in
-      let result_typ =
-        match op with
-        | Add
-        | Sub
-        | Mul
-        | Div
-        | Mod
-        | BitAnd
-        | BitOr
-        | BitXor
-        | LShift
-        | RShift ->
-            if lt = Int && rt = Int then Int
-            else err (InfixTypeMismatch (op, lt, rt))
-        | Less | Leq | Greater | Geq ->
-            if lt = Int && rt = Int then Bool
-            else err (InfixTypeMismatch (op, lt, rt))
-        | And | Or ->
-            if lt = Bool && rt = Bool then Bool
-            else err (InfixTypeMismatch (op, lt, rt))
-        | Equal | Neq ->
-            if lt = rt then Bool else err (InfixTypeMismatch (op, lt, rt))
-      in
-      BinaryOp (Checked (pos, result_typ), op, lhs', rhs')
+      let t = check_infix pos op (expr_typ lhs') (expr_typ rhs') in
+      BinaryOp (Checked (pos, t), op, lhs', rhs')
   | VarRef (_, _) -> failwith "todo"
   | UnaryOp (ann, op, e) ->
-      let e' = typecheck_expr env e in
-      let t = expr_typ e' in
       let pos = pos_of ann in
-      let err e = raise (Type_error (pos, e)) in
-      let result_typ =
-        match op with
-        | Not -> if t = Bool then Bool else err (UnaryTypeMismatch (op, t))
-        | Neg | Compl ->
-            if t = Int then Int else err (UnaryTypeMismatch (op, t))
+      let e' = typecheck_expr env e in
+      let t = check_unary pos op (expr_typ e') in
+      UnaryOp (Checked (pos, t), op, e')
+  | Ternary (ann, cond, then_e, else_e) ->
+      let pos = pos_of ann in
+      let cond' = typecheck_expr env cond in
+      let then_e' = typecheck_expr env then_e in
+      let else_e' = typecheck_expr env else_e in
+      let t =
+        check_ternary pos (expr_typ cond') (expr_typ then_e') (expr_typ else_e')
       in
-      UnaryOp (Checked (pos, result_typ), op, e')
-  | Ternary (_, _, _, _) -> failwith "todo"
+      Ternary (Checked (pos, t), cond', then_e', else_e')
   | FuncCall (_, _, _) -> failwith "todo"
   | Assign (_, _, _) -> failwith "todo"
