@@ -56,6 +56,7 @@ let read_ident st =
   | "else" -> ElseKw
   | "while" -> WhileKw
   | "for" -> ForKw
+  | "void" -> VoidKw
   | s -> Identifier s
 
 let peek2 st =

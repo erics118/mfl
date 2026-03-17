@@ -133,6 +133,9 @@ let parse_type_name st =
   | BoolKw ->
       get_next_token st;
       Ast.VarType "bool"
+  | VoidKw ->
+      get_next_token st;
+      Ast.VarType "void"
   | Identifier type_name ->
       get_next_token st;
       Ast.VarType type_name
@@ -151,7 +154,7 @@ let parse_return_stmt st =
 
 let looks_like_definition st =
   match st.cur_tok with
-  | IntKw | BoolKw -> true
+  | IntKw | BoolKw | VoidKw -> true
   | Identifier _ -> (
       match Lexer.peek_next_token st.lex with
       | Identifier _ -> true

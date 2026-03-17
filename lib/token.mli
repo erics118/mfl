@@ -20,6 +20,7 @@ type token =
   | ElseKw  (** [else] keyword *)
   | WhileKw  (** [while] keyword *)
   | ForKw  (** [for] keyword *)
+  | VoidKw  (** [void] keyword *)
   | LBrace  (** [{] *)
   | RBrace  (** [}] *)
   | QuestionMark  (** [?] for the ternary operator *)

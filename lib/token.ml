@@ -17,6 +17,7 @@ type token =
   | ElseKw
   | WhileKw
   | ForKw
+  | VoidKw
   | LBrace
   | RBrace
   | QuestionMark
@@ -45,3 +46,4 @@ let string_of_token = function
   | ElseKw -> "else"
   | WhileKw -> "while"
   | ForKw -> "for"
+  | VoidKw -> "void"

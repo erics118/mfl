@@ -193,6 +193,7 @@ and codegen_ternary cond then_e else_e =
 and llvm_type = function
   | Ast.VarType "int" -> int_type
   | Ast.VarType "bool" -> bool_type
+  | Ast.VarType "void" -> Llvm.void_type context
   | Ast.VarType t -> failwith ("unknown type: " ^ t)
 
 and codegen_func ret_type name params body =
@@ -218,9 +219,12 @@ and codegen_func ret_type name params body =
     params;
   Llvm.position_at_end (Llvm.entry_block fn) builder;
   List.iter codegen_stmt body;
-  (* add return 0; to main if missing *)
-  if (not (block_terminated ())) && name = "main" then
-    ignore (Llvm.build_ret (Llvm.const_null (llvm_type ret_type)) builder)
+  if not (block_terminated ()) then
+    if Llvm.return_type ty = Llvm.void_type context then
+      ignore (Llvm.build_ret_void builder)
+    else if name = "main" then
+      (* add return 0; to main if missing *)
+      ignore (Llvm.build_ret (Llvm.const_null (llvm_type ret_type)) builder)
 
 and codegen_stmt = function
   | Ast.FuncDef { ret_type; name; params; body } ->

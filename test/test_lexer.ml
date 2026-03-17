@@ -41,6 +41,7 @@ let test_identifiers_and_keywords _ =
   check [ ElseKw ] "else";
   check [ WhileKw ] "while";
   check [ ForKw ] "for";
+  check [ VoidKw ] "void";
   check [ Identifier "x" ] "x";
   check [ Identifier "CustomType" ] "CustomType";
   check [ Identifier "abc1" ] "abc1";
