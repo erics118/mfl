@@ -85,7 +85,7 @@ let check_ternary pos cond_t then_t else_t =
     raise (Type_error (pos, TypeMismatch (then_t, else_t)));
   then_t
 
-let rec typecheck_expr env expr =
+let rec typecheck_expr env (expr : parsed expr) : checked expr =
   match expr with
   | IntLiteral (ann, n) -> typecheck_int_lit ann n
   | BoolLiteral (ann, b) -> typecheck_bool_lit ann b
@@ -160,7 +160,7 @@ and typecheck_func_call env ann f args =
   in
   FuncCall (Checked (pos, sig_.ret), f, args')
 
-and typecheck_stmt env stmt =
+and typecheck_stmt env (stmt : parsed stmt) : checked stmt =
   match stmt with
   | EmptyStmt pos ->
       (* trivial *)
