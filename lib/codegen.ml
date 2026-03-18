@@ -8,8 +8,8 @@ let bool_type = Llvm.i1_type context
 let locals : (string, Llvm.lltype * Llvm.llvalue) Hashtbl.t = Hashtbl.create 16
 
 (* in llvm, pointers are opaque so we can't get the type info from it. instead,
-   we manually the type info. in the future, implement a typechecker to do this
-   instead *)
+   we manually track the type info. in the future, implement a typechecker to do
+   this instead *)
 let func_types : (string, Llvm.lltype) Hashtbl.t = Hashtbl.create 16
 
 (* true if the current block already ends with a terminator (ret, br, etc.) *)
@@ -25,7 +25,7 @@ let llvm_type = function
   | Ast.VarType "int" -> int_type
   | Ast.VarType "bool" -> bool_type
   | Ast.VarType "void" -> Llvm.void_type context
-  | Ast.VarType t -> failwith ("unknown type: " ^ t)
+  | Ast.VarType name -> failwith ("unknown type: " ^ name)
 
 let codegen_int n = Llvm.const_int int_type n
 
@@ -52,8 +52,8 @@ let rec codegen_binop op lhs rhs =
   | Ast.LShift -> Llvm.build_shl lv rv "shltmp" builder
   | Ast.RShift -> Llvm.build_ashr lv rv "ashrtmp" builder
 
-and codegen_uop op expr =
-  let v = codegen_expr expr in
+and codegen_uop op e =
+  let v = codegen_expr e in
   match op with
   | Ast.Neg -> Llvm.build_neg v "" builder
   | Ast.Not -> Llvm.build_not v "nottmp" builder
@@ -67,7 +67,7 @@ and codegen_func_call name args =
   in
   let fn_ty =
     match Hashtbl.find_opt func_types name with
-    | Some t -> t
+    | Some ty -> ty
     | None -> failwith ("unknown function type: " ^ name) [@coverage off]
   in
   let arg_vals = Array.of_list (List.map codegen_expr args) in
@@ -120,7 +120,7 @@ and codegen_expr = function
       match Hashtbl.find_opt locals name with
       | Some (ty, ptr) -> Llvm.build_load ty ptr name builder
       | None -> failwith ("undefined variable: " ^ name))
-  | Ast.UnaryOp (_, op, expr) -> codegen_uop op expr
+  | Ast.UnaryOp (_, op, e) -> codegen_uop op e
   | Ast.Ternary (_, cond, then_e, else_e) -> codegen_ternary cond then_e else_e
   | Ast.FuncCall (_, name, args) -> codegen_func_call name args
   | Ast.Assign (_, name, value) -> (
@@ -227,7 +227,7 @@ and codegen_ternary cond then_e else_e =
 
 and codegen_func_def ret_type name params body =
   let param_types =
-    Array.of_list (List.map (fun (t, _) -> llvm_type t) params)
+    Array.of_list (List.map (fun (vt, _) -> llvm_type vt) params)
   in
   let ty = Llvm.function_type (llvm_type ret_type) param_types in
   let fn = Llvm.define_function name ty the_module in

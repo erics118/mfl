@@ -2,20 +2,20 @@ open Ast
 
 let string_of_params l =
   String.concat ", "
-    (List.map (fun (t, n) -> Printf.sprintf "%s %s" (string_of_var_type t) n) l)
+    (List.map (fun (vt, n) -> Printf.sprintf "%s %s" (string_of_var_type vt) n) l)
 
 let rec pp_expr_aux ?(parent_prec = 0) = function
   | IntLiteral (_, n) -> string_of_int n
   | BoolLiteral (_, b) -> string_of_bool b
   | VarRef (_, name) -> name
-  | Ternary (_, e, t, f) ->
+  | Ternary (_, cond, then_e, else_e) ->
       let cond_str =
-        match e with
-        | Ternary _ -> "(" ^ pp_expr_aux e ^ ")"
-        | _ -> pp_expr_aux e
+        match cond with
+        | Ternary _ -> "(" ^ pp_expr_aux cond ^ ")"
+        | _ -> pp_expr_aux cond
       in
       let s =
-        Printf.sprintf "%s ? %s : %s" cond_str (pp_expr_aux t) (pp_expr_aux f)
+        Printf.sprintf "%s ? %s : %s" cond_str (pp_expr_aux then_e) (pp_expr_aux else_e)
       in
       if parent_prec > 5 then "(" ^ s ^ ")" else s
   | UnaryOp (_, op, e) ->
@@ -62,9 +62,9 @@ and pp_stmt_aux ?(top_level = true) ?(indent = 0) stmt =
     | CompoundStmt stmts -> pp_block_aux ~indent stmts
     | If { cond; then_body; else_body } -> begin
         match else_body with
-        | Some e ->
+        | Some s ->
             Printf.sprintf "if (%s) %s else %s" (pp_expr_aux cond)
-              (pp_body then_body) (pp_body e)
+              (pp_body then_body) (pp_body s)
         | None ->
             Printf.sprintf "if (%s) %s" (pp_expr_aux cond) (pp_body then_body)
       end

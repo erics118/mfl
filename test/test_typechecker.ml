@@ -12,7 +12,7 @@ let i n = IntLiteral (p, n)
 let b b = BoolLiteral (p, b)
 let bi op l r = BinaryOp (p, op, l, r)
 let un op e = UnaryOp (p, op, e)
-let tern c t e = Ternary (p, c, t, e)
+let tern cond then_e else_e = Ternary (p, cond, then_e, else_e)
 let v x = VarRef (p, x)
 let a x e = Assign (p, x, e)
 let call f args = FuncCall (p, f, args)
@@ -27,15 +27,15 @@ let env_with_funcs funcs =
   List.iter (fun (k, v) -> Hashtbl.add tbl k v) funcs;
   { empty_env with funcs = tbl }
 
-let check_typ ?(env = empty_env) expected expr =
-  let result = typecheck_expr env expr in
+let check_typ ?(env = empty_env) expected e =
+  let result = typecheck_expr env e in
   assert_equal ~printer:string_of_typ expected (expr_typ result)
 
-let check_err ?(env = empty_env) expected_err expr =
-  match typecheck_expr env expr with
+let check_err ?(env = empty_env) expected_err e =
+  match typecheck_expr env e with
   | _ -> assert_failure "expected Type_error"
-  | exception Type_error (_, e) ->
-      assert_equal ~printer:Fun.id expected_err (string_of_type_error e)
+  | exception Type_error (_, err) ->
+      assert_equal ~printer:Fun.id expected_err (string_of_type_error err)
 
 let test_literals _ =
   check_typ Int (i 0);

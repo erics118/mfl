@@ -27,7 +27,7 @@ let consume_identifier st =
       name
   | _ -> raise (Parse_error (cur_pos st, "expected identifier"))
 
-let op_of_str s =
+let op_of_string_exn s =
   match Ast.op_of_string_opt s with
   | Some op -> op
   | None ->
@@ -37,7 +37,7 @@ let op_of_str s =
 
 let cur_precedence st =
   match st.cur_tok with
-  | TokBinaryOp s -> Ast.precedence (op_of_str s)
+  | TokBinaryOp s -> Ast.precedence (op_of_string_exn s)
   | _ -> -1
 
 (* Parse a comma-separated list of items terminated by ')' *)
@@ -59,9 +59,9 @@ let parse_rparen_list st parse_item =
 (* expressions *)
 let rec parse_paren_expr st =
   advance st;
-  let v = parse_expr st in
+  let e = parse_expr st in
   consume st TokRParen;
-  v
+  e
 
 and parse_identifier_expr st pos =
   let name = consume_identifier st in
@@ -109,7 +109,7 @@ and parse_binop_rhs st expr_prec lhs =
     match st.cur_tok with
     | TokBinaryOp s ->
         let pos = cur_pos st in
-        let op = op_of_str s in
+        let op = op_of_string_exn s in
         advance st;
         let rhs = parse_primary st in
         let next_prec = cur_precedence st in
@@ -130,10 +130,10 @@ and parse_conditional_expr st =
   | TokQuestion ->
       let pos = cur_pos st in
       consume st TokQuestion;
-      let then_expr = parse_expr st in
+      let then_e = parse_expr st in
       consume st TokColon;
-      let else_expr = parse_conditional_expr st in
-      Ast.Ternary (Ast.Parsed pos, cond, then_expr, else_expr)
+      let else_e = parse_conditional_expr st in
+      Ast.Ternary (Ast.Parsed pos, cond, then_e, else_e)
   | _ -> cond
 
 and parse_expr st = parse_conditional_expr st
@@ -223,11 +223,11 @@ and parse_func_def_tail st ret_type name =
   Ast.FuncDef { ret_type; name; params; body }
 
 and parse_declaration st =
-  let var_type = parse_type_name st in
+  let var_ty = parse_type_name st in
   let name = consume_identifier st in
   match st.cur_tok with
-  | TokAssign -> parse_var_def_tail st var_type name
-  | TokLParen -> parse_func_def_tail st var_type name
+  | TokAssign -> parse_var_def_tail st var_ty name
+  | TokLParen -> parse_func_def_tail st var_ty name
   | _ -> raise (Parse_error (cur_pos st, "expected '='"))
 
 and parse_if st =

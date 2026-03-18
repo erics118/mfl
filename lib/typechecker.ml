@@ -5,7 +5,7 @@ type type_error =
   | UnboundVariable of string
   | UnboundFunction of string
   | ArityMismatch of string * int * int (* name, expected, got *)
-  | InfixTypeMismatch of op * typ * typ
+  | BinaryTypeMismatch of op * typ * typ
   | UnaryTypeMismatch of uop * typ
   | TypeMismatch of typ * typ (* expected, got *)
   | CondNotBool of typ
@@ -18,12 +18,12 @@ let string_of_typ = function
   | Void -> "void"
 
 let string_of_type_error = function
-  | UnknownType t -> Printf.sprintf "unknown type '%s'" t
+  | UnknownType name -> Printf.sprintf "unknown type '%s'" name
   | UnboundVariable x -> Printf.sprintf "unbound variable '%s'" x
   | UnboundFunction f -> Printf.sprintf "unbound function '%s'" f
   | ArityMismatch (f, expected, got) ->
       Printf.sprintf "'%s' expects %d argument(s) but got %d" f expected got
-  | InfixTypeMismatch (op, lt, rt) ->
+  | BinaryTypeMismatch (op, lt, rt) ->
       Printf.sprintf "operator '%s': type mismatch between '%s' and '%s'"
         (string_of_op op) (string_of_typ lt) (string_of_typ rt)
   | UnaryTypeMismatch (op, t) ->
@@ -50,7 +50,7 @@ let typ_of_var_type pos = function
   | VarType "int" -> Int
   | VarType "bool" -> Bool
   | VarType "void" -> Void
-  | VarType t -> raise (Type_error (pos, UnknownType t))
+  | VarType name -> raise (Type_error (pos, UnknownType name))
 
 let expr_typ : checked expr -> typ = function
   | IntLiteral (ann, _)
@@ -62,8 +62,8 @@ let expr_typ : checked expr -> typ = function
   | FuncCall (ann, _, _)
   | Assign (ann, _, _) -> typ_of ann
 
-let check_infix pos op lt rt =
-  let err () = raise (Type_error (pos, InfixTypeMismatch (op, lt, rt))) in
+let check_binary pos op lt rt =
+  let err () = raise (Type_error (pos, BinaryTypeMismatch (op, lt, rt))) in
   match op with
   | Add | Sub | Mul | Div | Mod | BitAnd | BitOr | BitXor | LShift | RShift ->
       if lt = Int && rt = Int then Int else err ()
@@ -90,7 +90,7 @@ let rec typecheck_expr env = function
       let pos = pos_of ann in
       let lhs' = typecheck_expr env lhs in
       let rhs' = typecheck_expr env rhs in
-      let t = check_infix pos op (expr_typ lhs') (expr_typ rhs') in
+      let t = check_binary pos op (expr_typ lhs') (expr_typ rhs') in
       BinaryOp (Checked (pos, t), op, lhs', rhs')
   | VarRef (ann, x) ->
       let pos = pos_of ann in
