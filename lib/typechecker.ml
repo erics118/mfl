@@ -211,7 +211,24 @@ and typecheck_var_def env pos var_type name init =
   Hashtbl.replace env.vars name var_t;
   VarDef { pos; var_type; name; init = init' }
 
-and typecheck_func_def _env _pos _ret_type _name _params _body = failwith "todo"
+and typecheck_func_def env pos ret_type name params body =
+  let ret_t = typ_of_var_type pos ret_type in
+  let env = { env with return_typ = Some ret_t } in
+  (* todo: handle scoping later *)
+  (* add each variable to env *)
+  List.iter
+    (fun (param_type, param) ->
+      let param_t = typ_of_var_type pos param_type in
+      Hashtbl.replace env.vars param param_t)
+    params;
+  (* add function to env *)
+  Hashtbl.replace env.funcs name
+    {
+      params = List.map (fun (a, _) -> typ_of_var_type pos a) params;
+      ret = ret_t;
+    };
+  let body' = List.map (typecheck_stmt env) body in
+  FuncDef { pos; ret_type; name; params; body = body' }
 
 and typecheck_if env pos cond then_body else_body =
   let cond' = typecheck_expr env cond in
