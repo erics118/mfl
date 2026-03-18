@@ -24,7 +24,7 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [x] operator precedence and associativity
 - [x] ternary: `?:`
 - [ ] compound assignment: `+=`, `-=`, `*=`, `/=`, `&=`, `|=`, `^=`, `<<=`, `>>=`
-- [ ] increment/decrement: `++`, `--` (pre and post)
+- [x] increment/decrement: `++`, `--` (pre and post)
 - [ ] `sizeof`
 - [ ] comma operator
 
