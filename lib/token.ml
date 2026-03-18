@@ -20,6 +20,8 @@ type token =
   | TokBinaryOp of string  (** binary operator lexeme *)
   | TokUnaryOp of string  (** unary operator lexeme *)
   | TokAssign  (** [=] *)
+  | TokPlusPlus
+  | TokMinusMinus
   (* punctuation *)
   | TokLParen  (** [ ( ] *)
   | TokRParen  (** [ ) ] *)
@@ -52,6 +54,8 @@ let string_of_token = function
   | TokBinaryOp x -> x
   | TokUnaryOp x -> x
   | TokAssign -> "="
+  | TokPlusPlus -> "++"
+  | TokMinusMinus -> "--"
   (* punctuation *)
   | TokLParen -> "("
   | TokRParen -> ")"

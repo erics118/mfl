@@ -128,12 +128,15 @@ and codegen_expr (e : Ast.checked Ast.expr) : Llvm.llvalue =
   | Ast.Assign (_, name, value) -> (
       match Hashtbl.find_opt locals name with
       | Some ptr ->
-          (* codegen, then return the assigned value, so we can do int x = y =
-             2 *)
+          (* codegen, then return the assigned value, so we can do x = y = 2 *)
           let v = codegen_expr value in
           ignore (Llvm.build_store v ptr builder);
           v
       | None -> failwith ("undefined variable: " ^ name))
+  | PreInc (_, e) -> codegen_incdec e true false
+  | PreDec (_, _) -> codegen_incdec e false false
+  | PostInc (_, _) -> codegen_incdec e true true
+  | PostDec (_, _) -> codegen_incdec e false true
 
 and codegen_if cond then_body else_body =
   let c = codegen_expr cond in
@@ -226,6 +229,29 @@ and codegen_ternary cond then_e else_e =
   Llvm.position_at_end merge_bb builder;
   (* phi, to select value from whichever branch was taken *)
   Llvm.build_phi [ (tv, then_bb'); (ev, else_bb') ] "ternary" builder
+
+and codegen_incdec e is_pos is_post =
+  let delta = if is_pos then 1 else -1 in
+  let name =
+    match e with
+    | Ast.VarRef (_, n) -> n
+    | _ ->
+        (* we know it is a lvalue, ie a VarRef. this will have to change in the
+           future though, after adding pointers, arrays, etc *)
+        assert false
+  in
+  let ptr = Hashtbl.find locals name in
+  (* get the old value *)
+  let old_val = Llvm.build_load int_type ptr name builder in
+  (* update the new value with by adding 1 or -1 *)
+  let new_val =
+    Llvm.build_add old_val (Llvm.const_int int_type delta) "incdec" builder
+  in
+  (* update the value *)
+  ignore (Llvm.build_store new_val ptr builder);
+  (* if postfix, return the old value *)
+  (* if prefix, return the new value *)
+  if is_post then old_val else new_val
 
 and codegen_func_def ret_type name params body =
   let param_types =

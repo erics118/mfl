@@ -45,6 +45,26 @@ let rec pp_expr_aux ?(parent_prec = 0) = function
       let args_str = String.concat ", " (List.map pp_expr_aux args) in
       Printf.sprintf "%s(%s)" name args_str
   | Assign (_, name, value) -> Printf.sprintf "%s = %s" name (pp_expr_aux value)
+  | PreInc (_, e) -> "++" ^ pp_expr_aux e
+  | PreDec (_, e) -> "--" ^ pp_expr_aux e
+  (* if there is a prefix operator, we need parentheses to prevent ambiguity, so
+     we put parentheses around the inner expr *)
+  | PostInc (_, e) ->
+      let s = pp_expr_aux e in
+      let s =
+        match e with
+        | PreInc _ | PreDec _ -> "(" ^ s ^ ")"
+        | _ -> s
+      in
+      s ^ "++"
+  | PostDec (_, e) ->
+      let s = pp_expr_aux e in
+      let s =
+        match e with
+        | PreInc _ | PreDec _ -> "(" ^ s ^ ")"
+        | _ -> s
+      in
+      s ^ "--"
 
 (** [pp_expr e] renders a value expression into a formatted source string *)
 let pp_expr e = pp_expr_aux e

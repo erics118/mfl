@@ -91,7 +91,7 @@ let test_mixed_precedence _ =
 let test_unary _ =
   roundtrip "-1;";
   roundtrip "-42;";
-  check "-(-5);" "--5;";
+  roundtrip "-(-5);";
   roundtrip "!true;";
   roundtrip "!false;";
   check "!(!true);" "!!true;";
@@ -106,6 +106,17 @@ let test_unary _ =
   roundtrip "-(1 + 2);";
   roundtrip "!(1 == 2);";
   roundtrip "~(1 + 2);"
+
+let test_incdec _ =
+  roundtrip "--x;";
+  roundtrip "x--;";
+  roundtrip "++x;";
+  roundtrip "x++;";
+  (* postfix binds tighter than prefix *)
+  check "++x++;" "++(x++);";
+  roundtrip "(++x)++;";
+  roundtrip "x++++;";
+  roundtrip "++++x;"
 
 let test_multiple_statements _ =
   roundtrip "1;\n2;\n3;\n4;\n5;";
@@ -233,6 +244,7 @@ let tests =
          "bitwise" >:: test_bitwise;
          "mixed_precedence" >:: test_mixed_precedence;
          "unary" >:: test_unary;
+         "incdec" >:: test_incdec;
          "multiple_statements" >:: test_multiple_statements;
          "var_defs" >:: test_var_defs;
          "returns" >:: test_returns;

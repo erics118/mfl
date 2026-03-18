@@ -10,6 +10,7 @@ type type_error =
   | TypeMismatch of typ * typ (* expected, got *)
   | CondNotBool of typ
   | ReturnOutsideFunction
+  | NotLvalue
 
 exception Type_error of pos * type_error
 
@@ -36,6 +37,7 @@ let string_of_type_error = function
   | CondNotBool t ->
       Printf.sprintf "condition must be 'bool' but got '%s'" (string_of_typ t)
   | ReturnOutsideFunction -> "return statement outside of a function"
+  | NotLvalue -> "expression is not an lvalue"
 
 type func_sig = {
   params : typ list;
@@ -73,7 +75,15 @@ let expr_typ : checked expr -> typ = function
   | UnaryOp (ann, _, _)
   | Ternary (ann, _, _, _)
   | FuncCall (ann, _, _)
-  | Assign (ann, _, _) -> typ_of ann
+  | Assign (ann, _, _)
+  | PreInc (ann, _)
+  | PreDec (ann, _)
+  | PostInc (ann, _)
+  | PostDec (ann, _) -> typ_of ann
+
+let assert_lvalue pos = function
+  | Ast.VarRef _ -> ()
+  | _ -> raise (Type_error (pos, NotLvalue))
 
 let check_binary pos op lt rt =
   let err () = raise (Type_error (pos, BinaryTypeMismatch (op, lt, rt))) in
@@ -106,6 +116,10 @@ let rec typecheck_expr env (expr : parsed expr) : checked expr =
   | Ternary (ann, cond, t, e) -> typecheck_ternary_op env ann cond t e
   | FuncCall (ann, f, args) -> typecheck_func_call env ann f args
   | Assign (ann, x, e) -> typecheck_assign env ann x e
+  | PreInc (ann, e) -> typecheck_incdec env ann e (fun a x -> PreInc (a, x))
+  | PreDec (ann, e) -> typecheck_incdec env ann e (fun a x -> PreDec (a, x))
+  | PostInc (ann, e) -> typecheck_incdec env ann e (fun a x -> PostInc (a, x))
+  | PostDec (ann, e) -> typecheck_incdec env ann e (fun a x -> PostDec (a, x))
 
 and typecheck_int_lit ann n = IntLiteral (Checked (pos_of ann, Int), n)
 and typecheck_bool_lit ann b = BoolLiteral (Checked (pos_of ann, Bool), b)
@@ -170,6 +184,16 @@ and typecheck_func_call env ann f args =
       sig_.params args
   in
   FuncCall (Checked (pos, sig_.ret), f, args)
+
+(** typecheck an increment/decrement operation. [make] is a function that makes
+    the checked expr node, as there are four very similar cases *)
+and typecheck_incdec env ann operand make =
+  let pos = pos_of ann in
+  let e = typecheck_expr env operand in
+  assert_lvalue pos e;
+  let t = expr_typ e in
+  if t <> Int then raise (Type_error (pos, UnaryTypeMismatch (Neg, t)));
+  make (Checked (pos, Int)) e
 
 and typecheck_stmt env (stmt : parsed stmt) : checked stmt =
   match stmt with

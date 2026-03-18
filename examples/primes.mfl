@@ -1,5 +1,5 @@
 bool is_prime(int n) {
-    for (int d = 2; d * d <= n; d = d + 1) {
+    for (int d = 2; d * d <= n; ++d) {
         if (n % d == 0) {
             return false;
         }
@@ -8,7 +8,7 @@ bool is_prime(int n) {
 }
 
 int main() {
-    for (int n = 2; n < 100; n = n + 1) {
+    for (int n = 2; n < 100; ++n) {
         if (is_prime(n)) printint(n);
     }
 

@@ -101,9 +101,33 @@ and parse_primary st =
       advance st;
       Ast.UnaryOp (Ast.Parsed pos, Ast.Compl, parse_primary st)
   | TokEof -> raise (Parse_error (pos, "unexpected end of input"))
+  | TokPlusPlus ->
+      advance st;
+      let e = parse_primary st in
+      Ast.PreInc (Ast.Parsed pos, e)
+  | TokMinusMinus ->
+      advance st;
+      let e = parse_primary st in
+      Ast.PreDec (Ast.Parsed pos, e)
   | _ ->
       raise
         (Parse_error (pos, "unknown token: '" ^ string_of_token st.cur_tok ^ "'"))
+
+(* parse postfix operators, chaining as many as appear *)
+and parse_postfix st =
+  let e = parse_primary st in
+  let rec loop e =
+    let pos = cur_pos st in
+    match st.cur_tok with
+    | TokPlusPlus ->
+        advance st;
+        loop (Ast.PostInc (Ast.Parsed pos, e))
+    | TokMinusMinus ->
+        advance st;
+        loop (Ast.PostDec (Ast.Parsed pos, e))
+    | _ -> e
+  in
+  loop e
 
 and parse_binop_rhs st expr_prec lhs =
   let prec = cur_precedence st in
@@ -114,7 +138,8 @@ and parse_binop_rhs st expr_prec lhs =
         let pos = cur_pos st in
         let op = op_of_string_exn s in
         advance st;
-        let rhs = parse_primary st in
+        (* parse a postfix expr if exists *)
+        let rhs = parse_postfix st in
         let next_prec = cur_precedence st in
         let rhs =
           if prec < next_prec then parse_binop_rhs st (prec + 1) rhs else rhs
@@ -124,7 +149,8 @@ and parse_binop_rhs st expr_prec lhs =
     | _ -> lhs [@coverage off]
 
 and parse_binary_expr st =
-  let lhs = parse_primary st in
+  (* parse a postfix expr if exists *)
+  let lhs = parse_postfix st in
   parse_binop_rhs st 0 lhs
 
 and parse_conditional_expr st =

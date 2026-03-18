@@ -47,6 +47,7 @@ type typ =
 
 (** phantom types marking which compiler phase produced an expr *)
 type parsed
+
 type checked
 
 (** annotation on every expr node; [Parsed] holds position only, [Checked] adds
@@ -77,6 +78,10 @@ type 'a expr =
   | Ternary : 'a ann * 'a expr * 'a expr * 'a expr -> 'a expr
   | FuncCall : 'a ann * string * 'a expr list -> 'a expr
   | Assign : 'a ann * string * 'a expr -> 'a expr
+  | PreInc : 'a ann * 'a expr -> 'a expr
+  | PreDec : 'a ann * 'a expr -> 'a expr
+  | PostInc : 'a ann * 'a expr -> 'a expr
+  | PostDec : 'a ann * 'a expr -> 'a expr
 
 (** statements *)
 type 'a stmt =

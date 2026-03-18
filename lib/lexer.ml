@@ -33,6 +33,7 @@ let advance st =
 (** [tok_pos st] returns the source position of the most recently returned
     token, after whitespace was skipped *)
 let tok_pos st = Ast.{ line = st.tok_line; col = st.tok_col }
+
 let is_digit c = c >= '0' && c <= '9'
 let is_alpha c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c = '_'
 
@@ -161,6 +162,14 @@ let next_token st =
   | Some '~' ->
       advance st;
       TokUnaryOp "~"
+  | Some '+' when peek2 st = Some '+' ->
+      advance st;
+      advance st;
+      TokPlusPlus
+  | Some '-' when peek2 st = Some '-' ->
+      advance st;
+      advance st;
+      TokMinusMinus
   | Some (('+' | '-' | '*' | '/' | '%' | '<' | '>' | '&' | '|' | '^') as op) ->
       advance st;
       TokBinaryOp (String.make 1 op)
