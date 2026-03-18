@@ -283,3 +283,11 @@ and typecheck_assign env ann x e =
   let et = expr_typ e in
   if et <> t then raise (Type_error (pos, TypeMismatch (t, et)));
   Assign (Checked (pos, t), x, e)
+
+let typecheck_program stmts =
+  let funcs = Hashtbl.create 8 in
+  (* "stdlib" functions *)
+  Hashtbl.replace funcs "printint" { params = [ Int ]; ret = Void };
+  Hashtbl.replace funcs "printbool" { params = [ Bool ]; ret = Void };
+  let env = { vars = [ Hashtbl.create 8 ]; funcs; return_typ = None } in
+  List.map (typecheck_stmt env) stmts

@@ -1,3 +1,3 @@
   $ dune exec mfl -- fixtures/invalid_type.mfl
-  Fatal error: exception Failure("unknown type: MyType")
-  [2]
+  2:5: type error: unknown type 'MyType'
+  [1]

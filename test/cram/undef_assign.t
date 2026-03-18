@@ -1,3 +1,3 @@
   $ dune exec mfl -- fixtures/undef_assign.mfl
-  Fatal error: exception Failure("undefined variable: x")
-  [2]
+  1:11: type error: unbound variable 'x'
+  [1]

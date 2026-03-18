@@ -29,5 +29,14 @@ let () =
     | Ast.CompoundStmt (_, stmts) -> stmts
     | _ -> [ stmt ]
   in
+  (* typecheck *)
+  let stmts =
+    try Typechecker.typecheck_program stmts
+    with Typechecker.Type_error ({ line; col }, e) ->
+      Printf.eprintf "%d:%d: type error: %s\n" line col
+        (Typechecker.string_of_type_error e);
+      exit 1
+  in
+  (* codegen, now using the checked ast *)
   Codegen.codegen_program stmts;
   print_string (Codegen.emit_ir ())

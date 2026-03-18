@@ -4,12 +4,13 @@ let builder = Llvm.builder context
 let int_type = Llvm.i32_type context
 let bool_type = Llvm.i1_type context
 
-(* maps variable names to (type, alloca ptr) within the current function *)
-let locals : (string, Llvm.lltype * Llvm.llvalue) Hashtbl.t = Hashtbl.create 16
+(* maps variable names to their alloca ptr within the current function *)
+let locals : (string, Llvm.llvalue) Hashtbl.t = Hashtbl.create 16
 
-(* in llvm, pointers are opaque so we can't get the type info from it. instead,
-   we manually track the type info. in the future, implement a typechecker to do
-   this instead *)
+(* func_types maps function names to their llvm function type. needed because
+   llvm pointers are opaque so we can't recover the type from the fn pointer.
+   todo: i believe llvm api does have a function to retrieve function type
+   info *)
 let func_types : (string, Llvm.lltype) Hashtbl.t = Hashtbl.create 16
 
 (* true if the current block already ends with a terminator (ret, br, etc.) *)
@@ -26,6 +27,12 @@ let llvm_type = function
   | Ast.VarType "bool" -> bool_type
   | Ast.VarType "void" -> Llvm.void_type context
   | Ast.VarType name -> failwith ("unknown type: " ^ name)
+
+(* convert a typechecker typ to an llvm type *)
+let llvm_of_typ = function
+  | Ast.Int -> int_type
+  | Ast.Bool -> bool_type
+  | Ast.Void -> Llvm.void_type context
 
 let codegen_int n = Llvm.const_int int_type n
 
@@ -59,7 +66,7 @@ and codegen_uop op e =
   | Ast.Not -> Llvm.build_not v "nottmp" builder
   | Ast.Compl -> Llvm.build_not v "compltmp" builder
 
-and codegen_func_call name args =
+and codegen_func_call ret_t name args =
   let fn =
     match Llvm.lookup_function name the_module with
     | Some f -> f
@@ -71,11 +78,9 @@ and codegen_func_call name args =
     | None -> failwith ("unknown function type: " ^ name) [@coverage off]
   in
   let arg_vals = Array.of_list (List.map codegen_expr args) in
-  (* if fun_ty is void, then it doesn't need a name *)
-  let name =
-    if Llvm.return_type fn_ty = Llvm.void_type context then "" else "calltmp"
-  in
-  Llvm.build_call fn_ty fn arg_vals name builder
+  (* if the return type is void, the call instruction can't have a name *)
+  let call_name = if ret_t = Ast.Void then "" else "calltmp" in
+  Llvm.build_call fn_ty fn arg_vals call_name builder
 
 and codegen_and_binop lhs rhs =
   let lv = codegen_expr lhs in
@@ -109,23 +114,30 @@ and codegen_or_binop lhs rhs =
   Llvm.position_at_end merge_bb builder;
   Llvm.build_phi [ (lv, lhs_bb); (rv, rhs_bb') ] "ortmp" builder
 
-and codegen_expr = function
+and codegen_expr (e : Ast.checked Ast.expr) : Llvm.llvalue =
+  match e with
   | Ast.IntLiteral (_, n) -> codegen_int n
   | Ast.BoolLiteral (_, b) -> Llvm.const_int bool_type (if b then 1 else 0)
   | Ast.BinaryOp (_, Ast.And, lhs, rhs) -> codegen_and_binop lhs rhs
   | Ast.BinaryOp (_, Ast.Or, lhs, rhs) -> codegen_or_binop lhs rhs
   | Ast.BinaryOp (_, op, lhs, rhs) -> codegen_binop op lhs rhs
-  | Ast.VarRef (_, name) -> (
-      (* load the value from the variable's alloca *)
+  | Ast.VarRef (Ast.Checked (_, t), name) -> (
+      (* load the value from the variable's alloca; type comes from the
+         annotation *)
       match Hashtbl.find_opt locals name with
-      | Some (ty, ptr) -> Llvm.build_load ty ptr name builder
+      | Some ptr -> Llvm.build_load (llvm_of_typ t) ptr name builder
       | None -> failwith ("undefined variable: " ^ name))
+  | Ast.VarRef (Ast.Parsed _, _) -> assert false
   | Ast.UnaryOp (_, op, e) -> codegen_uop op e
   | Ast.Ternary (_, cond, then_e, else_e) -> codegen_ternary cond then_e else_e
-  | Ast.FuncCall (_, name, args) -> codegen_func_call name args
+  | Ast.FuncCall (Ast.Checked (_, ret_t), name, args) ->
+      (* ret_t from the annotation determines whether the call can have a
+         name *)
+      codegen_func_call ret_t name args
+  | Ast.FuncCall (Ast.Parsed _, _, _) -> assert false
   | Ast.Assign (_, name, value) -> (
       match Hashtbl.find_opt locals name with
-      | Some (_, ptr) ->
+      | Some ptr ->
           (* codegen, then return the assigned value, so we can do int x = y =
              2 *)
           let v = codegen_expr value in
@@ -173,7 +185,7 @@ and codegen_while_loop cond body =
   br_if_open cond_bb;
   Llvm.position_at_end after_bb builder
 
-and codegen_for_loop init cond (incr : Ast.parsed Ast.expr) body =
+and codegen_for_loop init cond incr body =
   let fn = Llvm.block_parent (Llvm.insertion_block builder) in
   let init_bb = Llvm.append_block context "for_init" fn in
   let cond_bb = Llvm.append_block context "for_cond" fn in
@@ -244,7 +256,7 @@ and codegen_func_def ret_type name params body =
       let ty = llvm_type ptype in
       let ptr = Llvm.build_alloca ty pname builder in
       ignore (Llvm.build_store param ptr builder);
-      Hashtbl.replace locals pname (ty, ptr))
+      Hashtbl.replace locals pname ptr)
     params;
   Llvm.position_at_end (Llvm.entry_block fn) builder;
   List.iter codegen_stmt body;
@@ -258,7 +270,8 @@ and codegen_func_def ret_type name params body =
 and codegen_stmt = function
   | Ast.FuncDef { ret_type; name; params; body; _ } ->
       codegen_func_def ret_type name params body
-  | Ast.ReturnStmt (_, Some e) -> ignore (Llvm.build_ret (codegen_expr e) builder)
+  | Ast.ReturnStmt (_, Some e) ->
+      ignore (Llvm.build_ret (codegen_expr e) builder)
   | Ast.ReturnStmt (_, None) -> ignore (Llvm.build_ret_void builder)
   | Ast.ExprStmt (_, e) -> ignore (codegen_expr e)
   | Ast.EmptyStmt _ -> ()
@@ -267,8 +280,9 @@ and codegen_stmt = function
       let ty = llvm_type var_type in
       let ptr = Llvm.build_alloca ty name builder in
       ignore (Llvm.build_store (codegen_expr init) ptr builder);
-      Hashtbl.replace locals name (ty, ptr)
-  | Ast.If { cond; then_body; else_body; _ } -> codegen_if cond then_body else_body
+      Hashtbl.replace locals name ptr
+  | Ast.If { cond; then_body; else_body; _ } ->
+      codegen_if cond then_body else_body
   | Ast.WhileLoop { cond; body; _ } -> codegen_while_loop cond body
   | Ast.ForLoop { init; cond; incr; body; _ } ->
       codegen_for_loop init cond incr body
