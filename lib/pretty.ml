@@ -2,7 +2,9 @@ open Ast
 
 let string_of_params l =
   String.concat ", "
-    (List.map (fun (vt, n) -> Printf.sprintf "%s %s" (string_of_var_type vt) n) l)
+    (List.map
+       (fun (vt, n) -> Printf.sprintf "%s %s" (string_of_var_type vt) n)
+       l)
 
 let rec pp_expr_aux ?(parent_prec = 0) = function
   | IntLiteral (_, n) -> string_of_int n
@@ -15,7 +17,8 @@ let rec pp_expr_aux ?(parent_prec = 0) = function
         | _ -> pp_expr_aux cond
       in
       let s =
-        Printf.sprintf "%s ? %s : %s" cond_str (pp_expr_aux then_e) (pp_expr_aux else_e)
+        Printf.sprintf "%s ? %s : %s" cond_str (pp_expr_aux then_e)
+          (pp_expr_aux else_e)
       in
       if parent_prec > 5 then "(" ^ s ^ ")" else s
   | UnaryOp (_, op, e) ->
