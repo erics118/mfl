@@ -112,15 +112,15 @@ and typecheck_bool_lit ann b = BoolLiteral (Checked (pos_of ann, Bool), b)
 
 and typecheck_binary_op env ann op lhs rhs =
   let pos = pos_of ann in
-  let lhs' = typecheck_expr env lhs in
-  let rhs' = typecheck_expr env rhs in
+  let lhs = typecheck_expr env lhs in
+  let rhs = typecheck_expr env rhs in
   (* ensure lhs and rhs have the correct type for the operator *)
-  let t = check_binary pos op (expr_typ lhs') (expr_typ rhs') in
-  BinaryOp (Checked (pos, t), op, lhs', rhs')
+  let t = check_binary pos op (expr_typ lhs) (expr_typ rhs) in
+  BinaryOp (Checked (pos, t), op, lhs, rhs)
 
 and typecheck_var_ref env ann x =
   let pos = pos_of ann in
-  (* error if the variable doesn't exist *)
+  (* error if the variable doesnt exist *)
   let t =
     match lookup_var env x with
     | Some t -> t
@@ -130,21 +130,21 @@ and typecheck_var_ref env ann x =
 
 and typecheck_unary_op env ann op e =
   let pos = pos_of ann in
-  let e' = typecheck_expr env e in
+  let e = typecheck_expr env e in
   (* ensure lhs has the correct type for the operator *)
-  let t = check_unary pos op (expr_typ e') in
-  UnaryOp (Checked (pos, t), op, e')
+  let t = check_unary pos op (expr_typ e) in
+  UnaryOp (Checked (pos, t), op, e)
 
 and typecheck_ternary_op env ann cond then_e else_e =
   let pos = pos_of ann in
-  let cond' = typecheck_expr env cond in
-  let then_e' = typecheck_expr env then_e in
-  let else_e' = typecheck_expr env else_e in
+  let cond = typecheck_expr env cond in
+  let then_e = typecheck_expr env then_e in
+  let else_e = typecheck_expr env else_e in
   (* ensure cond is a bool, and then_e and else_e have the same type *)
   let t =
-    check_ternary pos (expr_typ cond') (expr_typ then_e') (expr_typ else_e')
+    check_ternary pos (expr_typ cond) (expr_typ then_e) (expr_typ else_e)
   in
-  Ternary (Checked (pos, t), cond', then_e', else_e')
+  Ternary (Checked (pos, t), cond, then_e, else_e)
 
 and typecheck_func_call env ann f args =
   let pos = pos_of ann in
@@ -159,17 +159,17 @@ and typecheck_func_call env ann f args =
   if expected <> got then
     raise (Type_error (pos, ArityMismatch (f, expected, got)));
   (* map2, ensuring each param has the right type *)
-  let args' =
+  let args =
     List.map2
       (fun param_t arg ->
-        let arg' = typecheck_expr env arg in
-        let at = expr_typ arg' in
+        let arg = typecheck_expr env arg in
+        let at = expr_typ arg in
         if at <> param_t then
           raise (Type_error (pos, TypeMismatch (param_t, at)));
-        arg')
+        arg)
       sig_.params args
   in
-  FuncCall (Checked (pos, sig_.ret), f, args')
+  FuncCall (Checked (pos, sig_.ret), f, args)
 
 and typecheck_stmt env (stmt : parsed stmt) : checked stmt =
   match stmt with
@@ -182,9 +182,9 @@ and typecheck_stmt env (stmt : parsed stmt) : checked stmt =
   | ReturnStmt (pos, e) -> typecheck_return env pos e
   | CompoundStmt (pos, stmts) ->
       (* create a new environment *)
-      let env' = push_scope env in
+      let env = push_scope env in
       (* we can just check each statement *)
-      CompoundStmt (pos, List.map (typecheck_stmt env') stmts)
+      CompoundStmt (pos, List.map (typecheck_stmt env) stmts)
   | VarDef { pos; var_type; name; init } ->
       typecheck_var_def env pos var_type name init
   | FuncDef { pos; ret_type; name; params; body } ->
@@ -209,19 +209,19 @@ and typecheck_return env pos e =
       ReturnStmt (pos, None)
   | Some e ->
       (* ensure that return value is equal to ret, the correct return type *)
-      let e' = typecheck_expr env e in
-      let t = expr_typ e' in
+      let e = typecheck_expr env e in
+      let t = expr_typ e in
       if t <> ret then raise (Type_error (pos, TypeMismatch (ret, t)));
-      ReturnStmt (pos, Some e')
+      ReturnStmt (pos, Some e)
 
 and typecheck_var_def env pos var_type name init =
   let var_t = typ_of_var_type pos var_type in
-  let init' = typecheck_expr env init in
-  let init_t = expr_typ init' in
+  let init = typecheck_expr env init in
+  let init_t = expr_typ init in
   (* ensure init has the right type *)
   if var_t <> init_t then raise (Type_error (pos, TypeMismatch (var_t, init_t)));
   define_var env name var_t;
-  VarDef { pos; var_type; name; init = init' }
+  VarDef { pos; var_type; name; init }
 
 and typecheck_func_def env pos ret_type name params body =
   let ret_t = typ_of_var_type pos ret_type in
@@ -238,39 +238,39 @@ and typecheck_func_def env pos ret_type name params body =
   List.iter
     (fun (vt, pname) -> define_var fn_env pname (typ_of_var_type pos vt))
     params;
-  let body' = List.map (typecheck_stmt fn_env) body in
-  FuncDef { pos; ret_type; name; params; body = body' }
+  let body = List.map (typecheck_stmt fn_env) body in
+  FuncDef { pos; ret_type; name; params; body }
 
 and typecheck_if env pos cond then_body else_body =
-  let cond' = typecheck_expr env cond in
+  let cond = typecheck_expr env cond in
   (* recursively typecheck then_body *)
-  let then_body' = typecheck_stmt env then_body in
+  let then_body = typecheck_stmt env then_body in
   (* recursively typecheck else_body is Some *)
-  let else_body' = Option.map (typecheck_stmt env) else_body in
-  let cond_t = expr_typ cond' in
+  let else_body = Option.map (typecheck_stmt env) else_body in
+  let cond_t = expr_typ cond in
   (* ensure cond is Bool *)
   if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
-  If { pos; cond = cond'; then_body = then_body'; else_body = else_body' }
+  If { pos; cond; then_body; else_body }
 
 and typecheck_while env pos cond body =
-  let cond' = typecheck_expr env cond in
-  let body' = typecheck_stmt env body in
-  let cond_t = expr_typ cond' in
+  let cond = typecheck_expr env cond in
+  let body = typecheck_stmt env body in
+  let cond_t = expr_typ cond in
   (* ensure cond is Bool *)
   if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
-  WhileLoop { pos; cond = cond'; body = body' }
+  WhileLoop { pos; cond; body }
 
 and typecheck_for env pos init cond incr body =
-  let env' = push_scope env in
-  let init' = typecheck_stmt env' init in
-  let cond' = typecheck_expr env' cond in
-  let incr' = typecheck_expr env' incr in
-  let body' = typecheck_stmt env' body in
-  let cond_t = expr_typ cond' in
+  let env = push_scope env in
+  let init = typecheck_stmt env init in
+  let cond = typecheck_expr env cond in
+  let incr = typecheck_expr env incr in
+  let body = typecheck_stmt env body in
+  let cond_t = expr_typ cond in
   (* ensure cond is Bool *)
   if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
-  (* incr can be anything, we don't need to check its type *)
-  ForLoop { pos; init = init'; cond = cond'; incr = incr'; body = body' }
+  (* incr can be anything, we dont need to check its type *)
+  ForLoop { pos; init; cond; incr; body }
 
 and typecheck_assign env ann x e =
   let pos = pos_of ann in
@@ -279,7 +279,7 @@ and typecheck_assign env ann x e =
     | Some t -> t
     | None -> raise (Type_error (pos, UnboundVariable x))
   in
-  let e' = typecheck_expr env e in
-  let et = expr_typ e' in
+  let e = typecheck_expr env e in
+  let et = expr_typ e in
   if et <> t then raise (Type_error (pos, TypeMismatch (t, et)));
-  Assign (Checked (pos, t), x, e')
+  Assign (Checked (pos, t), x, e)
