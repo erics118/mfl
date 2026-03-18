@@ -43,10 +43,21 @@ type func_sig = {
 }
 
 type env = {
-  vars : (string, typ) Hashtbl.t;
+  (* head is innermost scope. push when entering a new block, discard on exit *)
+  vars : (string, typ) Hashtbl.t list;
   funcs : (string, func_sig) Hashtbl.t;
   return_typ : typ option;
 }
+
+let lookup_var env x =
+  List.find_map (fun scope -> Hashtbl.find_opt scope x) env.vars
+
+let define_var env name t =
+  match env.vars with
+  | scope :: _ -> Hashtbl.replace scope name t
+  | [] -> failwith "empty scope stack"
+
+let push_scope env = { env with vars = Hashtbl.create 8 :: env.vars }
 
 let typ_of_var_type pos = function
   | VarType "int" -> Int
@@ -111,7 +122,7 @@ and typecheck_var_ref env ann x =
   let pos = pos_of ann in
   (* error if the variable doesn't exist *)
   let t =
-    match Hashtbl.find_opt env.vars x with
+    match lookup_var env x with
     | Some t -> t
     | None -> raise (Type_error (pos, UnboundVariable x))
   in
@@ -170,8 +181,10 @@ and typecheck_stmt env (stmt : parsed stmt) : checked stmt =
       ExprStmt (pos, typecheck_expr env e)
   | ReturnStmt (pos, e) -> typecheck_return env pos e
   | CompoundStmt (pos, stmts) ->
+      (* create a new environment *)
+      let env' = push_scope env in
       (* we can just check each statement *)
-      CompoundStmt (pos, List.map (typecheck_stmt env) stmts)
+      CompoundStmt (pos, List.map (typecheck_stmt env') stmts)
   | VarDef { pos; var_type; name; init } ->
       typecheck_var_def env pos var_type name init
   | FuncDef { pos; ret_type; name; params; body } ->
@@ -207,27 +220,25 @@ and typecheck_var_def env pos var_type name init =
   let init_t = expr_typ init' in
   (* ensure init has the right type *)
   if var_t <> init_t then raise (Type_error (pos, TypeMismatch (var_t, init_t)));
-  (* the var to env.vars *)
-  Hashtbl.replace env.vars name var_t;
+  define_var env name var_t;
   VarDef { pos; var_type; name; init = init' }
 
 and typecheck_func_def env pos ret_type name params body =
   let ret_t = typ_of_var_type pos ret_type in
-  let env = { env with return_typ = Some ret_t } in
-  (* todo: handle scoping later *)
-  (* add each variable to env *)
-  List.iter
-    (fun (param_type, param) ->
-      let param_t = typ_of_var_type pos param_type in
-      Hashtbl.replace env.vars param param_t)
-    params;
-  (* add function to env *)
+  (* add function to env first *)
   Hashtbl.replace env.funcs name
     {
-      params = List.map (fun (a, _) -> typ_of_var_type pos a) params;
+      params = List.map (fun (vt, _) -> typ_of_var_type pos vt) params;
       ret = ret_t;
     };
-  let body' = List.map (typecheck_stmt env) body in
+  let fn_env =
+    { vars = [ Hashtbl.create 8 ]; funcs = env.funcs; return_typ = Some ret_t }
+  in
+  (* then we add the variables to the env *)
+  List.iter
+    (fun (vt, pname) -> define_var fn_env pname (typ_of_var_type pos vt))
+    params;
+  let body' = List.map (typecheck_stmt fn_env) body in
   FuncDef { pos; ret_type; name; params; body = body' }
 
 and typecheck_if env pos cond then_body else_body =
@@ -250,12 +261,11 @@ and typecheck_while env pos cond body =
   WhileLoop { pos; cond = cond'; body = body' }
 
 and typecheck_for env pos init cond incr body =
-  (* todo: we need to ensure that the scope of the var defined here doesn't leak
-     into after the loop ends *)
-  let init' = typecheck_stmt env init in
-  let cond' = typecheck_expr env cond in
-  let incr' = typecheck_expr env incr in
-  let body' = typecheck_stmt env body in
+  let env' = push_scope env in
+  let init' = typecheck_stmt env' init in
+  let cond' = typecheck_expr env' cond in
+  let incr' = typecheck_expr env' incr in
+  let body' = typecheck_stmt env' body in
   let cond_t = expr_typ cond' in
   (* ensure cond is Bool *)
   if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
@@ -265,7 +275,7 @@ and typecheck_for env pos init cond incr body =
 and typecheck_assign env ann x e =
   let pos = pos_of ann in
   let t =
-    match Hashtbl.find_opt env.vars x with
+    match lookup_var env x with
     | Some t -> t
     | None -> raise (Type_error (pos, UnboundVariable x))
   in

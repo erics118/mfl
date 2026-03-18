@@ -6,7 +6,7 @@ open Typechecker
 let p = Parsed dummy_pos
 
 let empty_env =
-  { vars = Hashtbl.create 4; funcs = Hashtbl.create 4; return_typ = None }
+  { vars = [ Hashtbl.create 4 ]; funcs = Hashtbl.create 4; return_typ = None }
 
 let i n = IntLiteral (p, n)
 let b b = BoolLiteral (p, b)
@@ -20,7 +20,7 @@ let call f args = FuncCall (p, f, args)
 let env_with vars =
   let tbl = Hashtbl.create 4 in
   List.iter (fun (k, v) -> Hashtbl.add tbl k v) vars;
-  { empty_env with vars = tbl }
+  { empty_env with vars = [ tbl ] }
 
 let env_with_funcs funcs =
   let tbl = Hashtbl.create 4 in
@@ -140,9 +140,12 @@ let test_assign_errors _ =
   check_err ~env "expected type 'int' but got 'bool'" (a "x" (b true))
 
 let test_func_call _ =
-  let env = env_with_funcs
-    [ ("add", { params = [ Int; Int ]; ret = Int })
-    ; ("ready", { params = []; ret = Bool }) ]
+  let env =
+    env_with_funcs
+      [
+        ("add", { params = [ Int; Int ]; ret = Int });
+        ("ready", { params = []; ret = Bool });
+      ]
   in
   check_typ ~env Int (call "add" [ i 1; i 2 ]);
   check_typ ~env Bool (call "ready" [])
@@ -152,7 +155,8 @@ let test_func_call_errors _ =
   check_err ~env "unbound function 'f'" (call "f" []);
   check_err ~env "'add' expects 2 argument(s) but got 1" (call "add" [ i 1 ]);
   check_err ~env "'add' expects 2 argument(s) but got 0" (call "add" []);
-  check_err ~env "expected type 'int' but got 'bool'" (call "add" [ b true; i 1 ])
+  check_err ~env "expected type 'int' but got 'bool'"
+    (call "add" [ b true; i 1 ])
 
 let test_ternary _ =
   check_typ Int (tern (b true) (i 1) (i 2));
