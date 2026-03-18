@@ -12,13 +12,27 @@ let i n = IntLiteral (p, n)
 let b b = BoolLiteral (p, b)
 let bi op l r = BinaryOp (p, op, l, r)
 let un op e = UnaryOp (p, op, e)
+let tern c t e = Ternary (p, c, t, e)
+let v x = VarRef (p, x)
+let a x e = Assign (p, x, e)
+let call f args = FuncCall (p, f, args)
 
-let check_typ expected expr =
-  let result = typecheck_expr empty_env expr in
+let env_with vars =
+  let tbl = Hashtbl.create 4 in
+  List.iter (fun (k, v) -> Hashtbl.add tbl k v) vars;
+  { empty_env with vars = tbl }
+
+let env_with_funcs funcs =
+  let tbl = Hashtbl.create 4 in
+  List.iter (fun (k, v) -> Hashtbl.add tbl k v) funcs;
+  { empty_env with funcs = tbl }
+
+let check_typ ?(env = empty_env) expected expr =
+  let result = typecheck_expr env expr in
   assert_equal ~printer:string_of_typ expected (expr_typ result)
 
-let check_err expected_err expr =
-  match typecheck_expr empty_env expr with
+let check_err ?(env = empty_env) expected_err expr =
+  match typecheck_expr env expr with
   | _ -> assert_failure "expected Type_error"
   | exception Type_error (_, e) ->
       assert_equal ~printer:Fun.id expected_err (string_of_type_error e)
@@ -105,7 +119,40 @@ let test_unary_errors _ =
   check_err "operator '-': invalid operand type 'bool'" (un Neg (b true));
   check_err "operator '~': invalid operand type 'bool'" (un Compl (b false))
 
-let tern c t e = Ternary (p, c, t, e)
+let test_var_ref _ =
+  let env = env_with [ ("x", Int); ("ok", Bool) ] in
+  check_typ ~env Int (v "x");
+  check_typ ~env Bool (v "ok")
+
+let test_var_ref_errors _ =
+  check_err "unbound variable 'x'" (v "x");
+  check_err "unbound variable 'y'" (v "y")
+
+let test_assign _ =
+  let env = env_with [ ("x", Int); ("ok", Bool) ] in
+  check_typ ~env Int (a "x" (i 42));
+  check_typ ~env Bool (a "ok" (b true));
+  check_typ ~env Int (a "x" (bi Add (i 1) (i 2)))
+
+let test_assign_errors _ =
+  let env = env_with [ ("x", Int) ] in
+  check_err ~env "unbound variable 'y'" (a "y" (i 1));
+  check_err ~env "expected type 'int' but got 'bool'" (a "x" (b true))
+
+let test_func_call _ =
+  let env = env_with_funcs
+    [ ("add", { params = [ Int; Int ]; ret = Int })
+    ; ("ready", { params = []; ret = Bool }) ]
+  in
+  check_typ ~env Int (call "add" [ i 1; i 2 ]);
+  check_typ ~env Bool (call "ready" [])
+
+let test_func_call_errors _ =
+  let env = env_with_funcs [ ("add", { params = [ Int; Int ]; ret = Int }) ] in
+  check_err ~env "unbound function 'f'" (call "f" []);
+  check_err ~env "'add' expects 2 argument(s) but got 1" (call "add" [ i 1 ]);
+  check_err ~env "'add' expects 2 argument(s) but got 0" (call "add" []);
+  check_err ~env "expected type 'int' but got 'bool'" (call "add" [ b true; i 1 ])
 
 let test_ternary _ =
   check_typ Int (tern (b true) (i 1) (i 2));
@@ -133,6 +180,12 @@ let tests =
          "equality_errors" >:: test_equality_errors;
          "logical_errors" >:: test_logical_errors;
          "unary_errors" >:: test_unary_errors;
+         "var_ref" >:: test_var_ref;
+         "var_ref_errors" >:: test_var_ref_errors;
+         "assign" >:: test_assign;
+         "assign_errors" >:: test_assign_errors;
+         "func_call" >:: test_func_call;
+         "func_call_errors" >:: test_func_call_errors;
          "ternary" >:: test_ternary;
          "ternary_errors" >:: test_ternary_errors;
        ]

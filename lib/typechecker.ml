@@ -92,7 +92,14 @@ let rec typecheck_expr env = function
       let rhs' = typecheck_expr env rhs in
       let t = check_infix pos op (expr_typ lhs') (expr_typ rhs') in
       BinaryOp (Checked (pos, t), op, lhs', rhs')
-  | VarRef (_, _) -> failwith "todo"
+  | VarRef (ann, x) ->
+      let pos = pos_of ann in
+      let t =
+        match Hashtbl.find_opt env.vars x with
+        | Some t -> t
+        | None -> raise (Type_error (pos, UnboundVariable x))
+      in
+      VarRef (Checked (pos, t), x)
   | UnaryOp (ann, op, e) ->
       let pos = pos_of ann in
       let e' = typecheck_expr env e in
@@ -107,5 +114,35 @@ let rec typecheck_expr env = function
         check_ternary pos (expr_typ cond') (expr_typ then_e') (expr_typ else_e')
       in
       Ternary (Checked (pos, t), cond', then_e', else_e')
-  | FuncCall (_, _, _) -> failwith "todo"
-  | Assign (_, _, _) -> failwith "todo"
+  | FuncCall (ann, f, args) ->
+      let pos = pos_of ann in
+      let sig_ =
+        match Hashtbl.find_opt env.funcs f with
+        | Some s -> s
+        | None -> raise (Type_error (pos, UnboundFunction f))
+      in
+      let expected = List.length sig_.params and got = List.length args in
+      if expected <> got then
+        raise (Type_error (pos, ArityMismatch (f, expected, got)));
+      let args' =
+        List.map2
+          (fun param_t arg ->
+            let arg' = typecheck_expr env arg in
+            let at = expr_typ arg' in
+            if at <> param_t then
+              raise (Type_error (pos, TypeMismatch (param_t, at)));
+            arg')
+          sig_.params args
+      in
+      FuncCall (Checked (pos, sig_.ret), f, args')
+  | Assign (ann, x, e) ->
+      let pos = pos_of ann in
+      let t =
+        match Hashtbl.find_opt env.vars x with
+        | Some t -> t
+        | None -> raise (Type_error (pos, UnboundVariable x))
+      in
+      let e' = typecheck_expr env e in
+      let et = expr_typ e' in
+      if et <> t then raise (Type_error (pos, TypeMismatch (t, et)));
+      Assign (Checked (pos, t), x, e')
