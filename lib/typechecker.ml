@@ -9,6 +9,7 @@ type type_error =
   | UnaryTypeMismatch of uop * typ
   | TypeMismatch of typ * typ (* expected, got *)
   | CondNotBool of typ
+  | ReturnOutsideFunction
 
 exception Type_error of pos * type_error
 
@@ -34,6 +35,7 @@ let string_of_type_error = function
         (string_of_typ got)
   | CondNotBool t ->
       Printf.sprintf "condition must be 'bool' but got '%s'" (string_of_typ t)
+  | ReturnOutsideFunction -> "return statement outside of a function"
 
 type func_sig = {
   params : typ list;
@@ -101,11 +103,13 @@ and typecheck_binary_op env ann op lhs rhs =
   let pos = pos_of ann in
   let lhs' = typecheck_expr env lhs in
   let rhs' = typecheck_expr env rhs in
+  (* ensure lhs and rhs have the correct type for the operator *)
   let t = check_binary pos op (expr_typ lhs') (expr_typ rhs') in
   BinaryOp (Checked (pos, t), op, lhs', rhs')
 
 and typecheck_var_ref env ann x =
   let pos = pos_of ann in
+  (* error if the variable doesn't exist *)
   let t =
     match Hashtbl.find_opt env.vars x with
     | Some t -> t
@@ -116,6 +120,7 @@ and typecheck_var_ref env ann x =
 and typecheck_unary_op env ann op e =
   let pos = pos_of ann in
   let e' = typecheck_expr env e in
+  (* ensure lhs has the correct type for the operator *)
   let t = check_unary pos op (expr_typ e') in
   UnaryOp (Checked (pos, t), op, e')
 
@@ -124,6 +129,7 @@ and typecheck_ternary_op env ann cond then_e else_e =
   let cond' = typecheck_expr env cond in
   let then_e' = typecheck_expr env then_e in
   let else_e' = typecheck_expr env else_e in
+  (* ensure cond is a bool, and then_e and else_e have the same type *)
   let t =
     check_ternary pos (expr_typ cond') (expr_typ then_e') (expr_typ else_e')
   in
@@ -131,14 +137,17 @@ and typecheck_ternary_op env ann cond then_e else_e =
 
 and typecheck_func_call env ann f args =
   let pos = pos_of ann in
+  (* ensure function exists *)
   let sig_ =
     match Hashtbl.find_opt env.funcs f with
     | Some s -> s
     | None -> raise (Type_error (pos, UnboundFunction f))
   in
+  (* ensure correct number of parameters *)
   let expected = List.length sig_.params and got = List.length args in
   if expected <> got then
     raise (Type_error (pos, ArityMismatch (f, expected, got)));
+  (* map2, ensuring each param has the right type *)
   let args' =
     List.map2
       (fun param_t arg ->
@@ -150,6 +159,91 @@ and typecheck_func_call env ann f args =
       sig_.params args
   in
   FuncCall (Checked (pos, sig_.ret), f, args')
+
+and typecheck_stmt env stmt =
+  match stmt with
+  | EmptyStmt pos ->
+      (* trivial *)
+      EmptyStmt pos
+  | ExprStmt (pos, e) ->
+      (* we can just check the inner expr *)
+      ExprStmt (pos, typecheck_expr env e)
+  | ReturnStmt (pos, e) -> typecheck_return env pos e
+  | CompoundStmt (pos, stmts) ->
+      (* we can just check each statement *)
+      CompoundStmt (pos, List.map (typecheck_stmt env) stmts)
+  | VarDef { pos; var_type; name; init } ->
+      typecheck_var_def env pos var_type name init
+  | FuncDef { pos; ret_type; name; params; body } ->
+      typecheck_func_def env pos ret_type name params body
+  | If { pos; cond; then_body; else_body } ->
+      typecheck_if env pos cond then_body else_body
+  | WhileLoop { pos; cond; body } -> typecheck_while env pos cond body
+  | ForLoop { pos; init; cond; incr; body } ->
+      typecheck_for env pos init cond incr body
+
+and typecheck_return env pos e =
+  (* if return type is None, that means we are returning outside a function *)
+  let ret =
+    match env.return_typ with
+    | None -> raise (Type_error (pos, ReturnOutsideFunction))
+    | Some t -> t
+  in
+  match e with
+  | None ->
+      (* if the return value is also void, good *)
+      if ret <> Void then raise (Type_error (pos, TypeMismatch (ret, Void)));
+      ReturnStmt (pos, None)
+  | Some e ->
+      (* ensure that return value is equal to ret, the correct return type *)
+      let e' = typecheck_expr env e in
+      let t = expr_typ e' in
+      if t <> ret then raise (Type_error (pos, TypeMismatch (ret, t)));
+      ReturnStmt (pos, Some e')
+
+and typecheck_var_def env pos var_type name init =
+  let var_t = typ_of_var_type pos var_type in
+  let init' = typecheck_expr env init in
+  let init_t = expr_typ init' in
+  (* ensure init has the right type *)
+  if var_t <> init_t then raise (Type_error (pos, TypeMismatch (var_t, init_t)));
+  (* the var to env.vars *)
+  Hashtbl.replace env.vars name var_t;
+  VarDef { pos; var_type; name; init = init' }
+
+and typecheck_func_def _env _pos _ret_type _name _params _body = failwith "todo"
+
+and typecheck_if env pos cond then_body else_body =
+  let cond' = typecheck_expr env cond in
+  (* recursively typecheck then_body *)
+  let then_body' = typecheck_stmt env then_body in
+  (* recursively typecheck else_body is Some *)
+  let else_body' = Option.map (typecheck_stmt env) else_body in
+  let cond_t = expr_typ cond' in
+  (* ensure cond is Bool *)
+  if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
+  If { pos; cond = cond'; then_body = then_body'; else_body = else_body' }
+
+and typecheck_while env pos cond body =
+  let cond' = typecheck_expr env cond in
+  let body' = typecheck_stmt env body in
+  let cond_t = expr_typ cond' in
+  (* ensure cond is Bool *)
+  if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
+  WhileLoop { pos; cond = cond'; body = body' }
+
+and typecheck_for env pos init cond incr body =
+  (* todo: we need to ensure that the scope of the var defined here doesn't leak
+     into after the loop ends *)
+  let init' = typecheck_stmt env init in
+  let cond' = typecheck_expr env cond in
+  let incr' = typecheck_expr env incr in
+  let body' = typecheck_stmt env body in
+  let cond_t = expr_typ cond' in
+  (* ensure cond is Bool *)
+  if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
+  (* incr can be anything, we don't need to check its type *)
+  ForLoop { pos; init = init'; cond = cond'; incr = incr'; body = body' }
 
 and typecheck_assign env ann x e =
   let pos = pos_of ann in
