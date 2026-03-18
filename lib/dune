@@ -2,6 +2,6 @@
  (name mfl)
  (public_name mfl)
  (modules ast token lexer parser typechecker pretty codegen)
- (libraries llvm)
+ (libraries llvm llvm_ext)
  (instrumentation
   (backend bisect_ppx)))

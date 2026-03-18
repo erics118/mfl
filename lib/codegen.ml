@@ -7,12 +7,6 @@ let bool_type = Llvm.i1_type context
 (* maps variable names to their alloca ptr within the current function *)
 let locals : (string, Llvm.llvalue) Hashtbl.t = Hashtbl.create 16
 
-(* func_types maps function names to their llvm function type. needed because
-   llvm pointers are opaque so we can't recover the type from the fn pointer.
-   todo: i believe llvm api does have a function to retrieve function type
-   info *)
-let func_types : (string, Llvm.lltype) Hashtbl.t = Hashtbl.create 16
-
 (* true if the current block already ends with a terminator (ret, br, etc.) *)
 let block_terminated () =
   Llvm.block_terminator (Llvm.insertion_block builder) <> None
@@ -72,11 +66,7 @@ and codegen_func_call ret_t name args =
     | Some f -> f
     | None -> failwith ("undefined function: " ^ name)
   in
-  let fn_ty =
-    match Hashtbl.find_opt func_types name with
-    | Some ty -> ty
-    | None -> failwith ("unknown function type: " ^ name) [@coverage off]
-  in
+  let fn_ty = Llvm_ext.global_value_type fn in
   let arg_vals = Array.of_list (List.map codegen_expr args) in
   (* if the return type is void, the call instruction can't have a name *)
   let call_name = if ret_t = Ast.Void then "" else "calltmp" in
@@ -243,7 +233,6 @@ and codegen_func_def ret_type name params body =
   in
   let ty = Llvm.function_type (llvm_type ret_type) param_types in
   let fn = Llvm.define_function name ty the_module in
-  Hashtbl.replace func_types name ty;
   (* clear scope for each function. no global variables atm *)
   Hashtbl.clear locals;
   (* allocate each param on the stack and store the incoming value, so params
@@ -292,12 +281,10 @@ let codegen_program stmts =
     Llvm.function_type (Llvm.void_type context) [| int_type |]
   in
   ignore (Llvm.declare_function "printint" printint_ty the_module);
-  Hashtbl.replace func_types "printint" printint_ty;
   let printbool_ty =
     Llvm.function_type (Llvm.void_type context) [| bool_type |]
   in
   ignore (Llvm.declare_function "printbool" printbool_ty the_module);
-  Hashtbl.replace func_types "printbool" printbool_ty;
   List.iter codegen_stmt stmts
 
 let emit_ir () = Llvm.string_of_llmodule the_module [@coverage off]

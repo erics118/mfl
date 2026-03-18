@@ -1,0 +1,14 @@
+(rule
+ (with-stdout-to
+  llvm_cflags.sexp
+  (run sh -c "printf '(\"-I%s\")' $(llvm-config --includedir)")))
+
+(library
+ (name llvm_ext)
+ (public_name mfl.llvm_ext)
+ (foreign_stubs
+  (language c)
+  (names llvm_ext_stubs)
+  (flags
+   (:include llvm_cflags.sexp)))
+ (libraries llvm))
