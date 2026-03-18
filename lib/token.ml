@@ -1,34 +1,38 @@
+(* tokens for the ast *)
+
+(** lexical tokens *)
 type token =
   (* literals *)
-  | TokInt of int
-  | TokBool of bool
+  | TokInt of int  (** integer literal *)
+  | TokBool of bool  (** boolean literal *)
   (* identifiers *)
-  | TokIdent of string
+  | TokIdent of string  (** identifier *)
   (* keywords *)
-  | TokIntKw
-  | TokBoolKw
-  | TokVoidKw
-  | TokReturnKw
-  | TokIfKw
-  | TokElseKw
-  | TokWhileKw
-  | TokForKw
+  | TokIntKw  (** [int] keyword *)
+  | TokBoolKw  (** [bool] keyword *)
+  | TokVoidKw  (** [void] keyword *)
+  | TokReturnKw  (** [return] keyword *)
+  | TokIfKw  (** [if] keyword *)
+  | TokElseKw  (** [else] keyword *)
+  | TokWhileKw  (** [while] keyword *)
+  | TokForKw  (** [for] keyword *)
   (* operators *)
-  | TokBinaryOp of string
-  | TokUnaryOp of string
-  | TokAssign
+  | TokBinaryOp of string  (** binary operator lexeme *)
+  | TokUnaryOp of string  (** unary operator lexeme *)
+  | TokAssign  (** [=] *)
   (* punctuation *)
-  | TokLParen
-  | TokRParen
-  | TokLBrace
-  | TokRBrace
-  | TokSemicolon
-  | TokComma
-  | TokQuestion
-  | TokColon
+  | TokLParen  (** [ ( ] *)
+  | TokRParen  (** [ ) ] *)
+  | TokLBrace  (** [{] *)
+  | TokRBrace  (** [}] *)
+  | TokSemicolon  (** [;] *)
+  | TokComma  (** [,] *)
+  | TokQuestion  (** [?] for the ternary operator *)
+  | TokColon  (** [:] for the ternary operator*)
   (* special *)
-  | TokEof
+  | TokEof  (** end of input *)
 
+(** render a token as a string *)
 let string_of_token = function
   (* literals *)
   | TokInt x -> string_of_int x

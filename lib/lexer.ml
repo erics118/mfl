@@ -1,5 +1,8 @@
+(** lexer state *)
+
 open Token
 
+(** raised on invalid input *)
 exception Lex_error of Ast.pos * string
 
 type state = {
@@ -13,6 +16,7 @@ type state = {
   mutable tok_col : int;
 }
 
+(** [create input] creates a lexer state for [input] *)
 let create input =
   { input; pos = 0; line = 1; col = 1; tok_line = 1; tok_col = 1 }
 
@@ -26,6 +30,8 @@ let advance st =
   else st.col <- st.col + 1;
   st.pos <- st.pos + 1
 
+(** [tok_pos st] returns the source position of the most recently returned
+    token, after whitespace was skipped *)
 let tok_pos st = Ast.{ line = st.tok_line; col = st.tok_col }
 let is_digit c = c >= '0' && c <= '9'
 let is_alpha c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c = '_'
@@ -81,6 +87,8 @@ let peek2 st =
   let pos = st.pos + 1 in
   if pos < String.length st.input then Some st.input.[pos] else None
 
+(** [next_token st] returns the next token and advances [st]
+    @raise Lex_error on invalid input *)
 let next_token st =
   skip_whitespace st;
   (* snapshot position at start of the token being returned *)
@@ -162,6 +170,8 @@ let next_token st =
       raise
         (Lex_error (tok_pos st, Printf.sprintf "unexpected character '%c'" c))
 
+(** [peek_token st] returns the next token without consuming it
+    @raise Lex_error on invalid input *)
 let peek_token st =
   let saved_pos = st.pos in
   let saved_line = st.line in

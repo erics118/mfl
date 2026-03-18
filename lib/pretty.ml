@@ -1,3 +1,5 @@
+(** pretty printer for the ast *)
+
 open Ast
 
 let string_of_params l =
@@ -44,6 +46,7 @@ let rec pp_expr_aux ?(parent_prec = 0) = function
       Printf.sprintf "%s(%s)" name args_str
   | Assign (_, name, value) -> Printf.sprintf "%s = %s" name (pp_expr_aux value)
 
+(** [pp_expr e] renders a value expression into a formatted source string *)
 let pp_expr e = pp_expr_aux e
 
 (** indentation helper *)
@@ -102,4 +105,5 @@ and pp_stmt_aux ?(top_level = true) ?(indent = 0) stmt =
   in
   p ^ rest
 
+(** [pp_stmt s] renders a statement into a formatted source string *)
 let pp_stmt s = pp_stmt_aux s

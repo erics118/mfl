@@ -1,3 +1,5 @@
+(** parser entrypoint *)
+
 open Token
 
 type state = {
@@ -5,6 +7,7 @@ type state = {
   lex : Lexer.state;
 }
 
+(** raised on parse errors *)
 exception Parse_error of Ast.pos * string
 
 let create lex_st = { cur_tok = TokEof; lex = lex_st }
@@ -271,6 +274,8 @@ and parse_for st =
   let body = parse_statement st in
   Ast.ForLoop { pos; init; cond; incr; body }
 
+(** [parse input] parses [input] into an ast
+    @raise Parse_error if the input is malformed *)
 let parse input =
   let st = create (Lexer.create input) in
   advance st;
