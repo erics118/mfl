@@ -243,7 +243,7 @@ and parse_var_def_tail st pos var_type name =
   consume st TokAssign;
   let init = parse_expr st in
   consume st TokSemicolon;
-  Ast.VarDef { pos; var_type; name; init }
+  Ast.VarDef { pos; var_type; name; init = Some init }
 
 and parse_func_def_tail st pos ret_type name =
   consume st TokLParen;
@@ -258,8 +258,15 @@ and parse_declaration st =
   let var_ty = parse_type_name st in
   let name = consume_identifier st in
   match st.cur_tok with
+  (* if see =, then expect a init value *)
   | TokAssign -> parse_var_def_tail st pos var_ty name
+  (* if see (, then expect a function definition *)
   | TokLParen -> parse_func_def_tail st pos var_ty name
+  (* if see ;, then end the declaration *)
+  | TokSemicolon ->
+      (* if *)
+      consume st TokSemicolon;
+      Ast.VarDef { pos; var_type = var_ty; name; init = None }
   | _ -> raise (Parse_error (cur_pos st, "expected '='"))
 
 and parse_if st =

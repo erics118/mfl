@@ -127,6 +127,7 @@ let test_multiple_statements _ =
   roundtrip "a == b;"
 
 let test_var_defs _ =
+  roundtrip "int x;";
   roundtrip "int x = 3;";
   roundtrip "int x = 1 + 2 * 3;";
   roundtrip "bool ready = true;";

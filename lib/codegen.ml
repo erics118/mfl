@@ -294,7 +294,11 @@ and codegen_stmt = function
   | Ast.VarDef { var_type; name; init; _ } ->
       let ty = llvm_type var_type in
       let ptr = Llvm.build_alloca ty name builder in
-      ignore (Llvm.build_store (codegen_expr init) ptr builder);
+      (* set variable to init if it exists *)
+      begin match init with
+      | None -> ()
+      | Some init -> ignore (Llvm.build_store (codegen_expr init) ptr builder)
+      end;
       Hashtbl.replace locals name ptr
   | Ast.If { cond; then_body; else_body; _ } ->
       codegen_if cond then_body else_body

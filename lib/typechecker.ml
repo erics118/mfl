@@ -240,10 +240,19 @@ and typecheck_return env pos e =
 
 and typecheck_var_def env pos var_type name init =
   let var_t = typ_of_var_type pos var_type in
-  let init = typecheck_expr env init in
-  let init_t = expr_typ init in
-  (* ensure init has the right type *)
-  if var_t <> init_t then raise (Type_error (pos, TypeMismatch (var_t, init_t)));
+  (* if init exists, we check its type to ensure it is valid *)
+  let init =
+    match init with
+    | None -> None
+    | Some init -> begin
+        let init = typecheck_expr env init in
+        let init_t = expr_typ init in
+        (* ensure init has the right type *)
+        if var_t <> init_t then
+          raise (Type_error (pos, TypeMismatch (var_t, init_t)));
+        Some init
+      end
+  in
   define_var env name var_t;
   VarDef { pos; var_type; name; init }
 

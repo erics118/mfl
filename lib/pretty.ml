@@ -107,10 +107,14 @@ and pp_stmt_aux ?(top_level = true) ?(indent = 0) stmt =
           String.concat "\n"
             (List.map (pp_stmt_aux ~top_level:false ~indent) stmts)
         else pp_block_aux ~indent stmts
-    | VarDef { var_type; name; init; _ } ->
-        Printf.sprintf "%s %s = %s;"
-          (string_of_var_type var_type)
-          name (pp_expr_aux init)
+    | VarDef { var_type; name; init; _ } -> begin
+        match init with
+        | None -> Printf.sprintf "%s %s;" (string_of_var_type var_type) name
+        | Some init ->
+            Printf.sprintf "%s %s = %s;"
+              (string_of_var_type var_type)
+              name (pp_expr_aux init)
+      end
     | FuncDef { ret_type; name; params; body; _ } ->
         Printf.sprintf "%s %s(%s) %s"
           (string_of_var_type ret_type)

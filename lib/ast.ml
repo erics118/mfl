@@ -95,7 +95,7 @@ type 'a stmt =
       pos : pos;
       var_type : var_type;
       name : string;
-      init : 'a expr;
+      init : 'a expr option;
     }  (** [var_type name = init;] defines a variable with an initial value *)
   | FuncDef of {
       pos : pos;
