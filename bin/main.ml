@@ -26,7 +26,7 @@ let () =
   in
   let stmts =
     match stmt with
-    | Ast.CompoundStmt stmts -> stmts
+    | Ast.CompoundStmt (_, stmts) -> stmts
     | _ -> [ stmt ]
   in
   Codegen.codegen_program stmts;

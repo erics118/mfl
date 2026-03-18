@@ -256,21 +256,21 @@ and codegen_func_def ret_type name params body =
       ignore (Llvm.build_ret (Llvm.const_null (llvm_type ret_type)) builder)
 
 and codegen_stmt = function
-  | Ast.FuncDef { ret_type; name; params; body } ->
+  | Ast.FuncDef { ret_type; name; params; body; _ } ->
       codegen_func_def ret_type name params body
-  | Ast.ReturnStmt (Some e) -> ignore (Llvm.build_ret (codegen_expr e) builder)
-  | Ast.ReturnStmt None -> ignore (Llvm.build_ret_void builder)
-  | Ast.ExprStmt e -> ignore (codegen_expr e)
-  | Ast.EmptyStmt -> ()
-  | Ast.CompoundStmt stmts -> List.iter codegen_stmt stmts
-  | Ast.VarDef { var_type; name; init } ->
+  | Ast.ReturnStmt (_, Some e) -> ignore (Llvm.build_ret (codegen_expr e) builder)
+  | Ast.ReturnStmt (_, None) -> ignore (Llvm.build_ret_void builder)
+  | Ast.ExprStmt (_, e) -> ignore (codegen_expr e)
+  | Ast.EmptyStmt _ -> ()
+  | Ast.CompoundStmt (_, stmts) -> List.iter codegen_stmt stmts
+  | Ast.VarDef { var_type; name; init; _ } ->
       let ty = llvm_type var_type in
       let ptr = Llvm.build_alloca ty name builder in
       ignore (Llvm.build_store (codegen_expr init) ptr builder);
       Hashtbl.replace locals name (ty, ptr)
-  | Ast.If { cond; then_body; else_body } -> codegen_if cond then_body else_body
-  | Ast.WhileLoop { cond; body } -> codegen_while_loop cond body
-  | Ast.ForLoop { init; cond; incr; body } ->
+  | Ast.If { cond; then_body; else_body; _ } -> codegen_if cond then_body else_body
+  | Ast.WhileLoop { cond; body; _ } -> codegen_while_loop cond body
+  | Ast.ForLoop { init; cond; incr; body; _ } ->
       codegen_for_loop init cond incr body
 
 let codegen_program stmts =

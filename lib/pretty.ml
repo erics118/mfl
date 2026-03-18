@@ -59,8 +59,8 @@ and pp_stmt_aux ?(top_level = true) ?(indent = 0) stmt =
   let p = pad indent in
   let rec pp_body stmt =
     match stmt with
-    | CompoundStmt stmts -> pp_block_aux ~indent stmts
-    | If { cond; then_body; else_body } -> begin
+    | CompoundStmt (_, stmts) -> pp_block_aux ~indent stmts
+    | If { cond; then_body; else_body; _ } -> begin
         match else_body with
         | Some s ->
             Printf.sprintf "if (%s) %s else %s" (pp_expr_aux cond)
@@ -72,28 +72,28 @@ and pp_stmt_aux ?(top_level = true) ?(indent = 0) stmt =
   in
   let rest =
     match stmt with
-    | ExprStmt e -> pp_expr_aux e ^ ";"
-    | ReturnStmt None -> "return;"
-    | ReturnStmt (Some e) -> "return " ^ pp_expr_aux e ^ ";"
-    | EmptyStmt -> ";"
-    | CompoundStmt stmts ->
+    | ExprStmt (_, e) -> pp_expr_aux e ^ ";"
+    | ReturnStmt (_, None) -> "return;"
+    | ReturnStmt (_, Some e) -> "return " ^ pp_expr_aux e ^ ";"
+    | EmptyStmt _ -> ";"
+    | CompoundStmt (_, stmts) ->
         if top_level then
           String.concat "\n"
             (List.map (pp_stmt_aux ~top_level:false ~indent) stmts)
         else pp_block_aux ~indent stmts
-    | VarDef { var_type; name; init } ->
+    | VarDef { var_type; name; init; _ } ->
         Printf.sprintf "%s %s = %s;"
           (string_of_var_type var_type)
           name (pp_expr_aux init)
-    | FuncDef { ret_type; name; params; body } ->
+    | FuncDef { ret_type; name; params; body; _ } ->
         Printf.sprintf "%s %s(%s) %s"
           (string_of_var_type ret_type)
           name (string_of_params params)
           (pp_block_aux ~indent body)
     | If _ -> pp_body stmt
-    | WhileLoop { cond; body } ->
+    | WhileLoop { cond; body; _ } ->
         Printf.sprintf "while (%s) %s" (pp_expr_aux cond) (pp_body body)
-    | ForLoop { init; cond; incr; body } ->
+    | ForLoop { init; cond; incr; body; _ } ->
         Printf.sprintf "for (%s %s; %s) %s" (pp_stmt_aux init)
           (pp_expr_aux cond) (pp_expr_aux incr) (pp_body body)
   in

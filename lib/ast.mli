@@ -78,24 +78,27 @@ type 'a expr =
 
 (** statements *)
 type 'a stmt =
-  | ExprStmt of 'a expr  (** [expr;] is a single expression *)
-  | ReturnStmt of 'a expr option
+  | ExprStmt of pos * 'a expr  (** [expr;] is a single expression *)
+  | ReturnStmt of pos * 'a expr option
       (** [return expr;] or [return;] returns a value from a function *)
-  | EmptyStmt  (** [;] is an empty statement *)
-  | CompoundStmt of 'a stmt list
+  | EmptyStmt of pos  (** [;] is an empty statement *)
+  | CompoundStmt of pos * 'a stmt list
       (** sequence of statements surrounded by braces *)
   | VarDef of {
+      pos : pos;
       var_type : var_type;
       name : string;
       init : 'a expr;
     }  (** [var_type name = init;] defines a variable with an initial value *)
   | FuncDef of {
+      pos : pos;
       ret_type : var_type;
       name : string;
       params : (var_type * string) list;
       body : 'a stmt list;
     }  (** [ret_type name(params) { body }] defines a function *)
   | If of {
+      pos : pos;
       cond : 'a expr;
       then_body : 'a stmt;
       else_body : 'a stmt option;
@@ -103,10 +106,12 @@ type 'a stmt =
       (** [if (cond) if_body] or [if (cond) if_body else else_body] is an
           if-else statement *)
   | WhileLoop of {
+      pos : pos;
       cond : 'a expr;
       body : 'a stmt;
     }  (** [while (cond) body] is a while loop *)
   | ForLoop of {
+      pos : pos;
       init : 'a stmt;
       cond : 'a expr;
       incr : 'a expr;

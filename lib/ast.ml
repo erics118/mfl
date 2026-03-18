@@ -72,31 +72,36 @@ type 'a expr =
   | Assign : 'a ann * string * 'a expr -> 'a expr
 
 type 'a stmt =
-  | ExprStmt of 'a expr
-  | ReturnStmt of 'a expr option
-  | EmptyStmt
-  | CompoundStmt of 'a stmt list
+  | ExprStmt of pos * 'a expr
+  | ReturnStmt of pos * 'a expr option
+  | EmptyStmt of pos
+  | CompoundStmt of pos * 'a stmt list
   | VarDef of {
+      pos : pos;
       var_type : var_type;
       name : string;
       init : 'a expr;
     }
   | FuncDef of {
+      pos : pos;
       ret_type : var_type;
       name : string;
       params : (var_type * string) list;
       body : 'a stmt list;
     }
   | If of {
+      pos : pos;
       cond : 'a expr;
       then_body : 'a stmt;
       else_body : 'a stmt option;
     }
   | WhileLoop of {
+      pos : pos;
       cond : 'a expr;
       body : 'a stmt;
     }
   | ForLoop of {
+      pos : pos;
       init : 'a stmt;
       cond : 'a expr;
       incr : 'a expr;

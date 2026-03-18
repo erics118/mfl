@@ -155,15 +155,16 @@ let parse_type_name st =
   | _ -> raise (Parse_error (cur_pos st, "expected type")) [@coverage off]
 
 let parse_return_stmt st =
+  let pos = cur_pos st in
   consume st TokReturnKw;
   match st.cur_tok with
   | TokSemicolon ->
       consume st TokSemicolon;
-      Ast.ReturnStmt None
+      Ast.ReturnStmt (pos, None)
   | _ ->
       let e = parse_expr st in
       consume st TokSemicolon;
-      Ast.ReturnStmt (Some e)
+      Ast.ReturnStmt (pos, Some e)
 
 let looks_like_definition st =
   match st.cur_tok with
@@ -176,10 +177,11 @@ let looks_like_definition st =
 
 (* statements *)
 let rec parse_statement st =
+  let pos = cur_pos st in
   match st.cur_tok with
   | TokLBrace ->
       consume st TokLBrace;
-      Ast.CompoundStmt (parse_compound_stmt st [])
+      Ast.CompoundStmt (pos, parse_compound_stmt st [])
   | TokReturnKw -> parse_return_stmt st
   | TokIfKw -> parse_if st
   | TokWhileKw -> parse_while st
@@ -187,11 +189,11 @@ let rec parse_statement st =
   | _ when looks_like_definition st -> parse_declaration st
   | TokSemicolon ->
       consume st TokSemicolon;
-      Ast.EmptyStmt
+      Ast.EmptyStmt pos
   | _ ->
       let e = parse_expr st in
       consume st TokSemicolon;
-      Ast.ExprStmt e
+      Ast.ExprStmt (pos, e)
 
 and parse_compound_stmt st rev_stmts =
   match st.cur_tok with
@@ -208,29 +210,31 @@ and parse_param st =
   let name = consume_identifier st in
   (param_type, name)
 
-and parse_var_def_tail st var_type name =
+and parse_var_def_tail st pos var_type name =
   consume st TokAssign;
   let init = parse_expr st in
   consume st TokSemicolon;
-  Ast.VarDef { var_type; name; init }
+  Ast.VarDef { pos; var_type; name; init }
 
-and parse_func_def_tail st ret_type name =
+and parse_func_def_tail st pos ret_type name =
   consume st TokLParen;
   let params = parse_rparen_list st parse_param in
   consume st TokRParen;
   consume st TokLBrace;
   let body = parse_compound_stmt st [] in
-  Ast.FuncDef { ret_type; name; params; body }
+  Ast.FuncDef { pos; ret_type; name; params; body }
 
 and parse_declaration st =
+  let pos = cur_pos st in
   let var_ty = parse_type_name st in
   let name = consume_identifier st in
   match st.cur_tok with
-  | TokAssign -> parse_var_def_tail st var_ty name
-  | TokLParen -> parse_func_def_tail st var_ty name
+  | TokAssign -> parse_var_def_tail st pos var_ty name
+  | TokLParen -> parse_func_def_tail st pos var_ty name
   | _ -> raise (Parse_error (cur_pos st, "expected '='"))
 
 and parse_if st =
+  let pos = cur_pos st in
   consume st TokIfKw;
   consume st TokLParen;
   let cond = parse_expr st in
@@ -244,17 +248,19 @@ and parse_if st =
         Some s
     | _ -> None
   in
-  Ast.If { cond; then_body; else_body }
+  Ast.If { pos; cond; then_body; else_body }
 
 and parse_while st =
+  let pos = cur_pos st in
   consume st TokWhileKw;
   consume st TokLParen;
   let cond = parse_expr st in
   consume st TokRParen;
   let body = parse_statement st in
-  Ast.WhileLoop { cond; body }
+  Ast.WhileLoop { pos; cond; body }
 
 and parse_for st =
+  let pos = cur_pos st in
   consume st TokForKw;
   consume st TokLParen;
   let init = parse_statement st in
@@ -263,7 +269,7 @@ and parse_for st =
   let incr = parse_expr st in
   consume st TokRParen;
   let body = parse_statement st in
-  Ast.ForLoop { init; cond; incr; body }
+  Ast.ForLoop { pos; init; cond; incr; body }
 
 let parse input =
   let st = create (Lexer.create input) in
@@ -275,7 +281,7 @@ let parse input =
       let stmt = parse_statement st in
       let rev_stmts = stmt :: rev_stmts in
       match st.cur_tok with
-      | TokEof -> Ast.CompoundStmt (List.rev rev_stmts)
+      | TokEof -> Ast.CompoundStmt (Ast.dummy_pos, List.rev rev_stmts)
       | _ -> parse_statements rev_stmts
     in
     parse_statements []
