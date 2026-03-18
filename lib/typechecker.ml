@@ -83,66 +83,82 @@ let check_ternary pos cond_t then_t else_t =
     raise (Type_error (pos, TypeMismatch (then_t, else_t)));
   then_t
 
-let rec typecheck_expr env = function
-  | IntLiteral (ann, n) -> IntLiteral (Checked (pos_of ann, Int), n)
-  | BoolLiteral (ann, b) -> BoolLiteral (Checked (pos_of ann, Bool), b)
-  | BinaryOp (ann, op, lhs, rhs) ->
-      let pos = pos_of ann in
-      let lhs' = typecheck_expr env lhs in
-      let rhs' = typecheck_expr env rhs in
-      let t = check_binary pos op (expr_typ lhs') (expr_typ rhs') in
-      BinaryOp (Checked (pos, t), op, lhs', rhs')
-  | VarRef (ann, x) ->
-      let pos = pos_of ann in
-      let t =
-        match Hashtbl.find_opt env.vars x with
-        | Some t -> t
-        | None -> raise (Type_error (pos, UnboundVariable x))
-      in
-      VarRef (Checked (pos, t), x)
-  | UnaryOp (ann, op, e) ->
-      let pos = pos_of ann in
-      let e' = typecheck_expr env e in
-      let t = check_unary pos op (expr_typ e') in
-      UnaryOp (Checked (pos, t), op, e')
-  | Ternary (ann, cond, then_e, else_e) ->
-      let pos = pos_of ann in
-      let cond' = typecheck_expr env cond in
-      let then_e' = typecheck_expr env then_e in
-      let else_e' = typecheck_expr env else_e in
-      let t =
-        check_ternary pos (expr_typ cond') (expr_typ then_e') (expr_typ else_e')
-      in
-      Ternary (Checked (pos, t), cond', then_e', else_e')
-  | FuncCall (ann, f, args) ->
-      let pos = pos_of ann in
-      let sig_ =
-        match Hashtbl.find_opt env.funcs f with
-        | Some s -> s
-        | None -> raise (Type_error (pos, UnboundFunction f))
-      in
-      let expected = List.length sig_.params and got = List.length args in
-      if expected <> got then
-        raise (Type_error (pos, ArityMismatch (f, expected, got)));
-      let args' =
-        List.map2
-          (fun param_t arg ->
-            let arg' = typecheck_expr env arg in
-            let at = expr_typ arg' in
-            if at <> param_t then
-              raise (Type_error (pos, TypeMismatch (param_t, at)));
-            arg')
-          sig_.params args
-      in
-      FuncCall (Checked (pos, sig_.ret), f, args')
-  | Assign (ann, x, e) ->
-      let pos = pos_of ann in
-      let t =
-        match Hashtbl.find_opt env.vars x with
-        | Some t -> t
-        | None -> raise (Type_error (pos, UnboundVariable x))
-      in
-      let e' = typecheck_expr env e in
-      let et = expr_typ e' in
-      if et <> t then raise (Type_error (pos, TypeMismatch (t, et)));
-      Assign (Checked (pos, t), x, e')
+let rec typecheck_expr env expr =
+  match expr with
+  | IntLiteral (ann, n) -> typecheck_int_lit ann n
+  | BoolLiteral (ann, b) -> typecheck_bool_lit ann b
+  | BinaryOp (ann, op, lhs, rhs) -> typecheck_binary_op env ann op lhs rhs
+  | VarRef (ann, x) -> typecheck_var_ref env ann x
+  | UnaryOp (ann, op, e) -> typecheck_unary_op env ann op e
+  | Ternary (ann, cond, t, e) -> typecheck_ternary_op env ann cond t e
+  | FuncCall (ann, f, args) -> typecheck_func_call env ann f args
+  | Assign (ann, x, e) -> typecheck_assign env ann x e
+
+and typecheck_int_lit ann n = IntLiteral (Checked (pos_of ann, Int), n)
+and typecheck_bool_lit ann b = BoolLiteral (Checked (pos_of ann, Bool), b)
+
+and typecheck_binary_op env ann op lhs rhs =
+  let pos = pos_of ann in
+  let lhs' = typecheck_expr env lhs in
+  let rhs' = typecheck_expr env rhs in
+  let t = check_binary pos op (expr_typ lhs') (expr_typ rhs') in
+  BinaryOp (Checked (pos, t), op, lhs', rhs')
+
+and typecheck_var_ref env ann x =
+  let pos = pos_of ann in
+  let t =
+    match Hashtbl.find_opt env.vars x with
+    | Some t -> t
+    | None -> raise (Type_error (pos, UnboundVariable x))
+  in
+  VarRef (Checked (pos, t), x)
+
+and typecheck_unary_op env ann op e =
+  let pos = pos_of ann in
+  let e' = typecheck_expr env e in
+  let t = check_unary pos op (expr_typ e') in
+  UnaryOp (Checked (pos, t), op, e')
+
+and typecheck_ternary_op env ann cond then_e else_e =
+  let pos = pos_of ann in
+  let cond' = typecheck_expr env cond in
+  let then_e' = typecheck_expr env then_e in
+  let else_e' = typecheck_expr env else_e in
+  let t =
+    check_ternary pos (expr_typ cond') (expr_typ then_e') (expr_typ else_e')
+  in
+  Ternary (Checked (pos, t), cond', then_e', else_e')
+
+and typecheck_func_call env ann f args =
+  let pos = pos_of ann in
+  let sig_ =
+    match Hashtbl.find_opt env.funcs f with
+    | Some s -> s
+    | None -> raise (Type_error (pos, UnboundFunction f))
+  in
+  let expected = List.length sig_.params and got = List.length args in
+  if expected <> got then
+    raise (Type_error (pos, ArityMismatch (f, expected, got)));
+  let args' =
+    List.map2
+      (fun param_t arg ->
+        let arg' = typecheck_expr env arg in
+        let at = expr_typ arg' in
+        if at <> param_t then
+          raise (Type_error (pos, TypeMismatch (param_t, at)));
+        arg')
+      sig_.params args
+  in
+  FuncCall (Checked (pos, sig_.ret), f, args')
+
+and typecheck_assign env ann x e =
+  let pos = pos_of ann in
+  let t =
+    match Hashtbl.find_opt env.vars x with
+    | Some t -> t
+    | None -> raise (Type_error (pos, UnboundVariable x))
+  in
+  let e' = typecheck_expr env e in
+  let et = expr_typ e' in
+  if et <> t then raise (Type_error (pos, TypeMismatch (t, et)));
+  Assign (Checked (pos, t), x, e')
