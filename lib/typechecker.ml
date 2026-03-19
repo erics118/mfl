@@ -96,7 +96,7 @@ let expr_typ : checked expr -> typ = function
   | PostDec (ann, _) -> typ_of ann
 
 let assert_lvalue pos = function
-  | Ast.VarRef _ -> ()
+  | VarRef _ -> ()
   | _ -> raise (Type_error (pos, NotLvalue))
 
 let check_binary pos op lt rt =
