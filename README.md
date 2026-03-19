@@ -50,13 +50,12 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [x] `while`, `for`
 - [x] `return`
 - [x] blocks / compound statements
-- [ ] `break`, `continue`
+- [x] `break`, `continue`
 - [ ] `do`/`while`
 - [ ] `switch`/`case`/`default`
 - [ ] `goto` and labels
-- [ ] `for` with optional init/cond/incr (e.g. `for (;;)`)
-- [ ] `for` init declaration: `for (int i = 0; ...)`
-- [ ] uninitialized declarations: `int x;`
+- [x] `for` with optional init/cond/incr (e.g. `for (;;)`)
+- [x] uninitialized declarations: `int x;`
 - [ ] multiple declarators: `int x = 0, y = 1;`
 
 **functions**
@@ -70,7 +69,7 @@ subset of C implemented in OCaml, compiled to LLVM IR
 
 **scoping**
 - [x] function scope
-- [ ] block scoping
+- [x] block scoping
 - [ ] global variables
 - [ ] `static` local variables
 - [ ] `static`, `const`, `extern`, `volatile` qualifiers
@@ -103,20 +102,17 @@ subset of C implemented in OCaml, compiled to LLVM IR
 ## usage
 
 ```sh
-# compile to IR
-dune exec mfl -- program.mfl > program.ll
+# emit LLVM IR
+dune exec mfl -- ir program.mfl
+
+# pretty-print source
+dune exec mfl -- format program.mfl
 
 # link with runtime and produce a binary
-clang llvm/runtime.c program.ll -o program
+dune exec mfl -- ir program.mfl | clang -Wno-override-module -x ir - runtime/runtime.c -o program
 
 # run
 ./program
-```
-
-or as a one-liner:
-
-```sh
-dune exec mfl -- program.mfl | clang llvm/runtime.c -x ir - -o program && ./program
 ```
 
 ## examples
