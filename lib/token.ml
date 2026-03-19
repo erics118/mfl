@@ -16,12 +16,33 @@ type token =
   | TokElseKw  (** [else] keyword *)
   | TokWhileKw  (** [while] keyword *)
   | TokForKw  (** [for] keyword *)
-  (* operators *)
-  | TokBinaryOp of string  (** binary operator lexeme *)
-  | TokUnaryOp of string  (** unary operator lexeme *)
+  (* binary operators *)
+  | TokPlus  (** [+] *)
+  | TokMinus  (** [-] *)
+  | TokStar  (** [*] *)
+  | TokSlash  (** [/] *)
+  | TokPercent  (** [%] *)
+  | TokEqEq  (** [==] *)
+  | TokBangEq  (** [!=] *)
+  | TokLt  (** [<] *)
+  | TokLtEq  (** [<=] *)
+  | TokGt  (** [>] *)
+  | TokGtEq  (** [>=] *)
+  | TokAmpAmp  (** [&&] *)
+  | TokPipePipe  (** [||] *)
+  | TokAmp  (** [&] *)
+  | TokPipe  (** [|] *)
+  | TokCaret  (** [^] *)
+  | TokLtLt  (** [<<] *)
+  | TokGtGt  (** [>>] *)
+  (* unary-only operators — [-] excluded because it is ambiguous at the token
+     level and could be either unary or binary *)
+  | TokBang  (** [!] *)
+  | TokTilde  (** [~] *)
+  | TokPlusPlus  (** [++] *)
+  | TokMinusMinus  (** [--] *)
+  (* assignment *)
   | TokAssign  (** [=] *)
-  | TokPlusPlus
-  | TokMinusMinus
   (* punctuation *)
   | TokLParen  (** [ ( ] *)
   | TokRParen  (** [ ) ] *)
@@ -50,12 +71,32 @@ let string_of_token = function
   | TokElseKw -> "else"
   | TokWhileKw -> "while"
   | TokForKw -> "for"
-  (* operators *)
-  | TokBinaryOp x -> x
-  | TokUnaryOp x -> x
-  | TokAssign -> "="
+  (* binary operators *)
+  | TokPlus -> "+"
+  | TokMinus -> "-"
+  | TokStar -> "*"
+  | TokSlash -> "/"
+  | TokPercent -> "%"
+  | TokEqEq -> "=="
+  | TokBangEq -> "!="
+  | TokLt -> "<"
+  | TokLtEq -> "<="
+  | TokGt -> ">"
+  | TokGtEq -> ">="
+  | TokAmpAmp -> "&&"
+  | TokPipePipe -> "||"
+  | TokAmp -> "&"
+  | TokPipe -> "|"
+  | TokCaret -> "^"
+  | TokLtLt -> "<<"
+  | TokGtGt -> ">>"
+  (* unary-only operators *)
+  | TokBang -> "!"
+  | TokTilde -> "~"
   | TokPlusPlus -> "++"
   | TokMinusMinus -> "--"
+  (* assignment *)
+  | TokAssign -> "="
   (* punctuation *)
   | TokLParen -> "("
   | TokRParen -> ")"

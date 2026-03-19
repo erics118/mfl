@@ -71,50 +71,50 @@ let test_parens _ =
   check [ TokLBrace; TokInt 1; TokSemicolon; TokRBrace ] "{1;}"
 
 let test_binary_ops _ =
-  check [ TokBinaryOp "+" ] "+";
-  check [ TokBinaryOp "-" ] "-";
-  check [ TokBinaryOp "*" ] "*";
-  check [ TokBinaryOp "/" ] "/";
-  check [ TokBinaryOp "%" ] "%";
-  check [ TokBinaryOp "<" ] "<";
-  check [ TokBinaryOp ">" ] ">";
-  check [ TokBinaryOp "==" ] "==";
-  check [ TokBinaryOp "!=" ] "!=";
-  check [ TokBinaryOp "<=" ] "<=";
-  check [ TokBinaryOp ">=" ] ">=";
-  check [ TokBinaryOp "&&" ] "&&";
-  check [ TokBinaryOp "||" ] "||";
-  check [ TokBinaryOp "&" ] "&";
-  check [ TokBinaryOp "|" ] "|";
-  check [ TokBinaryOp "^" ] "^";
-  check [ TokBinaryOp "<<" ] "<<";
-  check [ TokBinaryOp ">>" ] ">>";
+  check [ TokPlus ] "+";
+  check [ TokMinus ] "-";
+  check [ TokStar ] "*";
+  check [ TokSlash ] "/";
+  check [ TokPercent ] "%";
+  check [ TokLt ] "<";
+  check [ TokGt ] ">";
+  check [ TokEqEq ] "==";
+  check [ TokBangEq ] "!=";
+  check [ TokLtEq ] "<=";
+  check [ TokGtEq ] ">=";
+  check [ TokAmpAmp ] "&&";
+  check [ TokPipePipe ] "||";
+  check [ TokAmp ] "&";
+  check [ TokPipe ] "|";
+  check [ TokCaret ] "^";
+  check [ TokLtLt ] "<<";
+  check [ TokGtGt ] ">>";
   (* << and >> take priority over < and > *)
-  check [ TokBinaryOp "<<"; TokInt 1 ] "<< 1";
-  check [ TokBinaryOp ">>"; TokInt 1 ] ">> 1";
+  check [ TokLtLt; TokInt 1 ] "<< 1";
+  check [ TokGtGt; TokInt 1 ] ">> 1";
   (* <= and >= still work *)
-  check [ TokBinaryOp "<=" ] "<=";
-  check [ TokBinaryOp ">=" ] ">="
+  check [ TokLtEq ] "<=";
+  check [ TokGtEq ] ">="
 
 let test_unary_ops _ =
-  check [ TokUnaryOp "!" ] "!";
-  check [ TokUnaryOp "~" ] "~";
+  check [ TokBang ] "!";
+  check [ TokTilde ] "~";
   (* != takes priority over ! *)
-  check [ TokBinaryOp "!=" ] "!="
+  check [ TokBangEq ] "!="
 
 let test_whitespace _ =
-  check [ TokInt 1; TokBinaryOp "+"; TokInt 2 ] "1 + 2";
-  check [ TokInt 1; TokBinaryOp "+"; TokInt 2 ] "1+2";
-  check [ TokInt 1; TokBinaryOp "+"; TokInt 2 ] "  1  +  2  ";
-  check [ TokInt 1; TokBinaryOp "+"; TokInt 2 ] "1\t+\n2\r"
+  check [ TokInt 1; TokPlus; TokInt 2 ] "1 + 2";
+  check [ TokInt 1; TokPlus; TokInt 2 ] "1+2";
+  check [ TokInt 1; TokPlus; TokInt 2 ] "  1  +  2  ";
+  check [ TokInt 1; TokPlus; TokInt 2 ] "1\t+\n2\r"
 
 let test_sequences _ =
-  check [ TokBool true; TokBinaryOp "&&"; TokBool false ] "true && false";
-  check [ TokUnaryOp "!"; TokBool true ] "!true";
-  check [ TokInt 1; TokBinaryOp "=="; TokInt 1 ] "1 == 1";
-  check [ TokInt 3; TokBinaryOp "&"; TokInt 5 ] "3 & 5";
+  check [ TokBool true; TokAmpAmp; TokBool false ] "true && false";
+  check [ TokBang; TokBool true ] "!true";
+  check [ TokInt 1; TokEqEq; TokInt 1 ] "1 == 1";
+  check [ TokInt 3; TokAmp; TokInt 5 ] "3 & 5";
   check [ TokInt 1; TokSemicolon ] "1;";
-  check [ TokInt 1; TokBinaryOp "+"; TokInt 3; TokSemicolon ] "1 + 3;";
+  check [ TokInt 1; TokPlus; TokInt 3; TokSemicolon ] "1 + 3;";
   check
     [
       TokIdent "a";
@@ -140,7 +140,7 @@ let test_sequences _ =
       TokLBrace;
       TokReturnKw;
       TokIdent "a";
-      TokBinaryOp "+";
+      TokPlus;
       TokIdent "b";
       TokSemicolon;
       TokRBrace;
@@ -167,8 +167,8 @@ let test_string_of_token _ =
   assert_equal "while" (string_of_token TokWhileKw);
   assert_equal "for" (string_of_token TokForKw);
   assert_equal "x" (string_of_token (TokIdent "x"));
-  assert_equal "+" (string_of_token (TokBinaryOp "+"));
-  assert_equal "!" (string_of_token (TokUnaryOp "!"));
+  assert_equal "+" (string_of_token TokPlus);
+  assert_equal "!" (string_of_token TokBang);
   assert_equal "=" (string_of_token TokAssign)
 
 let test_errors _ =

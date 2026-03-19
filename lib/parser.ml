@@ -30,18 +30,31 @@ let consume_identifier st =
       name
   | _ -> raise (Parse_error (cur_pos st, "expected identifier"))
 
-let op_of_string_exn s =
-  match Ast.op_of_string_opt s with
-  | Some op -> op
-  | None ->
-      raise
-        (Parse_error (Ast.dummy_pos, Printf.sprintf "unknown operator '%s'" s))
-      [@coverage off]
+let op_of_tok = function
+  | TokPlus -> Some Ast.Add
+  | TokMinus -> Some Ast.Sub
+  | TokStar -> Some Ast.Mul
+  | TokSlash -> Some Ast.Div
+  | TokPercent -> Some Ast.Mod
+  | TokEqEq -> Some Ast.Equal
+  | TokBangEq -> Some Ast.Neq
+  | TokLt -> Some Ast.Less
+  | TokLtEq -> Some Ast.Leq
+  | TokGt -> Some Ast.Greater
+  | TokGtEq -> Some Ast.Geq
+  | TokAmpAmp -> Some Ast.And
+  | TokPipePipe -> Some Ast.Or
+  | TokAmp -> Some Ast.BitAnd
+  | TokPipe -> Some Ast.BitOr
+  | TokCaret -> Some Ast.BitXor
+  | TokLtLt -> Some Ast.LShift
+  | TokGtGt -> Some Ast.RShift
+  | _ -> None
 
 let cur_precedence st =
-  match st.cur_tok with
-  | TokBinaryOp s -> Ast.precedence (op_of_string_exn s)
-  | _ -> -1
+  match op_of_tok st.cur_tok with
+  | Some op -> Ast.precedence op
+  | None -> -1
 
 (* Parse a comma-separated list of items terminated by ')' *)
 let parse_rparen_list st parse_item =
@@ -91,13 +104,13 @@ and parse_primary st =
       Ast.BoolLiteral (Ast.Parsed pos, b)
   | TokIdent _ -> parse_identifier_expr st pos
   | TokLParen -> parse_paren_expr st
-  | TokBinaryOp "-" ->
+  | TokMinus ->
       advance st;
       Ast.UnaryOp (Ast.Parsed pos, Ast.Neg, parse_primary st)
-  | TokUnaryOp "!" ->
+  | TokBang ->
       advance st;
       Ast.UnaryOp (Ast.Parsed pos, Ast.Not, parse_primary st)
-  | TokUnaryOp "~" ->
+  | TokTilde ->
       advance st;
       Ast.UnaryOp (Ast.Parsed pos, Ast.Compl, parse_primary st)
   | TokEof -> raise (Parse_error (pos, "unexpected end of input"))
@@ -133,10 +146,9 @@ and parse_binop_rhs st expr_prec lhs =
   let prec = cur_precedence st in
   if prec < expr_prec then lhs
   else
-    match st.cur_tok with
-    | TokBinaryOp s ->
+    match op_of_tok st.cur_tok with
+    | Some op ->
         let pos = cur_pos st in
-        let op = op_of_string_exn s in
         advance st;
         (* parse a postfix expr if exists *)
         let rhs = parse_postfix st in
@@ -146,7 +158,7 @@ and parse_binop_rhs st expr_prec lhs =
         in
         parse_binop_rhs st expr_prec
           (Ast.BinaryOp (Ast.Parsed pos, op, lhs, rhs))
-    | _ -> lhs [@coverage off]
+    | None -> lhs [@coverage off]
 
 and parse_binary_expr st =
   (* parse a postfix expr if exists *)

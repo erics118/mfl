@@ -124,44 +124,44 @@ let next_token st =
   | Some '=' when peek2 st = Some '=' ->
       advance st;
       advance st;
-      TokBinaryOp "=="
+      TokEqEq
   | Some '=' ->
       advance st;
       TokAssign
   | Some '!' when peek2 st = Some '=' ->
       advance st;
       advance st;
-      TokBinaryOp "!="
+      TokBangEq
   | Some '<' when peek2 st = Some '<' ->
       advance st;
       advance st;
-      TokBinaryOp "<<"
+      TokLtLt
   | Some '<' when peek2 st = Some '=' ->
       advance st;
       advance st;
-      TokBinaryOp "<="
+      TokLtEq
   | Some '>' when peek2 st = Some '>' ->
       advance st;
       advance st;
-      TokBinaryOp ">>"
+      TokGtGt
   | Some '>' when peek2 st = Some '=' ->
       advance st;
       advance st;
-      TokBinaryOp ">="
+      TokGtEq
   | Some '&' when peek2 st = Some '&' ->
       advance st;
       advance st;
-      TokBinaryOp "&&"
+      TokAmpAmp
   | Some '|' when peek2 st = Some '|' ->
       advance st;
       advance st;
-      TokBinaryOp "||"
+      TokPipePipe
   | Some '!' ->
       advance st;
-      TokUnaryOp "!"
+      TokBang
   | Some '~' ->
       advance st;
-      TokUnaryOp "~"
+      TokTilde
   | Some '+' when peek2 st = Some '+' ->
       advance st;
       advance st;
@@ -170,9 +170,36 @@ let next_token st =
       advance st;
       advance st;
       TokMinusMinus
-  | Some (('+' | '-' | '*' | '/' | '%' | '<' | '>' | '&' | '|' | '^') as op) ->
+  | Some '+' ->
       advance st;
-      TokBinaryOp (String.make 1 op)
+      TokPlus
+  | Some '-' ->
+      advance st;
+      TokMinus
+  | Some '*' ->
+      advance st;
+      TokStar
+  | Some '/' ->
+      advance st;
+      TokSlash
+  | Some '%' ->
+      advance st;
+      TokPercent
+  | Some '<' ->
+      advance st;
+      TokLt
+  | Some '>' ->
+      advance st;
+      TokGt
+  | Some '&' ->
+      advance st;
+      TokAmp
+  | Some '|' ->
+      advance st;
+      TokPipe
+  | Some '^' ->
+      advance st;
+      TokCaret
   | Some c when is_digit c -> read_number st
   | Some c when is_alpha c -> read_ident st
   | Some c ->
