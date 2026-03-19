@@ -1,4 +1,4 @@
-  $ dune exec mfl -- fixtures/nested.mfl
+  $ dune exec mfl -- ir fixtures/nested.mfl
   ; ModuleID = 'mfl'
   source_filename = "mfl"
   

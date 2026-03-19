@@ -1,4 +1,4 @@
-  $ dune exec mfl -- fixtures/void_func.mfl
+  $ dune exec mfl -- ir fixtures/void_func.mfl
   ; ModuleID = 'mfl'
   source_filename = "mfl"
   

@@ -1,4 +1,4 @@
-  $ dune exec mfl -- fixtures/cmp.mfl
+  $ dune exec mfl -- ir fixtures/cmp.mfl
   ; ModuleID = 'mfl'
   source_filename = "mfl"
   
