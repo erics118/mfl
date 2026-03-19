@@ -140,6 +140,21 @@ let test_var_defs _ =
   roundtrip "{\n    UserType x = 7;\n}";
   roundtrip "1;\nint x = 2;\n3;"
 
+let test_break_continue _ =
+  roundtrip "break;";
+  roundtrip "continue;";
+  roundtrip "while (true) {\n    break;\n}";
+  roundtrip "while (true) {\n    continue;\n}";
+  roundtrip "for (;;) {\n    break;\n}";
+  roundtrip
+    "for (;;) {\n\
+    \    if (true) {\n\
+    \        break;\n\
+    \    } else {\n\
+    \        continue;\n\
+    \    }\n\
+     }"
+
 let test_returns _ =
   roundtrip "return;";
   roundtrip "return 1;";
@@ -258,6 +273,7 @@ let tests =
          "incdec" >:: test_incdec;
          "multiple_statements" >:: test_multiple_statements;
          "var_defs" >:: test_var_defs;
+         "break_continue" >:: test_break_continue;
          "returns" >:: test_returns;
          "function_calls" >:: test_function_calls;
          "ternary" >:: test_ternary;

@@ -10,6 +10,8 @@ type type_error =
   | TypeMismatch of typ * typ (* expected, got *)
   | CondNotBool of typ
   | ReturnOutsideFunction
+  | BreakOutsideLoop
+  | ContinueOutsideLoop
   | NotLvalue
   | IncDecTypeMismatch of [ `Pre | `Post ] * [ `Inc | `Dec ] * typ
 
@@ -38,6 +40,8 @@ let string_of_type_error = function
   | CondNotBool t ->
       Printf.sprintf "condition must be 'bool' but got '%s'" (string_of_typ t)
   | ReturnOutsideFunction -> "return statement outside of a function"
+  | BreakOutsideLoop -> "break statement outside of a loop"
+  | ContinueOutsideLoop -> "continue statement outside of a loop"
   | NotLvalue -> "expression is not an lvalue"
   | IncDecTypeMismatch (fix, dir, t) ->
       let fix_s =
@@ -63,6 +67,7 @@ type env = {
   vars : (string, typ) Hashtbl.t list;
   funcs : (string, func_sig) Hashtbl.t;
   return_typ : typ option;
+  in_loop : bool;
 }
 
 let lookup_var env x =
@@ -218,6 +223,12 @@ and typecheck_stmt env (stmt : parsed stmt) : checked stmt =
   | EmptyStmt pos ->
       (* trivial *)
       EmptyStmt pos
+  | BreakStmt pos ->
+      if not env.in_loop then raise (Type_error (pos, BreakOutsideLoop));
+      BreakStmt pos
+  | ContinueStmt pos ->
+      if not env.in_loop then raise (Type_error (pos, ContinueOutsideLoop));
+      ContinueStmt pos
   | ExprStmt (pos, e) ->
       (* we can just check the inner expr *)
       ExprStmt (pos, typecheck_expr env e)
@@ -283,7 +294,12 @@ and typecheck_func_def env pos ret_type name params body =
       ret = ret_t;
     };
   let fn_env =
-    { vars = [ Hashtbl.create 8 ]; funcs = env.funcs; return_typ = Some ret_t }
+    {
+      vars = [ Hashtbl.create 8 ];
+      funcs = env.funcs;
+      return_typ = Some ret_t;
+      in_loop = false;
+    }
   in
   (* then we add the variables to the env *)
   List.iter
@@ -305,14 +321,14 @@ and typecheck_if env pos cond then_body else_body =
 
 and typecheck_while env pos cond body =
   let cond = typecheck_expr env cond in
-  let body = typecheck_stmt env body in
+  let body = typecheck_stmt { env with in_loop = true } body in
   let cond_t = expr_typ cond in
   (* ensure cond is Bool *)
   if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
   WhileLoop { pos; cond; body }
 
 and typecheck_for env pos init cond incr body =
-  let env = push_scope env in
+  let env = push_scope { env with in_loop = true } in
   let init = typecheck_stmt env init in
   let cond = Option.map (typecheck_expr env) cond in
   let incr = Option.map (typecheck_expr env) incr in
@@ -345,5 +361,7 @@ let typecheck_program stmts =
   (* "stdlib" functions *)
   Hashtbl.replace funcs "printint" { params = [ Int ]; ret = Void };
   Hashtbl.replace funcs "printbool" { params = [ Bool ]; ret = Void };
-  let env = { vars = [ Hashtbl.create 8 ]; funcs; return_typ = None } in
+  let env =
+    { vars = [ Hashtbl.create 8 ]; funcs; return_typ = None; in_loop = false }
+  in
   List.map (typecheck_stmt env) stmts

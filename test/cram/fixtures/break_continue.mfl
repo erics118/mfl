@@ -1,0 +1,21 @@
+int main() {
+    int i = 0;
+    while (true) {
+        if (i >= 5) {
+            break;
+        }
+        i = i + 1;
+    }
+    int j = 0;
+    int sum = 0;
+    while (j < 10) {
+        j = j + 1;
+        if (j % 2 == 0) {
+            continue;
+        }
+        sum = sum + j;
+    }
+    printint(i);
+    printint(sum);
+    return 0;
+}

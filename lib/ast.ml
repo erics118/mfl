@@ -112,6 +112,9 @@ type 'a stmt =
     }
       (** [if (cond) if_body] or [if (cond) if_body else else_body] is an
           if-else statement *)
+  | BreakStmt of pos  (** [break;] exits the innermost loop *)
+  | ContinueStmt of pos
+      (** [continue;] jumps to the next iteration of the innermost loop *)
   | WhileLoop of {
       pos : pos;
       cond : 'a expr;

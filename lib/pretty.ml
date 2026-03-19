@@ -106,6 +106,8 @@ and pp_stmt_aux ?(top_level = true) ?(indent = 0) stmt =
     | ExprStmt (_, e) -> pp_expr_aux e ^ ";"
     | ReturnStmt (_, None) -> "return;"
     | ReturnStmt (_, Some e) -> "return " ^ pp_expr_aux e ^ ";"
+    | BreakStmt _ -> "break;"
+    | ContinueStmt _ -> "continue;"
     | EmptyStmt _ -> ";"
     | CompoundStmt (_, stmts) ->
         if top_level then

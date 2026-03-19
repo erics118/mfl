@@ -16,6 +16,8 @@ type token =
   | TokElseKw  (** [else] keyword *)
   | TokWhileKw  (** [while] keyword *)
   | TokForKw  (** [for] keyword *)
+  | TokBreakKw  (** [break] keyword *)
+  | TokContinueKw  (** [continue] keyword *)
   (* binary operators *)
   | TokPlus  (** [+] *)
   | TokMinus  (** [-] *)
@@ -71,6 +73,8 @@ let string_of_token = function
   | TokElseKw -> "else"
   | TokWhileKw -> "while"
   | TokForKw -> "for"
+  | TokBreakKw -> "break"
+  | TokContinueKw -> "continue"
   (* binary operators *)
   | TokPlus -> "+"
   | TokMinus -> "-"

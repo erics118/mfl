@@ -11,6 +11,10 @@ let bool_type = Llvm.i1_type context
 (* maps variable names to their alloca ptr within the current function *)
 let locals : (string, Llvm.llvalue) Hashtbl.t = Hashtbl.create 16
 
+(* stack of (continue_bb, break_bb) for the each of the enclosing loops *)
+let loop_stack : (Llvm.llbasicblock * Llvm.llbasicblock) Stack.t =
+  Stack.create ()
+
 (* true if the current block already ends with a terminator (ret, br, etc.) *)
 let block_terminated () =
   Llvm.block_terminator (Llvm.insertion_block builder) <> None
@@ -177,7 +181,9 @@ and codegen_while_loop cond body =
   ignore (Llvm.build_cond_br c body_bb after_bb builder);
   (* run the body, then jump back to cond *)
   Llvm.position_at_end body_bb builder;
+  Stack.push (cond_bb, after_bb) loop_stack;
   codegen_stmt body;
+  ignore (Stack.pop loop_stack);
   br_if_open cond_bb;
   Llvm.position_at_end after_bb builder
 
@@ -210,7 +216,9 @@ and codegen_for_loop init cond incr body =
   end;
   (* run the body *)
   Llvm.position_at_end body_bb builder;
+  Stack.push (incr_bb, after_bb) loop_stack;
   codegen_stmt body;
+  ignore (Stack.pop loop_stack);
   (* jump back to incr *)
   br_if_open incr_bb;
   (* run the incr *)
@@ -304,6 +312,12 @@ and codegen_stmt = function
       codegen_func_def ret_type name params body
   | ReturnStmt (_, Some e) -> ignore (Llvm.build_ret (codegen_expr e) builder)
   | ReturnStmt (_, None) -> ignore (Llvm.build_ret_void builder)
+  | BreakStmt _ ->
+      let _, break_bb = Stack.top loop_stack in
+      ignore (Llvm.build_br break_bb builder)
+  | ContinueStmt _ ->
+      let continue_bb, _ = Stack.top loop_stack in
+      ignore (Llvm.build_br continue_bb builder)
   | ExprStmt (_, e) -> ignore (codegen_expr e)
   | EmptyStmt _ -> ()
   | CompoundStmt (_, stmts) -> List.iter codegen_stmt stmts

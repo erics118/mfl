@@ -224,6 +224,14 @@ let rec parse_statement st =
       consume st TokLBrace;
       Ast.CompoundStmt (pos, parse_compound_stmt st [])
   | TokReturnKw -> parse_return_stmt st
+  | TokBreakKw ->
+      advance st;
+      consume st TokSemicolon;
+      Ast.BreakStmt pos
+  | TokContinueKw ->
+      advance st;
+      consume st TokSemicolon;
+      Ast.ContinueStmt pos
   | TokIfKw -> parse_if st
   | TokWhileKw -> parse_while st
   | TokForKw -> parse_for st

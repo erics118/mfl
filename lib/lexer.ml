@@ -81,6 +81,8 @@ let read_ident st =
   | "else" -> TokElseKw
   | "while" -> TokWhileKw
   | "for" -> TokForKw
+  | "break" -> TokBreakKw
+  | "continue" -> TokContinueKw
   | "void" -> TokVoidKw
   | s -> TokIdent s
 

@@ -6,7 +6,12 @@ open Typechecker
 let p = Parsed dummy_pos
 
 let empty_env =
-  { vars = [ Hashtbl.create 4 ]; funcs = Hashtbl.create 4; return_typ = None }
+  {
+    vars = [ Hashtbl.create 4 ];
+    funcs = Hashtbl.create 4;
+    return_typ = None;
+    in_loop = false;
+  }
 
 let i n = IntLiteral (p, n)
 let b b = BoolLiteral (p, b)
@@ -33,6 +38,12 @@ let check_typ ?(env = empty_env) expected e =
 
 let check_err ?(env = empty_env) expected_err e =
   match typecheck_expr env e with
+  | _ -> assert_failure "expected Type_error"
+  | exception Type_error (_, err) ->
+      assert_equal ~printer:Fun.id expected_err (string_of_type_error err)
+
+let check_stmt_err ?(env = empty_env) expected_err s =
+  match typecheck_stmt env s with
   | _ -> assert_failure "expected Type_error"
   | exception Type_error (_, err) ->
       assert_equal ~printer:Fun.id expected_err (string_of_type_error err)
@@ -197,6 +208,21 @@ let test_incdec_errors _ =
   check_err ~env:env_bool "operator 'postfix --': invalid operand type 'bool'"
     (post_dec (v "flag"))
 
+let test_break_continue _ =
+  (* break and continue are valid inside loops *)
+  let loop_env = { empty_env with in_loop = true } in
+  (match typecheck_stmt loop_env (BreakStmt dummy_pos) with
+  | BreakStmt _ -> ()
+  | _ -> assert_failure "expected BreakStmt");
+  match typecheck_stmt loop_env (ContinueStmt dummy_pos) with
+  | ContinueStmt _ -> ()
+  | _ -> assert_failure "expected ContinueStmt"
+
+let test_break_continue_errors _ =
+  (* break and continue outside a loop are errors *)
+  check_stmt_err "break statement outside of a loop" (BreakStmt dummy_pos);
+  check_stmt_err "continue statement outside of a loop" (ContinueStmt dummy_pos)
+
 let tests =
   "typechecker"
   >::: [
@@ -221,6 +247,8 @@ let tests =
          "func_call_errors" >:: test_func_call_errors;
          "ternary" >:: test_ternary;
          "ternary_errors" >:: test_ternary_errors;
+         "break_continue" >:: test_break_continue;
+         "break_continue_errors" >:: test_break_continue_errors;
          "incdec" >:: test_incdec;
          "incdec_errors" >:: test_incdec_errors;
        ]
