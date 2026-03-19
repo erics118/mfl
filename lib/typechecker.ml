@@ -296,14 +296,19 @@ and typecheck_while env pos cond body =
 and typecheck_for env pos init cond incr body =
   let env = push_scope env in
   let init = typecheck_stmt env init in
-  let cond = typecheck_expr env cond in
-  let incr = typecheck_expr env incr in
+  let cond = Option.map (typecheck_expr env) cond in
+  let incr = Option.map (typecheck_expr env) incr in
   let body = typecheck_stmt env body in
-  let cond_t = expr_typ cond in
-  (* ensure cond is Bool *)
-  if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
-  (* incr can be anything, we dont need to check its type *)
-  ForLoop { pos; init; cond; incr; body }
+  begin match cond with
+  | None -> ForLoop { pos; init; cond = None; incr; body }
+  | Some cond -> begin
+      let cond_t = expr_typ cond in
+      (* ensure cond is Bool *)
+      if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
+      (* incr can be anything, we don't need to check its type *)
+      ForLoop { pos; init; cond = Some cond; incr; body }
+    end
+  end
 
 and typecheck_assign env ann x e =
   let pos = pos_of ann in

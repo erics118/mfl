@@ -66,6 +66,11 @@ let rec pp_expr_aux ?(parent_prec = 0) = function
       in
       s ^ "--"
 
+(* print an 'a expr option, handling spacing, for use within a for loop *)
+let pp_expr_aux_opt = function
+  | None -> ""
+  | Some e -> " " ^ pp_expr_aux e
+
 (** [pp_expr e] renders a value expression into a formatted source string *)
 let pp_expr e = pp_expr_aux e
 
@@ -124,8 +129,8 @@ and pp_stmt_aux ?(top_level = true) ?(indent = 0) stmt =
     | WhileLoop { cond; body; _ } ->
         Printf.sprintf "while (%s) %s" (pp_expr_aux cond) (pp_body body)
     | ForLoop { init; cond; incr; body; _ } ->
-        Printf.sprintf "for (%s %s; %s) %s" (pp_stmt_aux init)
-          (pp_expr_aux cond) (pp_expr_aux incr) (pp_body body)
+        Printf.sprintf "for (%s%s;%s) %s" (pp_stmt_aux init)
+          (pp_expr_aux_opt cond) (pp_expr_aux_opt incr) (pp_body body)
   in
   p ^ rest
 

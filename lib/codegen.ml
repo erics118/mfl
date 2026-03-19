@@ -194,8 +194,17 @@ and codegen_for_loop init cond incr body =
   ignore (Llvm.build_br cond_bb builder);
   (* evaluate cond, then branch *)
   Llvm.position_at_end cond_bb builder;
-  let c = codegen_expr cond in
-  ignore (Llvm.build_cond_br c body_bb after_bb builder);
+  begin match cond with
+  | None ->
+      (* go to body_bb *)
+      ignore (Llvm.build_br body_bb builder)
+  | Some cond -> begin
+      (* generate the code for cond *)
+      let c = codegen_expr cond in
+      (* if c is true, go to body_bb, otherwise go to after_bb *)
+      ignore (Llvm.build_cond_br c body_bb after_bb builder)
+    end
+  end;
   (* run the body *)
   Llvm.position_at_end body_bb builder;
   codegen_stmt body;
@@ -203,7 +212,7 @@ and codegen_for_loop init cond incr body =
   br_if_open incr_bb;
   (* run the incr *)
   Llvm.position_at_end incr_bb builder;
-  ignore (codegen_expr incr);
+  ignore (Option.map codegen_expr incr);
   (* jump back to cond *)
   br_if_open cond_bb;
   Llvm.position_at_end after_bb builder

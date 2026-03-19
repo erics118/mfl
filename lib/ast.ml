@@ -120,8 +120,8 @@ type 'a stmt =
   | ForLoop of {
       pos : pos;
       init : 'a stmt;
-      cond : 'a expr;
-      incr : 'a expr;
+      cond : 'a expr option;
+      incr : 'a expr option;
       body : 'a stmt;
     }  (** [for (init; cond; incr) body] is a for loop *)
 

@@ -299,10 +299,12 @@ and parse_for st =
   let pos = cur_pos st in
   consume st TokForKw;
   consume st TokLParen;
+  (* can be an empty stmt *)
   let init = parse_statement st in
-  let cond = parse_expr st in
+  (* if ;, then empty *)
+  let cond = if st.cur_tok = TokSemicolon then None else Some (parse_expr st) in
   consume st TokSemicolon;
-  let incr = parse_expr st in
+  let incr = if st.cur_tok = TokRParen then None else Some (parse_expr st) in
   consume st TokRParen;
   let body = parse_statement st in
   Ast.ForLoop { pos; init; cond; incr; body }
