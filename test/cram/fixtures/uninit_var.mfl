@@ -1,0 +1,7 @@
+int main() {
+    int x;
+    bool flag;
+    x = 5;
+    flag = true;
+    return x;
+}

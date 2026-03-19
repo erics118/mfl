@@ -1,0 +1,14 @@
+int main() {
+    int x = 10;
+    int a = ++x;
+    int b = x++;
+    printint(a);
+    printint(b);
+    printint(x);
+    int y = 5;
+    int c = --y;
+    int d = y--;
+    printint(c);
+    printint(d);
+    printint(y);
+}

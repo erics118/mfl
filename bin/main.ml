@@ -56,7 +56,11 @@ let run_format input =
   in
   print_string (Pretty.pp_stmt stmt ^ "\n")
 
-let usage_msg = "Usage: mfl <command> <input-file>\n\nCommands:\n  ir      Emit LLVM IR\n  format  Pretty-print the source"
+let usage_msg =
+  "Usage: mfl <command> <input-file>\n\n\
+   Commands:\n\
+  \  ir      Emit LLVM IR\n\
+  \  format  Pretty-print the source"
 
 let () =
   if Array.length Sys.argv < 3 then (

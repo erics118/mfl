@@ -133,10 +133,10 @@ and codegen_expr (e : Ast.checked Ast.expr) : Llvm.llvalue =
           ignore (Llvm.build_store v ptr builder);
           v
       | None -> failwith ("undefined variable: " ^ name))
-  | PreInc (_, e) -> codegen_incdec e true false
-  | PreDec (_, _) -> codegen_incdec e false false
-  | PostInc (_, _) -> codegen_incdec e true true
-  | PostDec (_, _) -> codegen_incdec e false true
+  | PreInc (_, e) -> codegen_incdec e `Inc `Pre
+  | PreDec (_, e) -> codegen_incdec e `Dec `Pre
+  | PostInc (_, e) -> codegen_incdec e `Inc `Post
+  | PostDec (_, e) -> codegen_incdec e `Dec `Post
 
 and codegen_if cond then_body else_body =
   let c = codegen_expr cond in
@@ -239,8 +239,12 @@ and codegen_ternary cond then_e else_e =
   (* phi, to select value from whichever branch was taken *)
   Llvm.build_phi [ (tv, then_bb'); (ev, else_bb') ] "ternary" builder
 
-and codegen_incdec e is_pos is_post =
-  let delta = if is_pos then 1 else -1 in
+and codegen_incdec e dir fix =
+  let delta =
+    match dir with
+    | `Inc -> 1
+    | `Dec -> -1
+  in
   let name =
     match e with
     | Ast.VarRef (_, n) -> n
@@ -258,9 +262,10 @@ and codegen_incdec e is_pos is_post =
   in
   (* update the value *)
   ignore (Llvm.build_store new_val ptr builder);
-  (* if postfix, return the old value *)
-  (* if prefix, return the new value *)
-  if is_post then old_val else new_val
+  (* if postfix, return the old value; if prefix, return the new value *)
+  match fix with
+  | `Post -> old_val
+  | `Pre -> new_val
 
 and codegen_func_def ret_type name params body =
   let param_types =

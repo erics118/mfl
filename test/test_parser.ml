@@ -204,13 +204,15 @@ let test_for _ =
   roundtrip "for (x = 0; x < 10; x + 1) {\n    x;\n}";
   check "for (int i = 0; i < 10; i + 1) {\n    return;\n}"
     "for (int i = 0; i < 10; i + 1) return;";
-  roundtrip "for (; i < 10; ++i) {}";
-  roundtrip "for (int i;; ++i) {}";
-  roundtrip "for (int i; i < 10;) {}";
-  roundtrip "for (;; ++i) {}";
-  roundtrip "for (; i < 10;) {}";
-  roundtrip "for (int i = 0;;) {}";
   roundtrip "for (;;) {}";
+  roundtrip "for (int i = 0;;) {}";
+  roundtrip "for (; i < 10;) {}";
+  roundtrip "for (;; ++i) {}";
+  roundtrip "for (int i; i < 10;) {}";
+  roundtrip "for (int i;; ++i) {}";
+  roundtrip "for (; i < 10; ++i) {}";
+  roundtrip "for (int i = 0; i < 10;) {}";
+  roundtrip "for (int i = 0;; ++i) {}";
   ()
 
 let test_errors _ =

@@ -1,0 +1,10 @@
+int main() {
+    int x = 0;
+    ++x;
+    x++;
+    --x;
+    x--;
+    int a = ++x;
+    int b = x++;
+    return x;
+}

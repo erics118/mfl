@@ -168,6 +168,35 @@ let test_ternary_errors _ =
   check_err "expected type 'int' but got 'bool'" (tern (b true) (i 1) (b false));
   check_err "expected type 'bool' but got 'int'" (tern (b true) (b false) (i 1))
 
+let pre_inc e = PreInc (p, e)
+let post_inc e = PostInc (p, e)
+let pre_dec e = PreDec (p, e)
+let post_dec e = PostDec (p, e)
+
+let test_incdec _ =
+  let env = env_with [ ("x", Int) ] in
+  check_typ ~env Int (pre_inc (v "x"));
+  check_typ ~env Int (post_inc (v "x"));
+  check_typ ~env Int (pre_dec (v "x"));
+  check_typ ~env Int (post_dec (v "x"))
+
+let test_incdec_errors _ =
+  let env_int = env_with [ ("x", Int) ] in
+  let env_bool = env_with [ ("flag", Bool) ] in
+  (* non-lvalue operand *)
+  check_err ~env:env_int "expression is not an lvalue" (pre_inc (i 1));
+  check_err ~env:env_int "expression is not an lvalue"
+    (post_inc (bi Add (v "x") (i 1)));
+  (* bool operand *)
+  check_err ~env:env_bool "operator 'prefix ++': invalid operand type 'bool'"
+    (pre_inc (v "flag"));
+  check_err ~env:env_bool "operator 'prefix --': invalid operand type 'bool'"
+    (pre_dec (v "flag"));
+  check_err ~env:env_bool "operator 'postfix ++': invalid operand type 'bool'"
+    (post_inc (v "flag"));
+  check_err ~env:env_bool "operator 'postfix --': invalid operand type 'bool'"
+    (post_dec (v "flag"))
+
 let tests =
   "typechecker"
   >::: [
@@ -192,6 +221,8 @@ let tests =
          "func_call_errors" >:: test_func_call_errors;
          "ternary" >:: test_ternary;
          "ternary_errors" >:: test_ternary_errors;
+         "incdec" >:: test_incdec;
+         "incdec_errors" >:: test_incdec_errors;
        ]
 
 let _ = run_test_tt_main tests
