@@ -224,7 +224,7 @@ let promote_integer pos (e : checked expr) : checked expr =
   let t = expr_typ e in
   (* it must be an integer type *)
   assert (is_integer_type t);
-  if integer_rank t <= integer_rank Int then
+  if integer_rank t < integer_rank Int then
     (* if the rank is lower than int, cast it to int *)
     implicit_cast pos Int e
   else
