@@ -126,36 +126,46 @@ let parse_int_base signedness st =
 
 (* parse the type of a variable *)
 let parse_type_name st =
-  match st.cur_tok with
-  | TokBoolKw ->
-      advance st;
-      VBool
-  | TokVoidKw ->
-      advance st;
-      VVoid
-  | TokCharKw ->
-      advance st;
-      VChar
-  | TokShortKw ->
-      advance st;
-      if st.cur_tok = TokIntKw then advance st;
-      VShort
-  | TokIntKw ->
-      advance st;
-      VInt
-  | TokLongKw ->
-      advance st;
-      parse_long_suffix `Signed st
-  | TokUnsignedKw ->
-      advance st;
-      parse_int_base `Unsigned st
-  | TokSignedKw ->
-      advance st;
-      parse_int_base `Signed st
-  | TokIdent type_name ->
-      advance st;
-      VNamed type_name
-  | _ -> raise (Parse_error (cur_pos st, "expected type")) [@coverage off]
+  let base =
+    match st.cur_tok with
+    | TokBoolKw ->
+        advance st;
+        VBool
+    | TokVoidKw ->
+        advance st;
+        VVoid
+    | TokCharKw ->
+        advance st;
+        VChar
+    | TokShortKw ->
+        advance st;
+        if st.cur_tok = TokIntKw then advance st;
+        VShort
+    | TokIntKw ->
+        advance st;
+        VInt
+    | TokLongKw ->
+        advance st;
+        parse_long_suffix `Signed st
+    | TokUnsignedKw ->
+        advance st;
+        parse_int_base `Unsigned st
+    | TokSignedKw ->
+        advance st;
+        parse_int_base `Signed st
+    | TokIdent type_name ->
+        advance st;
+        VNamed type_name
+    | _ -> raise (Parse_error (cur_pos st, "expected type")) [@coverage off]
+  in
+  let rec parse_ptr_suffix ty =
+    match st.cur_tok with
+    | TokStar ->
+        advance st;
+        parse_ptr_suffix (VPtr ty)
+    | _ -> ty
+  in
+  parse_ptr_suffix base
 
 let is_type_token st =
   match st.cur_tok with
@@ -215,6 +225,12 @@ and parse_primary st =
   | TokMinus ->
       advance st;
       UnaryOp (Parsed pos, Neg, parse_primary st)
+  | TokAmp ->
+      advance st;
+      UnaryOp (Parsed pos, AddrOf, parse_primary st)
+  | TokStar ->
+      advance st;
+      UnaryOp (Parsed pos, Deref, parse_primary st)
   | TokBang ->
       advance st;
       UnaryOp (Parsed pos, Not, parse_primary st)

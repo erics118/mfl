@@ -105,6 +105,10 @@ let test_unary _ =
   roundtrip "-1;";
   roundtrip "-42;";
   roundtrip "-(-5);";
+  roundtrip "&x;";
+  roundtrip "*p;";
+  check "*(&p);" "*&p;";
+  check "&(*p);" "&*p;";
   roundtrip "!true;";
   roundtrip "!false;";
   check "!(!true);" "!!true;";
@@ -142,6 +146,8 @@ let test_multiple_statements _ =
 let test_var_defs _ =
   roundtrip "int x;";
   roundtrip "int x = 3;";
+  roundtrip "int* p;";
+  roundtrip "int* p = &x;";
   roundtrip "int x = 1 + 2 * 3;";
   roundtrip "bool ready = true;";
   roundtrip "bool ok = 1 < 2;";
@@ -183,6 +189,13 @@ let test_int_types _ =
   (* unsigned alone gets converted to unsigned int *)
   check "unsigned int x;" "unsigned x;"
 
+let test_pointer_types _ =
+  roundtrip "int* p;";
+  roundtrip "int** pp;";
+  roundtrip "int***** pp;";
+  roundtrip "bool* p;";
+  check "UserType * p;" "UserType* p;"
+
 let test_break_continue _ =
   roundtrip "break;";
   roundtrip "continue;";
@@ -201,6 +214,7 @@ let test_break_continue _ =
 let test_returns _ =
   roundtrip "return;";
   roundtrip "return 1;";
+  roundtrip "int* addr(int* p) {\n    return p;\n}";
   roundtrip "return 1 + 2 * 3;";
   roundtrip "{\n    return true;\n}";
   roundtrip "int add(int a, int b) {\n    return a + b;\n}";
@@ -212,6 +226,8 @@ let test_returns _ =
 let test_function_calls _ =
   roundtrip "foo();";
   roundtrip "foo(1);";
+  roundtrip "foo(&x);";
+  roundtrip "foo(*p);";
   roundtrip "foo(1, 2 + 3);";
   roundtrip "foo(bar(1), baz(2 + 3));";
   roundtrip "int x = add(1, 2);";
@@ -289,6 +305,8 @@ let test_cast _ =
   roundtrip "(short)x;";
   roundtrip "(unsigned int)x;";
   roundtrip "(unsigned long)x;";
+  roundtrip "(int*)x;";
+  roundtrip "(int**)x;";
   (* cast of an expression *)
   roundtrip "(int)(x + 1);";
   (* cast of a literal *)
@@ -343,6 +361,7 @@ let tests =
          "multiple_statements" >:: test_multiple_statements;
          "var_defs" >:: test_var_defs;
          "int_types" >:: test_int_types;
+         "pointer_types" >:: test_pointer_types;
          "break_continue" >:: test_break_continue;
          "returns" >:: test_returns;
          "function_calls" >:: test_function_calls;

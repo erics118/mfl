@@ -19,7 +19,7 @@ type type_error =
 
 exception Type_error of pos * type_error
 
-let string_of_typ = function
+let rec string_of_typ = function
   | Bool -> "bool"
   | Void -> "void"
   | Char -> "char"
@@ -32,6 +32,7 @@ let string_of_typ = function
   | ULong -> "unsigned long"
   | LongLong -> "long long"
   | ULongLong -> "unsigned long long"
+  | Ptr t -> string_of_typ t ^ "*"
 
 (** true for any integer type, including Bool, excluding Void *)
 let is_integer_type = function
@@ -46,12 +47,17 @@ let is_integer_type = function
   | ULong
   | LongLong
   | ULongLong -> true
+  | Ptr _ -> false
   | Void -> false
+
+let is_pointer_type = function
+  | Ptr _ -> true
+  | _ -> false
 
 (** is a pointer, integer, float, not array, struct, union *)
 let is_scalar_type = function
   | Void -> false
-  | t -> is_integer_type t
+  | t -> is_integer_type t || is_pointer_type t
 
 (** width in bits of an integer type *)
 let integer_width = function
@@ -60,6 +66,7 @@ let integer_width = function
   | Short | UShort -> 16
   | Int | UInt -> 32
   | Long | ULong | LongLong | ULongLong -> 64
+  | Ptr _ -> 64
   | Void -> 0
 
 (** rank of integers, in order of priority when casting implicitly *)
@@ -70,12 +77,12 @@ let integer_rank = function
   | Int | UInt -> 3
   | Long | ULong -> 4
   | LongLong | ULongLong -> 5
-  | Void -> -1
+  | Ptr _ | Void -> assert false
 
 (** true for signed integer types *)
 let is_signed_type = function
   | Char | Short | Int | Long | LongLong -> true
-  | UChar | UShort | UInt | ULong | ULongLong | Bool | Void -> false
+  | UChar | UShort | UInt | ULong | ULongLong | Bool | Ptr _ | Void -> false
 
 (** gets the unsigned version of a signed type *)
 let unsigned_counterpart = function
@@ -87,7 +94,7 @@ let unsigned_counterpart = function
   (* these types don't change *)
   | (UChar | UShort | UInt | ULong | ULongLong) as t -> t
   (* these types don't have an unsigned counterpart *)
-  | Bool | Void -> invalid_arg "unsigned counterpart"
+  | Bool | Ptr _ | Void -> invalid_arg "unsigned counterpart"
 
 let string_of_type_error = function
   | UnknownType name -> Printf.sprintf "unknown type '%s'" name
@@ -204,6 +211,7 @@ let expr_typ : checked expr -> typ = function
 let assert_lvalue (pos : pos) (e : checked expr) : unit =
   match e with
   | VarRef _ -> ()
+  | UnaryOp (_, Deref, _) -> ()
   | _ -> raise (Type_error (pos, NotLvalue))
 
 let check_binary pos op lt rt =
@@ -214,13 +222,16 @@ let check_binary pos op lt rt =
   | Less | Leq | Greater | Geq ->
       if is_integer_type lt && lt = rt then Bool else err ()
   | And | Or -> if lt = Bool && rt = Bool then Bool else err ()
-  | Equal | Neq -> if lt = rt then Bool else err ()
+  | Equal | Neq ->
+      if (is_integer_type lt || is_pointer_type lt) && lt = rt then Bool
+      else err ()
 
 let check_unary pos op t =
   let err () = raise (Type_error (pos, UnaryTypeMismatch (op, t))) in
   match op with
   | Not -> if is_integer_type t then Bool else err ()
   | Neg | Compl -> if is_integer_type t then t else err ()
+  | AddrOf | Deref -> assert false
 
 let check_ternary pos cond_t then_t else_t =
   if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
@@ -239,13 +250,25 @@ let implicit_cast pos to_t (e : checked expr) : checked expr =
     ImplicitCast (Checked (pos, to_t), to_t, e)
 
 (** if we can cast to a different scalar type *)
-let can_cast from_t to_t =
-  is_scalar_type from_t && is_scalar_type to_t && to_t <> Void
+let can_explicit_cast from_t to_t =
+  if from_t = to_t then true
+  else
+    match (from_t, to_t) with
+    | Ptr _, Ptr _ | Ptr _, _ | _, Ptr _ ->
+        (* if from or to or both is a pointer, ensure both are scalar *)
+        is_scalar_type from_t && is_scalar_type to_t
+    | _ ->
+        (* otherwise, we need to ensure both are integer types *)
+        is_integer_type from_t && is_integer_type to_t
+
+(** if we can do an cast/conversion as if by assignment *)
+let can_assign_cast from_t to_t =
+  if from_t = to_t then true else is_integer_type from_t && is_integer_type to_t
 
 (** apply "conversion as if by assignment" *)
 let cast_expr pos to_t (e : checked expr) : checked expr =
   let from_t = expr_typ e in
-  if can_cast from_t to_t then implicit_cast pos to_t e
+  if can_assign_cast from_t to_t then implicit_cast pos to_t e
   else raise (Type_error (pos, TypeMismatch (to_t, from_t)))
 
 (** integer promotions used by unary and binary integer operators *)
@@ -307,7 +330,7 @@ let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
       let to_t = resolve_var_type pos var_type in
       let e = typecheck_expr env e in
       let from_t = expr_typ e in
-      if not (can_cast from_t to_t) then
+      if not (can_explicit_cast from_t to_t) then
         raise (Type_error (pos, InvalidCast (from_t, to_t)));
       Cast (Checked (pos, to_t), var_type, e)
   | ImplicitCast (_ann, _ty, _e) -> assert false
@@ -328,6 +351,11 @@ and typecheck_binary_op env ann op lhs rhs =
   in
   match op with
   | And | Or ->
+      let t = check_binary pos op (expr_typ lhs) (expr_typ rhs) in
+      BinaryOp (Checked (pos, t), op, lhs, rhs)
+  | (Equal | Neq)
+    when is_pointer_type (expr_typ lhs) || is_pointer_type (expr_typ rhs) ->
+      (* equality for between pointers *)
       let t = check_binary pos op (expr_typ lhs) (expr_typ rhs) in
       BinaryOp (Checked (pos, t), op, lhs, rhs)
   | LShift | RShift ->
@@ -377,14 +405,27 @@ and typecheck_var_ref env ann x =
 and typecheck_unary_op env ann op e =
   let pos = pos_of ann in
   let e = typecheck_expr env e in
+  let t = expr_typ e in
   match op with
+  | AddrOf ->
+      (* ensure is a lvalue *)
+      assert_lvalue pos e;
+      UnaryOp (Checked (pos, Ptr t), op, e)
+  | Deref -> begin
+      (* ensure only deref a pointer *)
+      match t with
+      | Ptr tt when tt <> Void ->
+          (* ensure the pointer is not void *)
+          UnaryOp (Checked (pos, tt), op, e)
+      | t -> raise (Type_error (pos, UnaryTypeMismatch (op, t)))
+    end
   | Neg | Compl ->
-      if not (is_integer_type (expr_typ e)) then
-        raise (Type_error (pos, UnaryTypeMismatch (op, expr_typ e)));
+      if not (is_integer_type t) then
+        raise (Type_error (pos, UnaryTypeMismatch (op, t)));
       let e = promote_integer pos e in
-      UnaryOp (Checked (pos, expr_typ e), op, e)
+      UnaryOp (Checked (pos, t), op, e)
   | Not ->
-      let t = check_unary pos op (expr_typ e) in
+      let t = check_unary pos op t in
       UnaryOp (Checked (pos, t), op, e)
 
 and typecheck_ternary_op env ann cond then_e else_e =

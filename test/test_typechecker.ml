@@ -59,6 +59,7 @@ let name_of_typ = function
   | ULong -> "ul"
   | LongLong -> "ll"
   | ULongLong -> "ull"
+  | Ptr _ -> "p"
   | Void -> "v"
 
 let all_integer_vars = List.map (fun t -> (name_of_typ t, t)) all_integer_types
@@ -296,11 +297,14 @@ let test_incdec_errors _ =
     (post_dec (call "noop" []))
 
 let test_cast _ =
-  let env = env_with [ ("x", Long); ("n", Int); ("c", Char) ] in
+  let env = env_with [ ("x", Long); ("n", Int); ("c", Char); ("p", Ptr Int) ] in
   check_typ ~env Int (cast VInt (v "x"));
   check_typ ~env Long (cast VLong (v "n"));
   check_typ ~env Bool (cast VBool (v "n"));
   check_typ ~env Char (cast VChar (v "n"));
+  check_typ ~env (Ptr Int) (cast (VPtr VInt) (v "n"));
+  check_typ ~env Int (cast VInt (v "p"));
+  check_typ ~env (Ptr (Ptr Int)) (cast (VPtr (VPtr VInt)) (v "p"));
   check_typ Int (cast VInt (i 5));
   check_typ Long (cast VLong (i 5))
 
@@ -361,6 +365,40 @@ let test_implicit_casts _ =
   | BinaryOp (_, _, lhs, _) -> assert_implicit_cast_to Long lhs
   | _ -> assert_failure "expected BinaryOp"
 
+let test_pointers _ =
+  let funcs = Hashtbl.create 1 in
+  Hashtbl.add funcs "load" { params = [ Ptr Int ]; ret = Int };
+  let env =
+    env_with
+      [
+        ("x", Int);
+        ("y", Int);
+        ("px", Ptr Int);
+        ("py", Ptr Int);
+        ("pp", Ptr (Ptr Int));
+      ]
+  in
+  check_typ ~env (Ptr Int) (un AddrOf (v "x"));
+  check_typ ~env Int (un Deref (v "px"));
+  check_typ ~env (Ptr (Ptr Int)) (un AddrOf (un Deref (v "pp")));
+  check_typ ~env Bool (bi Equal (v "px") (v "py"));
+  check_typ ~env (Ptr Int) (a "px" (un AddrOf (v "x")));
+  check_typ ~env Int (call "load" [ un AddrOf (v "x") ])
+
+let test_pointer_errors _ =
+  let env =
+    env_with [ ("x", Int); ("p", Ptr Int); ("vp", Ptr Void); ("q", Ptr Int) ]
+  in
+  check_err ~env "expression is not an lvalue"
+    (un AddrOf (bi Add (v "x") (i 1)));
+  check_err ~env "operator '*': invalid operand type 'int'" (un Deref (v "x"));
+  check_err ~env "operator '*': invalid operand type 'void*'"
+    (un Deref (v "vp"));
+  check_err ~env "expected type 'int*' but got 'int'" (a "p" (i 1));
+  check_err ~env "expected type 'int*' but got 'bool'" (a "p" (b true));
+  check_err ~env "operator '<': type mismatch between 'int*' and 'int*'"
+    (bi Less (v "p") (v "q"))
+
 let test_break_continue _ =
   (* break and continue are valid inside loops *)
   let loop_env = { empty_env with in_loop = true } in
@@ -388,6 +426,8 @@ let test_var_type_resolution _ =
   check VULong;
   check VLongLong;
   check VULongLong;
+  check (VPtr VInt);
+  check (VPtr (VPtr VInt));
   (* VNamed with an unknown name must raise UnknownType *)
   check_stmt_err "unknown type 'Foo'"
     (VarDef
@@ -458,6 +498,8 @@ let tests =
          "cast" >:: test_cast;
          "cast_errors" >:: test_cast_errors;
          "implicit_casts" >:: test_implicit_casts;
+         "pointers" >:: test_pointers;
+         "pointer_errors" >:: test_pointer_errors;
          "break_continue" >:: test_break_continue;
          "break_continue_errors" >:: test_break_continue_errors;
          "missing_return" >:: test_missing_return;

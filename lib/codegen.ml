@@ -13,6 +13,7 @@ let char_type = Llvm.i8_type context
 let short_type = Llvm.i16_type context
 let int_type = Llvm.i32_type context
 let long_type = Llvm.i64_type context
+let pointer_type = Llvm.pointer_type context
 
 (** gets the size of a type in bits *)
 let sizeof_typ = function
@@ -21,6 +22,7 @@ let sizeof_typ = function
   | Short | UShort -> 16
   | Int | UInt -> 32
   | Long | ULong | LongLong | ULongLong -> 64
+  | Ptr _ -> 64
   | Void -> 0
 
 (* maps variable names to their alloca ptr within the current function *)
@@ -47,12 +49,13 @@ let llvm_of_typ = function
   | Short | UShort -> short_type
   | Int | UInt -> int_type
   | Long | ULong | LongLong | ULongLong -> long_type
+  | Ptr _ -> pointer_type
 
 (* true for signed integer types *)
 let is_signed = function
   | Char | Short | Int | Long | LongLong -> true
   | UChar | UShort | UInt | ULong | ULongLong -> false
-  | Bool | Void -> false
+  | Bool | Ptr _ | Void -> false
 
 (* extract the resolved type from a checked expression annotation *)
 let expr_type : checked expr -> typ = function
@@ -115,13 +118,32 @@ let rec codegen_binop operand_typ op lhs rhs =
       else Llvm.build_lshr lv rv "lsrtmp" builder
 
 and codegen_uop op e =
-  let v = codegen_expr e in
   match op with
-  | Neg -> Llvm.build_neg v "" builder
+  | Neg ->
+      let v = codegen_expr e in
+      Llvm.build_neg v "" builder
   | Not ->
+      let v = codegen_expr e in
       let zero = Llvm.const_null (llvm_of_typ (expr_type e)) in
       Llvm.build_icmp Llvm.Icmp.Eq v zero "nottmp" builder
-  | Compl -> Llvm.build_not v "compltmp" builder
+  | Compl ->
+      let v = codegen_expr e in
+      Llvm.build_not v "compltmp" builder
+  | AddrOf -> begin
+      (* lvalues only *)
+      match e with
+      | VarRef (Checked _, name) -> Hashtbl.find locals name
+      | UnaryOp (Checked _, Deref, ptr_e) -> codegen_expr ptr_e
+      | _ -> assert false [@coverage off]
+    end
+  | Deref -> begin
+      (* can only deref pointers *)
+      match expr_type e with
+      | Ptr t ->
+          let ptr = codegen_expr e in
+          Llvm.build_load (llvm_of_typ t) ptr "deref" builder
+      | _ -> assert false [@coverage off]
+    end
 
 and codegen_func_call ret_t name args =
   let fn =
@@ -364,15 +386,24 @@ and codegen_cast to_t e =
   else
     (* different types, we need to convert *)
     let to_ll = llvm_of_typ to_t in
-    match to_t with
-    | Bool ->
+    match (from_t, to_t) with
+    | Ptr _, Ptr _ ->
+        (* cast from pointer type to another pointer type *)
+        Llvm.build_pointercast v to_ll "ptrcasttmp" builder
+    | Ptr _, _ ->
+        (* explicit cast from pointer to integer *)
+        Llvm.build_ptrtoint v to_ll "ptrtointtmp" builder
+    | _, Ptr _ ->
+        (* explicit cast from integer to pointer *)
+        Llvm.build_inttoptr v to_ll "inttoptrtmp" builder
+    | _, Bool ->
         (* we have to explicitly handle bool bc trunc may not necessarily work.
            ie, trunc i32 2 to i1 gives 0 not 1. it should be that any nonzero
            value is true. instead, we do a != 0 comparison *)
         let zero = Llvm.const_null (llvm_of_typ from_t) in
         Llvm.build_icmp Llvm.Icmp.Ne v zero "booltmp" builder
     | _ ->
-        (* non-bool case *)
+        (* non-bool integer case *)
         let from_size = sizeof_typ from_t in
         let to_size = sizeof_typ to_t in
         if to_size < from_size then

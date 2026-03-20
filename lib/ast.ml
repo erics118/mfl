@@ -26,6 +26,8 @@ type uop =
   | Neg  (** numeric negation *)
   | Not  (** logical negation *)
   | Compl  (** bitwise complement *)
+  | AddrOf  (** address-of *)
+  | Deref  (** pointer dereference *)
 
 (** variable and return types *)
 type var_type =
@@ -41,10 +43,11 @@ type var_type =
   | VULong
   | VLongLong
   | VULongLong
+  | VPtr of var_type
   | VNamed of string  (** user-defined type names *)
 
 (** render a variable type as a string *)
-let string_of_var_type = function
+let rec string_of_var_type = function
   | VBool -> "bool"
   | VVoid -> "void"
   | VChar -> "char"
@@ -57,6 +60,7 @@ let string_of_var_type = function
   | VULong -> "unsigned long"
   | VLongLong -> "long long"
   | VULongLong -> "unsigned long long"
+  | VPtr t -> string_of_var_type t ^ "*"
   | VNamed name -> name
 
 (** source location *)
@@ -79,11 +83,12 @@ type typ =
   | ULong  (** i64, unsigned *)
   | LongLong  (** i64, signed *)
   | ULongLong  (** i64, unsigned *)
+  | Ptr of typ (* pointer type *)
 
 (** [typ_of_var_type vt] converts a built-in [var_type] to its [typ]. Only safe
     to call after typechecking, when all [VNamed] types have already been
     validated. Raises [Assert_failure] if called with [VNamed]. *)
-let typ_of_var_type = function
+let rec typ_of_var_type = function
   | VBool -> Bool
   | VVoid -> Void
   | VChar -> Char
@@ -96,6 +101,7 @@ let typ_of_var_type = function
   | VULong -> ULong
   | VLongLong -> LongLong
   | VULongLong -> ULongLong
+  | VPtr t -> Ptr (typ_of_var_type t)
   | VNamed _ -> assert false [@coverage off]
 
 (** phantom types marking which compiler phase produced an expr *)
@@ -252,3 +258,5 @@ let string_of_uop = function
   | Neg -> "-"
   | Not -> "!"
   | Compl -> "~"
+  | AddrOf -> "&"
+  | Deref -> "*"
