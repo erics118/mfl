@@ -346,7 +346,7 @@ let test_errors _ =
   fails "unknown token: '+'" "+ ;"
 
 let tests =
-  "parser;"
+  "parser"
   >::: [
          "literals" >:: test_literals;
          "top_level_pos" >:: test_top_level_pos;

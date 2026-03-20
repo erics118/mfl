@@ -5,10 +5,15 @@ open Typechecker
 
 let p = Parsed dummy_pos
 
-let empty_env =
+let default_env =
   {
     vars = [ Hashtbl.create 4 ];
-    funcs = Hashtbl.create 4;
+    funcs =
+      (let t = Hashtbl.create 1 in
+       (* noop is so used in a lot of places to get a void type, so we add it to
+          the default env *)
+       Hashtbl.add t "noop" { params = []; ret = Void };
+       t);
     return_typ = None;
     in_loop = false;
   }
@@ -18,19 +23,29 @@ let b b = BoolLiteral (p, b)
 let bi op l r = BinaryOp (p, op, l, r)
 let un op e = UnaryOp (p, op, e)
 let tern cond then_e else_e = Ternary (p, cond, then_e, else_e)
-let v x = VarRef (p, x)
-let a x e = Assign (p, x, e)
-let call f args = FuncCall (p, f, args)
 
-let env_with vars =
-  let tbl = Hashtbl.create 4 in
-  List.iter (fun (k, v) -> Hashtbl.add tbl k v) vars;
-  { empty_env with vars = [ tbl ] }
+(* we aren't using mutable stuff here, so we shadow ! to mean variable reference
+   and := to mean variable assignment, and we add $ to mean function
+   call/application *)
+let ( ! ) x = VarRef (p, x)
+let ( := ) x e = Assign (p, x, e)
+let ( $ ) f args = FuncCall (p, f, args)
+let cast ty e = Cast (p, ty, e)
+let pre_inc e = PreInc (p, e)
+let post_inc e = PostInc (p, e)
+let pre_dec e = PreDec (p, e)
+let post_dec e = PostDec (p, e)
 
-let env_with_funcs funcs =
+(* noop function call, used to get a void type *)
+let noop = "noop" $ []
+
+let make_tbl pairs =
   let tbl = Hashtbl.create 4 in
-  List.iter (fun (k, v) -> Hashtbl.add tbl k v) funcs;
-  { empty_env with funcs = tbl }
+  List.iter (fun (k, v) -> Hashtbl.add tbl k v) pairs;
+  tbl
+
+let env_with vars = { default_env with vars = [ make_tbl vars ] }
+let env_with_funcs funcs = { default_env with funcs = make_tbl funcs }
 
 let all_integer_types =
   [
@@ -67,17 +82,17 @@ let all_integer_vars = List.map (fun t -> (name_of_typ t, t)) all_integer_types
 let expected_promoted_type t =
   if integer_rank t < integer_rank Int then Int else t
 
-let check_typ ?(env = empty_env) expected e =
+let check_typ ?(env = default_env) expected e =
   let result = typecheck_expr env e in
   assert_equal ~printer:string_of_typ expected (expr_typ result)
 
-let check_err ?(env = empty_env) expected_err e =
+let check_err ?(env = default_env) expected_err e =
   match typecheck_expr env e with
   | _ -> assert_failure "expected Type_error"
   | exception Type_error (_, err) ->
       assert_equal ~printer:Fun.id expected_err (string_of_type_error err)
 
-let check_stmt_err ?(env = empty_env) expected_err s =
+let check_stmt_err ?(env = default_env) expected_err s =
   match typecheck_stmt env s with
   | _ -> assert_failure "expected Type_error"
   | exception Type_error (_, err) ->
@@ -138,9 +153,9 @@ let test_unary_conversions _ =
     (fun t ->
       let expected = expected_promoted_type t in
       let name = name_of_typ t in
-      let not_e = typecheck_expr env (un Not (v name)) in
-      let neg = typecheck_expr env (un Neg (v name)) in
-      let compl = typecheck_expr env (un Compl (v name)) in
+      let not_e = typecheck_expr env (un Not !name) in
+      let neg = typecheck_expr env (un Neg !name) in
+      let compl = typecheck_expr env (un Compl !name) in
       assert_equal ~printer:string_of_typ Bool (expr_typ not_e);
       assert_equal ~printer:string_of_typ expected (expr_typ neg);
       assert_equal ~printer:string_of_typ expected (expr_typ compl);
@@ -169,25 +184,22 @@ let test_nested _ =
   check_typ Bool (bi Equal (bi Less (i 1) (i 2)) (b true))
 
 let test_arithmetic_errors _ =
-  let env = env_with_funcs [ ("noop", { params = []; ret = Void }) ] in
-  check_err ~env "operator '+': type mismatch between 'void' and 'int'"
-    (bi Add (call "noop" []) (i 1));
-  check_err ~env "operator '*': type mismatch between 'bool' and 'void'"
-    (bi Mul (b true) (call "noop" []))
+  check_err "operator '+': type mismatch between 'void' and 'int'"
+    (bi Add noop (i 1));
+  check_err "operator '*': type mismatch between 'bool' and 'void'"
+    (bi Mul (b true) noop)
 
 let test_comparison_errors _ =
-  let env = env_with_funcs [ ("noop", { params = []; ret = Void }) ] in
-  check_err ~env "operator '<': type mismatch between 'void' and 'bool'"
-    (bi Less (call "noop" []) (b false));
-  check_err ~env "operator '>=': type mismatch between 'int' and 'void'"
-    (bi Geq (i 1) (call "noop" []))
+  check_err "operator '<': type mismatch between 'void' and 'bool'"
+    (bi Less noop (b false));
+  check_err "operator '>=': type mismatch between 'int' and 'void'"
+    (bi Geq (i 1) noop)
 
 let test_equality_errors _ =
-  let env = env_with_funcs [ ("noop", { params = []; ret = Void }) ] in
-  check_err ~env "operator '==': type mismatch between 'void' and 'int'"
-    (bi Equal (call "noop" []) (i 1));
-  check_err ~env "operator '!=': type mismatch between 'bool' and 'void'"
-    (bi Neq (b false) (call "noop" []))
+  check_err "operator '==': type mismatch between 'void' and 'int'"
+    (bi Equal noop (i 1));
+  check_err "operator '!=': type mismatch between 'bool' and 'void'"
+    (bi Neq (b false) noop)
 
 let test_logical_errors _ =
   check_err "operator '&&': type mismatch between 'int' and 'int'"
@@ -196,41 +208,29 @@ let test_logical_errors _ =
     (bi Or (b true) (i 1))
 
 let test_unary_errors _ =
-  let env = env_with_funcs [ ("noop", { params = []; ret = Void }) ] in
-  check_err ~env "operator '!': invalid operand type 'void'"
-    (un Not (call "noop" []));
-  check_err ~env "operator '-': invalid operand type 'void'"
-    (un Neg (call "noop" []));
-  check_err ~env "operator '~': invalid operand type 'void'"
-    (un Compl (call "noop" []))
+  check_err "operator '!': invalid operand type 'void'" (un Not noop);
+  check_err "operator '-': invalid operand type 'void'" (un Neg noop);
+  check_err "operator '~': invalid operand type 'void'" (un Compl noop)
 
 let test_var_ref _ =
   let env = env_with [ ("x", Int); ("ok", Bool) ] in
-  check_typ ~env Int (v "x");
-  check_typ ~env Bool (v "ok")
+  check_typ ~env Int !"x";
+  check_typ ~env Bool !"ok"
 
 let test_var_ref_errors _ =
-  check_err "unbound variable 'x'" (v "x");
-  check_err "unbound variable 'y'" (v "y")
+  check_err "unbound variable 'x'" !"x";
+  check_err "unbound variable 'y'" !"y"
 
 let test_assign _ =
   let env = env_with [ ("x", Int); ("ok", Bool) ] in
-  check_typ ~env Int (a "x" (i 42));
-  check_typ ~env Bool (a "ok" (b true));
-  check_typ ~env Int (a "x" (bi Add (i 1) (i 2)))
+  check_typ ~env Int ("x" := i 42);
+  check_typ ~env Bool ("ok" := b true);
+  check_typ ~env Int ("x" := bi Add (i 1) (i 2))
 
 let test_assign_errors _ =
   let env = env_with [ ("x", Int) ] in
-  check_err ~env "unbound variable 'y'" (a "y" (i 1));
-  let env_with_void =
-    {
-      env with
-      funcs =
-        Hashtbl.of_seq (List.to_seq [ ("noop", { params = []; ret = Void }) ]);
-    }
-  in
-  check_err ~env:env_with_void "expected type 'int' but got 'void'"
-    (a "x" (call "noop" []))
+  check_err ~env "unbound variable 'y'" ("y" := i 1);
+  check_err "expected type 'int' but got 'void'" ("x" := noop)
 
 let test_func_call _ =
   let env =
@@ -240,22 +240,15 @@ let test_func_call _ =
         ("ready", { params = []; ret = Bool });
       ]
   in
-  check_typ ~env Int (call "add" [ i 1; i 2 ]);
-  check_typ ~env Bool (call "ready" [])
+  check_typ ~env Int ("add" $ [ i 1; i 2 ]);
+  check_typ ~env Bool ("ready" $ [])
 
 let test_func_call_errors _ =
-  let env =
-    env_with_funcs
-      [
-        ("add", { params = [ Int; Int ]; ret = Int });
-        ("noop", { params = []; ret = Void });
-      ]
-  in
-  check_err ~env "unbound function 'f'" (call "f" []);
-  check_err ~env "'add' expects 2 argument(s) but got 1" (call "add" [ i 1 ]);
-  check_err ~env "'add' expects 2 argument(s) but got 0" (call "add" []);
-  check_err ~env "expected type 'int' but got 'void'"
-    (call "add" [ call "noop" []; i 1 ])
+  let env = env_with_funcs [ ("add", { params = [ Int; Int ]; ret = Int }) ] in
+  check_err ~env "unbound function 'f'" ("f" $ []);
+  check_err ~env "'add' expects 2 argument(s) but got 1" ("add" $ [ i 1 ]);
+  check_err ~env "'add' expects 2 argument(s) but got 0" ("add" $ []);
+  check_err ~env "expected type 'int' but got 'void'" ("add" $ [ noop; i 1 ])
 
 let test_ternary _ =
   check_typ Int (tern (b true) (i 1) (i 2));
@@ -267,51 +260,41 @@ let test_ternary_errors _ =
   check_err "expected type 'int' but got 'bool'" (tern (b true) (i 1) (b false));
   check_err "expected type 'bool' but got 'int'" (tern (b true) (b false) (i 1))
 
-let cast ty e = Cast (p, ty, e)
-let pre_inc e = PreInc (p, e)
-let post_inc e = PostInc (p, e)
-let pre_dec e = PreDec (p, e)
-let post_dec e = PostDec (p, e)
-
 let test_incdec _ =
   let env = env_with [ ("x", Int); ("flag", Bool) ] in
-  check_typ ~env Int (pre_inc (v "x"));
-  check_typ ~env Int (post_inc (v "x"));
-  check_typ ~env Int (pre_dec (v "x"));
-  check_typ ~env Int (post_dec (v "x"));
-  check_typ ~env Bool (pre_inc (v "flag"));
-  check_typ ~env Bool (post_inc (v "flag"));
-  check_typ ~env Bool (pre_dec (v "flag"));
-  check_typ ~env Bool (post_dec (v "flag"))
+  check_typ ~env Int (pre_inc !"x");
+  check_typ ~env Int (post_inc !"x");
+  check_typ ~env Int (pre_dec !"x");
+  check_typ ~env Int (post_dec !"x");
+  check_typ ~env Bool (pre_inc !"flag");
+  check_typ ~env Bool (post_inc !"flag");
+  check_typ ~env Bool (pre_dec !"flag");
+  check_typ ~env Bool (post_dec !"flag")
 
 let test_incdec_errors _ =
   let env_int = env_with [ ("x", Int) ] in
-  let env_void = env_with_funcs [ ("noop", { params = []; ret = Void }) ] in
   (* non-lvalue operand *)
   check_err ~env:env_int "expression is not an lvalue" (pre_inc (i 1));
   check_err ~env:env_int "expression is not an lvalue"
-    (post_inc (bi Add (v "x") (i 1)));
-  check_err ~env:env_void "expression is not an lvalue"
-    (pre_inc (call "noop" []));
-  check_err ~env:env_void "expression is not an lvalue"
-    (post_dec (call "noop" []))
+    (post_inc (bi Add !"x" (i 1)));
+  check_err "expression is not an lvalue" (pre_inc noop);
+  check_err "expression is not an lvalue" (post_dec noop)
 
 let test_cast _ =
   let env = env_with [ ("x", Long); ("n", Int); ("c", Char); ("p", Ptr Int) ] in
-  check_typ ~env Int (cast VInt (v "x"));
-  check_typ ~env Long (cast VLong (v "n"));
-  check_typ ~env Bool (cast VBool (v "n"));
-  check_typ ~env Char (cast VChar (v "n"));
-  check_typ ~env (Ptr Int) (cast (VPtr VInt) (v "n"));
-  check_typ ~env Int (cast VInt (v "p"));
-  check_typ ~env (Ptr (Ptr Int)) (cast (VPtr (VPtr VInt)) (v "p"));
+  check_typ ~env Int (cast VInt !"x");
+  check_typ ~env Long (cast VLong !"n");
+  check_typ ~env Bool (cast VBool !"n");
+  check_typ ~env Char (cast VChar !"n");
+  check_typ ~env (Ptr Int) (cast (VPtr VInt) !"n");
+  check_typ ~env Int (cast VInt !"p");
+  check_typ ~env (Ptr (Ptr Int)) (cast (VPtr (VPtr VInt)) !"p");
   check_typ Int (cast VInt (i 5));
   check_typ Long (cast VLong (i 5))
 
 let test_cast_errors _ =
-  let env = env_with_funcs [ ("noop", { params = []; ret = Void }) ] in
-  check_err ~env "cannot cast from 'int' to 'void'" (cast VVoid (i 1));
-  check_err ~env "cannot cast from 'void' to 'int'" (cast VInt (call "noop" []))
+  check_err "cannot cast from 'int' to 'void'" (cast VVoid (i 1));
+  check_err "cannot cast from 'void' to 'int'" (cast VInt noop)
 
 let test_conversions _ =
   let env =
@@ -327,22 +310,22 @@ let test_conversions _ =
         ("ll", LongLong);
       ]
   in
-  check_typ ~env Int (bi Add (v "c") (i 1));
-  check_typ ~env Int (bi Add (v "uc") (v "s"));
-  check_typ ~env Int (bi Add (v "us") (v "s"));
-  check_typ ~env UInt (bi Add (v "u") (i 1));
-  check_typ ~env Long (bi Add (v "l") (v "u"));
-  check_typ ~env ULong (bi Add (v "ul") (v "l"));
-  check_typ ~env LongLong (bi Add (v "ll") (v "u"));
-  check_typ ~env ULongLong (bi Add (v "ll") (v "ul"));
-  check_typ ~env Int (bi LShift (v "c") (i 1));
-  check_typ ~env Int (bi RShift (v "us") (b false));
+  check_typ ~env Int (bi Add !"c" (i 1));
+  check_typ ~env Int (bi Add !"uc" !"s");
+  check_typ ~env Int (bi Add !"us" !"s");
+  check_typ ~env UInt (bi Add !"u" (i 1));
+  check_typ ~env Long (bi Add !"l" !"u");
+  check_typ ~env ULong (bi Add !"ul" !"l");
+  check_typ ~env LongLong (bi Add !"ll" !"u");
+  check_typ ~env ULongLong (bi Add !"ll" !"ul");
+  check_typ ~env Int (bi LShift !"c" (i 1));
+  check_typ ~env Int (bi RShift !"us" (b false));
   check_typ Bool (bi Equal (b true) (i 1));
-  check_typ ~env Bool (bi Less (v "ul") (v "ll"));
+  check_typ ~env Bool (bi Less !"ul" !"ll");
   check_typ Int (un Neg (b true));
   check_typ Int (un Compl (b false));
   let env = env_with [ ("ok", Bool) ] in
-  check_typ ~env Bool (a "ok" (i 7));
+  check_typ ~env Bool ("ok" := i 7);
   let env =
     env_with_funcs
       [
@@ -350,58 +333,58 @@ let test_conversions _ =
         ("widen", { params = [ Long ]; ret = Long });
       ]
   in
-  check_typ ~env Bool (call "flag" [ i 1 ]);
-  check_typ ~env Long (call "widen" [ i 1 ]);
+  check_typ ~env Bool ("flag" $ [ i 1 ]);
+  check_typ ~env Long ("widen" $ [ i 1 ]);
   check_typ Int (cast VInt (b true));
   check_typ Bool (cast VBool (i 7));
   check_typ ULongLong (cast VULongLong (i 7))
 
 let test_implicit_casts _ =
   let env = env_with [ ("ok", Bool); ("c", Char); ("l", Long) ] in
-  (match typecheck_expr env (a "ok" (i 3)) with
+  (match typecheck_expr env ("ok" := i 3) with
   | Assign (_, _, value) -> assert_implicit_cast_to Bool value
   | _ -> assert_failure "expected Assign");
-  match typecheck_expr env (bi Add (v "c") (v "l")) with
+  match typecheck_expr env (bi Add !"c" !"l") with
   | BinaryOp (_, _, lhs, _) -> assert_implicit_cast_to Long lhs
   | _ -> assert_failure "expected BinaryOp"
 
 let test_pointers _ =
-  let funcs = Hashtbl.create 1 in
-  Hashtbl.add funcs "load" { params = [ Ptr Int ]; ret = Int };
   let env =
-    env_with
-      [
-        ("x", Int);
-        ("y", Int);
-        ("px", Ptr Int);
-        ("py", Ptr Int);
-        ("pp", Ptr (Ptr Int));
-      ]
+    {
+      (env_with
+         [
+           ("x", Int);
+           ("y", Int);
+           ("px", Ptr Int);
+           ("py", Ptr Int);
+           ("pp", Ptr (Ptr Int));
+         ])
+      with
+      funcs = make_tbl [ ("load", { params = [ Ptr Int ]; ret = Int }) ];
+    }
   in
-  check_typ ~env (Ptr Int) (un AddrOf (v "x"));
-  check_typ ~env Int (un Deref (v "px"));
-  check_typ ~env (Ptr (Ptr Int)) (un AddrOf (un Deref (v "pp")));
-  check_typ ~env Bool (bi Equal (v "px") (v "py"));
-  check_typ ~env (Ptr Int) (a "px" (un AddrOf (v "x")));
-  check_typ ~env Int (call "load" [ un AddrOf (v "x") ])
+  check_typ ~env (Ptr Int) (un AddrOf !"x");
+  check_typ ~env Int (un Deref !"px");
+  check_typ ~env (Ptr (Ptr Int)) (un AddrOf (un Deref !"pp"));
+  check_typ ~env Bool (bi Equal !"px" !"py");
+  check_typ ~env (Ptr Int) ("px" := un AddrOf !"x");
+  check_typ ~env Int ("load" $ [ un AddrOf !"x" ])
 
 let test_pointer_errors _ =
   let env =
     env_with [ ("x", Int); ("p", Ptr Int); ("vp", Ptr Void); ("q", Ptr Int) ]
   in
-  check_err ~env "expression is not an lvalue"
-    (un AddrOf (bi Add (v "x") (i 1)));
-  check_err ~env "operator '*': invalid operand type 'int'" (un Deref (v "x"));
-  check_err ~env "operator '*': invalid operand type 'void*'"
-    (un Deref (v "vp"));
-  check_err ~env "expected type 'int*' but got 'int'" (a "p" (i 1));
-  check_err ~env "expected type 'int*' but got 'bool'" (a "p" (b true));
+  check_err ~env "expression is not an lvalue" (un AddrOf (bi Add !"x" (i 1)));
+  check_err ~env "operator '*': invalid operand type 'int'" (un Deref !"x");
+  check_err ~env "operator '*': invalid operand type 'void*'" (un Deref !"vp");
+  check_err ~env "expected type 'int*' but got 'int'" ("p" := i 1);
+  check_err ~env "expected type 'int*' but got 'bool'" ("p" := b true);
   check_err ~env "operator '<': type mismatch between 'int*' and 'int*'"
-    (bi Less (v "p") (v "q"))
+    (bi Less !"p" !"q")
 
 let test_break_continue _ =
   (* break and continue are valid inside loops *)
-  let loop_env = { empty_env with in_loop = true } in
+  let loop_env = { default_env with in_loop = true } in
   (match typecheck_stmt loop_env (BreakStmt dummy_pos) with
   | BreakStmt _ -> ()
   | _ -> assert_failure "expected BreakStmt");
@@ -412,7 +395,7 @@ let test_break_continue _ =
 let test_var_type_resolution _ =
   let check vt =
     ignore
-      (typecheck_stmt empty_env
+      (typecheck_stmt default_env
          (VarDef { pos = dummy_pos; var_type = vt; name = "x"; init = None }))
   in
   check VBool;
@@ -449,7 +432,7 @@ let test_missing_return _ =
          body = [ EmptyStmt dummy_pos ];
        });
   ignore
-    (typecheck_stmt empty_env
+    (typecheck_stmt default_env
        (FuncDef
           {
             pos = dummy_pos;
