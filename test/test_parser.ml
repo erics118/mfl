@@ -11,6 +11,13 @@ let fails err input =
   | _ -> assert_failure (Printf.sprintf "expected Parse_error for: %s" input)
   | exception Parser.Parse_error (_, m) -> assert_equal ~printer:Fun.id err m
 
+let assert_top_level_pos expected_line expected_col input =
+  match Parser.parse input with
+  | Ast.CompoundStmt ({ line; col }, _) ->
+      assert_equal ~printer:string_of_int expected_line line;
+      assert_equal ~printer:string_of_int expected_col col
+  | _ -> assert_failure "expected top-level CompoundStmt"
+
 let test_literals _ =
   roundtrip ";";
   roundtrip ";\n;\n;\n;\n;\n;\n;";
@@ -21,6 +28,12 @@ let test_literals _ =
   roundtrip "0;";
   roundtrip "true;";
   roundtrip "false;"
+
+let test_top_level_pos _ =
+  assert_top_level_pos 1 1 "1;";
+  assert_top_level_pos 2 3 "\n  1;";
+  assert_top_level_pos 2 1 "// hi\n1;";
+  assert_top_level_pos 3 2 "/* x */\n\n 1;"
 
 let test_arithmetic _ =
   roundtrip "1 + 2;";
@@ -318,6 +331,7 @@ let tests =
   "parser;"
   >::: [
          "literals" >:: test_literals;
+         "top_level_pos" >:: test_top_level_pos;
          "arithmetic" >:: test_arithmetic;
          "precedence" >:: test_precedence;
          "comparison" >:: test_comparison;
