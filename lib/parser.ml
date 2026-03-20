@@ -1,6 +1,7 @@
 (** parser entrypoint *)
 
 open Token
+open Ast
 
 type state = {
   mutable cur_tok : token;
@@ -8,7 +9,7 @@ type state = {
 }
 
 (** raised on parse errors *)
-exception Parse_error of Ast.pos * string
+exception Parse_error of pos * string
 
 let create lex_st = { cur_tok = TokEof; lex = lex_st }
 let advance st = st.cur_tok <- Lexer.next_token st.lex
@@ -31,29 +32,29 @@ let consume_identifier st =
   | _ -> raise (Parse_error (cur_pos st, "expected identifier"))
 
 let op_of_tok = function
-  | TokPlus -> Some Ast.Add
-  | TokMinus -> Some Ast.Sub
-  | TokStar -> Some Ast.Mul
-  | TokSlash -> Some Ast.Div
-  | TokPercent -> Some Ast.Mod
-  | TokEqEq -> Some Ast.Equal
-  | TokBangEq -> Some Ast.Neq
-  | TokLt -> Some Ast.Less
-  | TokLtEq -> Some Ast.Leq
-  | TokGt -> Some Ast.Greater
-  | TokGtEq -> Some Ast.Geq
-  | TokAmpAmp -> Some Ast.And
-  | TokPipePipe -> Some Ast.Or
-  | TokAmp -> Some Ast.BitAnd
-  | TokPipe -> Some Ast.BitOr
-  | TokCaret -> Some Ast.BitXor
-  | TokLtLt -> Some Ast.LShift
-  | TokGtGt -> Some Ast.RShift
+  | TokPlus -> Some Add
+  | TokMinus -> Some Sub
+  | TokStar -> Some Mul
+  | TokSlash -> Some Div
+  | TokPercent -> Some Mod
+  | TokEqEq -> Some Equal
+  | TokBangEq -> Some Neq
+  | TokLt -> Some Less
+  | TokLtEq -> Some Leq
+  | TokGt -> Some Greater
+  | TokGtEq -> Some Geq
+  | TokAmpAmp -> Some And
+  | TokPipePipe -> Some Or
+  | TokAmp -> Some BitAnd
+  | TokPipe -> Some BitOr
+  | TokCaret -> Some BitXor
+  | TokLtLt -> Some LShift
+  | TokGtGt -> Some RShift
   | _ -> None
 
 let cur_precedence st =
   match op_of_tok st.cur_tok with
-  | Some op -> Ast.precedence op
+  | Some op -> precedence op
   | None -> -1
 
 (* Parse a comma-separated list of items terminated by ')' *)
@@ -86,42 +87,42 @@ and parse_identifier_expr st pos =
       consume st TokLParen;
       let args = parse_rparen_list st parse_expr in
       consume st TokRParen;
-      Ast.FuncCall (Ast.Parsed pos, name, args)
+      FuncCall (Parsed pos, name, args)
   | TokAssign ->
       consume st TokAssign;
       let value = parse_expr st in
-      Ast.Assign (Ast.Parsed pos, name, value)
-  | _ -> Ast.VarRef (Ast.Parsed pos, name)
+      Assign (Parsed pos, name, value)
+  | _ -> VarRef (Parsed pos, name)
 
 and parse_primary st =
   let pos = cur_pos st in
   match st.cur_tok with
   | TokInt n ->
       advance st;
-      Ast.IntLiteral (Ast.Parsed pos, n)
+      IntLiteral (Parsed pos, n)
   | TokBool b ->
       advance st;
-      Ast.BoolLiteral (Ast.Parsed pos, b)
+      BoolLiteral (Parsed pos, b)
   | TokIdent _ -> parse_identifier_expr st pos
   | TokLParen -> parse_paren_expr st
   | TokMinus ->
       advance st;
-      Ast.UnaryOp (Ast.Parsed pos, Ast.Neg, parse_primary st)
+      UnaryOp (Parsed pos, Neg, parse_primary st)
   | TokBang ->
       advance st;
-      Ast.UnaryOp (Ast.Parsed pos, Ast.Not, parse_primary st)
+      UnaryOp (Parsed pos, Not, parse_primary st)
   | TokTilde ->
       advance st;
-      Ast.UnaryOp (Ast.Parsed pos, Ast.Compl, parse_primary st)
+      UnaryOp (Parsed pos, Compl, parse_primary st)
   | TokEof -> raise (Parse_error (pos, "unexpected end of input"))
   | TokPlusPlus ->
       advance st;
       let e = parse_primary st in
-      Ast.PreInc (Ast.Parsed pos, e)
+      PreInc (Parsed pos, e)
   | TokMinusMinus ->
       advance st;
       let e = parse_primary st in
-      Ast.PreDec (Ast.Parsed pos, e)
+      PreDec (Parsed pos, e)
   | _ ->
       raise
         (Parse_error (pos, "unknown token: '" ^ string_of_token st.cur_tok ^ "'"))
@@ -134,10 +135,10 @@ and parse_postfix st =
     match st.cur_tok with
     | TokPlusPlus ->
         advance st;
-        loop (Ast.PostInc (Ast.Parsed pos, e))
+        loop (PostInc (Parsed pos, e))
     | TokMinusMinus ->
         advance st;
-        loop (Ast.PostDec (Ast.Parsed pos, e))
+        loop (PostDec (Parsed pos, e))
     | _ -> e
   in
   loop e
@@ -156,8 +157,7 @@ and parse_binop_rhs st expr_prec lhs =
         let rhs =
           if prec < next_prec then parse_binop_rhs st (prec + 1) rhs else rhs
         in
-        parse_binop_rhs st expr_prec
-          (Ast.BinaryOp (Ast.Parsed pos, op, lhs, rhs))
+        parse_binop_rhs st expr_prec (BinaryOp (Parsed pos, op, lhs, rhs))
     | None -> lhs [@coverage off]
 
 and parse_binary_expr st =
@@ -174,10 +174,10 @@ and parse_conditional_expr st =
       let then_e = parse_expr st in
       consume st TokColon;
       let else_e = parse_conditional_expr st in
-      Ast.Ternary (Ast.Parsed pos, cond, then_e, else_e)
+      Ternary (Parsed pos, cond, then_e, else_e)
   | _ -> cond
 
-and parse_expr st = parse_conditional_expr st
+and parse_expr (st : state) : parsed expr = parse_conditional_expr st
 
 (* parses the "long"/"long int" after consuming the first "long" *)
 let parse_long_suffix signedness st =
@@ -186,15 +186,15 @@ let parse_long_suffix signedness st =
     (* ignore the "int" if there is one *)
     if st.cur_tok = TokIntKw then advance st;
     match signedness with
-    | `Signed -> Ast.VLongLong
-    | `Unsigned -> Ast.VULongLong
+    | `Signed -> VLongLong
+    | `Unsigned -> VULongLong
   end
   else begin
     (* ignore the "int" if there is one *)
     if st.cur_tok = TokIntKw then advance st;
     match signedness with
-    | `Signed -> Ast.VLong
-    | `Unsigned -> Ast.VULong
+    | `Signed -> VLong
+    | `Unsigned -> VULong
   end
 
 (* parses the rest of the integer type, after the "signed"/"unsigned" has been
@@ -204,21 +204,21 @@ let parse_int_base signedness st =
   | TokCharKw -> begin
       advance st;
       match signedness with
-      | `Signed -> Ast.VChar
-      | `Unsigned -> Ast.VUChar
+      | `Signed -> VChar
+      | `Unsigned -> VUChar
     end
   | TokShortKw -> begin
       advance st;
       if st.cur_tok = TokIntKw then advance st;
       match signedness with
-      | `Signed -> Ast.VShort
-      | `Unsigned -> Ast.VUShort
+      | `Signed -> VShort
+      | `Unsigned -> VUShort
     end
   | TokIntKw -> begin
       advance st;
       match signedness with
-      | `Signed -> Ast.VInt
-      | `Unsigned -> Ast.VUInt
+      | `Signed -> VInt
+      | `Unsigned -> VUInt
     end
   | TokLongKw -> begin
       advance st;
@@ -226,8 +226,8 @@ let parse_int_base signedness st =
     end
   | _ -> begin
       match signedness with
-      | `Signed -> Ast.VInt
-      | `Unsigned -> Ast.VUInt
+      | `Signed -> VInt
+      | `Unsigned -> VUInt
     end
 
 (* parse the type of a variable *)
@@ -235,20 +235,20 @@ let parse_type_name st =
   match st.cur_tok with
   | TokBoolKw ->
       advance st;
-      Ast.VBool
+      VBool
   | TokVoidKw ->
       advance st;
-      Ast.VVoid
+      VVoid
   | TokCharKw ->
       advance st;
-      Ast.VChar
+      VChar
   | TokShortKw ->
       advance st;
       if st.cur_tok = TokIntKw then advance st;
-      Ast.VShort
+      VShort
   | TokIntKw ->
       advance st;
-      Ast.VInt
+      VInt
   | TokLongKw ->
       advance st;
       parse_long_suffix `Signed st
@@ -260,7 +260,7 @@ let parse_type_name st =
       parse_int_base `Signed st
   | TokIdent type_name ->
       advance st;
-      Ast.VNamed type_name
+      VNamed type_name
   | _ -> raise (Parse_error (cur_pos st, "expected type")) [@coverage off]
 
 let parse_return_stmt st =
@@ -269,11 +269,11 @@ let parse_return_stmt st =
   match st.cur_tok with
   | TokSemicolon ->
       consume st TokSemicolon;
-      Ast.ReturnStmt (pos, None)
+      ReturnStmt (pos, None)
   | _ ->
       let e = parse_expr st in
       consume st TokSemicolon;
-      Ast.ReturnStmt (pos, Some e)
+      ReturnStmt (pos, Some e)
 
 let looks_like_definition st =
   match st.cur_tok with
@@ -297,16 +297,16 @@ let rec parse_statement st =
   match st.cur_tok with
   | TokLBrace ->
       consume st TokLBrace;
-      Ast.CompoundStmt (pos, parse_compound_stmt st [])
+      CompoundStmt (pos, parse_compound_stmt st [])
   | TokReturnKw -> parse_return_stmt st
   | TokBreakKw ->
       advance st;
       consume st TokSemicolon;
-      Ast.BreakStmt pos
+      BreakStmt pos
   | TokContinueKw ->
       advance st;
       consume st TokSemicolon;
-      Ast.ContinueStmt pos
+      ContinueStmt pos
   | TokIfKw -> parse_if st
   | TokWhileKw -> parse_while st
   | TokForKw -> parse_for st
@@ -314,11 +314,11 @@ let rec parse_statement st =
   | _ when looks_like_definition st -> parse_declaration st
   | TokSemicolon ->
       consume st TokSemicolon;
-      Ast.EmptyStmt pos
+      EmptyStmt pos
   | _ ->
       let e = parse_expr st in
       consume st TokSemicolon;
-      Ast.ExprStmt (pos, e)
+      ExprStmt (pos, e)
 
 and parse_compound_stmt st rev_stmts =
   match st.cur_tok with
@@ -339,7 +339,7 @@ and parse_var_def_tail st pos var_type name =
   consume st TokAssign;
   let init = parse_expr st in
   consume st TokSemicolon;
-  Ast.VarDef { pos; var_type; name; init = Some init }
+  VarDef { pos; var_type; name; init = Some init }
 
 and parse_func_def_tail st pos ret_type name =
   consume st TokLParen;
@@ -347,7 +347,7 @@ and parse_func_def_tail st pos ret_type name =
   consume st TokRParen;
   consume st TokLBrace;
   let body = parse_compound_stmt st [] in
-  Ast.FuncDef { pos; ret_type; name; params; body }
+  FuncDef { pos; ret_type; name; params; body }
 
 and parse_declaration st =
   let pos = cur_pos st in
@@ -362,7 +362,7 @@ and parse_declaration st =
   | TokSemicolon ->
       (* if *)
       consume st TokSemicolon;
-      Ast.VarDef { pos; var_type = var_ty; name; init = None }
+      VarDef { pos; var_type = var_ty; name; init = None }
   | _ -> raise (Parse_error (cur_pos st, "expected '='"))
 
 and parse_if st =
@@ -380,7 +380,7 @@ and parse_if st =
         Some s
     | _ -> None
   in
-  Ast.If { pos; cond; then_body; else_body }
+  If { pos; cond; then_body; else_body }
 
 and parse_while st =
   let pos = cur_pos st in
@@ -389,7 +389,7 @@ and parse_while st =
   let cond = parse_expr st in
   consume st TokRParen;
   let body = parse_statement st in
-  Ast.WhileLoop { pos; cond; body }
+  WhileLoop { pos; cond; body }
 
 and parse_do_while st =
   let pos = cur_pos st in
@@ -400,7 +400,7 @@ and parse_do_while st =
   let cond = parse_expr st in
   consume st TokRParen;
   consume st TokSemicolon;
-  Ast.DoWhileLoop { pos; body; cond }
+  DoWhileLoop { pos; body; cond }
 
 and parse_for st =
   let pos = cur_pos st in
@@ -414,11 +414,11 @@ and parse_for st =
   let incr = if st.cur_tok = TokRParen then None else Some (parse_expr st) in
   consume st TokRParen;
   let body = parse_statement st in
-  Ast.ForLoop { pos; init; cond; incr; body }
+  ForLoop { pos; init; cond; incr; body }
 
 (** [parse input] parses [input] into an ast
     @raise Parse_error if the input is malformed *)
-let parse input =
+let parse (input : string) : parsed stmt =
   let st = create (Lexer.create input) in
   advance st;
   if st.cur_tok = TokEof then
@@ -428,7 +428,7 @@ let parse input =
       let stmt = parse_statement st in
       let rev_stmts = stmt :: rev_stmts in
       match st.cur_tok with
-      | TokEof -> Ast.CompoundStmt (Ast.dummy_pos, List.rev rev_stmts)
+      | TokEof -> CompoundStmt (dummy_pos, List.rev rev_stmts)
       | _ -> parse_statements rev_stmts
     in
     parse_statements []

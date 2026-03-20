@@ -404,7 +404,7 @@ and codegen_stmt = function
       codegen_for_loop init cond incr body
   | DoWhileLoop { body; cond; _ } -> codegen_do_while_loop body cond
 
-let codegen_program stmts =
+let codegen_program (stmts : checked stmt list) : unit =
   let printint_ty =
     Llvm.function_type (Llvm.void_type context) [| int_type |]
   in

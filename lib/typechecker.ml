@@ -124,7 +124,8 @@ let expr_typ : checked expr -> typ = function
   | PostInc (ann, _)
   | PostDec (ann, _) -> typ_of ann
 
-let assert_lvalue pos = function
+let assert_lvalue (pos : pos) (e : checked expr) : unit =
+  match e with
   | VarRef _ -> ()
   | _ -> raise (Type_error (pos, NotLvalue))
 
@@ -153,13 +154,13 @@ let check_ternary pos cond_t then_t else_t =
 (** if [e] is an [IntLiteral] typed as [Int] and [t] is any integer type, make
     [e]'s type to be [t]. Used for int literals, as we need to automatically
     convert them to the correct type *)
-let coerce_int_lit t e =
+let coerce_int_lit (t : typ) (e : checked expr) : checked expr =
   match e with
   | IntLiteral (Checked (pos, Int), n) when is_int_type t ->
       IntLiteral (Checked (pos, t), n)
   | _ -> e
 
-let rec typecheck_expr env (expr : parsed expr) : checked expr =
+let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
   match expr with
   | IntLiteral (ann, n) -> typecheck_int_lit ann n
   | BoolLiteral (ann, b) -> typecheck_bool_lit ann b
@@ -178,8 +179,11 @@ let rec typecheck_expr env (expr : parsed expr) : checked expr =
   | PostDec (ann, e) ->
       typecheck_incdec env ann `Post `Dec e (fun a x -> PostDec (a, x))
 
-and typecheck_int_lit ann n = IntLiteral (Checked (pos_of ann, Int), n)
-and typecheck_bool_lit ann b = BoolLiteral (Checked (pos_of ann, Bool), b)
+and typecheck_int_lit (ann : parsed ann) (n : int) : checked expr =
+  IntLiteral (Checked (pos_of ann, Int), n)
+
+and typecheck_bool_lit (ann : parsed ann) (b : bool) : checked expr =
+  BoolLiteral (Checked (pos_of ann, Bool), b)
 
 and typecheck_binary_op env ann op lhs rhs =
   let pos = pos_of ann in
@@ -257,7 +261,7 @@ and typecheck_incdec env ann fix dir operand make =
     raise (Type_error (pos, IncDecTypeMismatch (fix, dir, t)));
   make (Checked (pos, t)) e
 
-and typecheck_stmt env (stmt : parsed stmt) : checked stmt =
+and typecheck_stmt (env : env) (stmt : parsed stmt) : checked stmt =
   match stmt with
   | EmptyStmt pos ->
       (* trivial *)
@@ -407,7 +411,7 @@ and typecheck_assign env ann x e =
   if et <> t then raise (Type_error (pos, TypeMismatch (t, et)));
   Assign (Checked (pos, t), x, e)
 
-let typecheck_program stmts =
+let typecheck_program (stmts : parsed stmt list) : checked stmt list =
   let funcs = Hashtbl.create 8 in
   (* "stdlib" functions *)
   Hashtbl.replace funcs "printint" { params = [ Int ]; ret = Void };

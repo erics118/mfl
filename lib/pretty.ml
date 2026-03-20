@@ -8,7 +8,8 @@ let string_of_params l =
        (fun (vt, n) -> Printf.sprintf "%s %s" (string_of_var_type vt) n)
        l)
 
-let rec pp_expr_aux ?(parent_prec = 0) = function
+let rec pp_expr_aux : type a. ?parent_prec:int -> a expr -> string =
+ fun ?(parent_prec = 0) -> function
   | IntLiteral (_, n) -> string_of_int n
   | BoolLiteral (_, b) -> string_of_bool b
   | VarRef (_, name) -> name
@@ -72,12 +73,13 @@ let pp_expr_aux_opt = function
   | Some e -> " " ^ pp_expr_aux e
 
 (** [pp_expr e] renders a value expression into a formatted source string *)
-let pp_expr e = pp_expr_aux e
+let pp_expr : type a. a expr -> string = fun e -> pp_expr_aux e
 
 (** indentation helper *)
 let pad n = String.make (n * 4) ' '
 
-let rec pp_block_aux ~indent stmts =
+let rec pp_block_aux : type a. indent:int -> a stmt list -> string =
+ fun ~indent stmts ->
   if stmts = [] then "{}"
   else
     let body =
@@ -86,7 +88,8 @@ let rec pp_block_aux ~indent stmts =
     in
     "{\n" ^ body ^ "\n" ^ pad indent ^ "}"
 
-and pp_stmt_aux ?(top_level = true) ?(indent = 0) stmt =
+and pp_stmt_aux : type a. ?top_level:bool -> ?indent:int -> a stmt -> string =
+ fun ?(top_level = true) ?(indent = 0) stmt ->
   let p = pad indent in
   let rec pp_body stmt =
     match stmt with
@@ -139,4 +142,4 @@ and pp_stmt_aux ?(top_level = true) ?(indent = 0) stmt =
   p ^ rest
 
 (** [pp_stmt s] renders a statement into a formatted source string *)
-let pp_stmt s = pp_stmt_aux s
+let pp_stmt : type a. a stmt -> string = fun s -> pp_stmt_aux s
