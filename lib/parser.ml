@@ -447,11 +447,12 @@ let parse (input : string) : parsed stmt =
   if st.cur_tok = TokEof then
     raise (Parse_error (cur_pos st, "unexpected end of input"))
   else
+    let program_pos = cur_pos st in
     let rec parse_statements rev_stmts =
       let stmt = parse_statement st in
       let rev_stmts = stmt :: rev_stmts in
       match st.cur_tok with
-      | TokEof -> CompoundStmt (dummy_pos, List.rev rev_stmts)
+      | TokEof -> CompoundStmt (program_pos, List.rev rev_stmts)
       | _ -> parse_statements rev_stmts
     in
     parse_statements []
