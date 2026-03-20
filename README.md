@@ -33,7 +33,7 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [x] variable references
 - [x] assignment as expression (`int z = (x = 3)`)
 - [x] function calls
-- [ ] cast expressions: `(int)x`
+- [x] cast expressions: `(int)x`
 - [ ] address-of `&x` and dereference `*p`
 - [ ] subscript `a[i]`
 - [ ] member access `s.x`, `s->x`
@@ -97,7 +97,8 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [ ] multiline macros with `\` continuation
 
 **other**
-- [ ] `NULL`
+- [ ] `NULL` = `((void*)0)`, requires pointer types and casts
+- [ ] `main` function with args: `int main(int argc, char *argv[])`
 
 ## usage
 
@@ -141,6 +142,8 @@ resources:
 - https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/index.html
 - https://blog.josephmorag.com/posts/mcc1/
 - https://mapping-high-level-constructs-to-llvm-ir.readthedocs.io/en/latest/
+- https://github.com/DoctorWkt/acwj
+- a lot of cppreference
 
 gadt:
 - https://ocaml.org/manual/5.4/gadts-tutorial.html
