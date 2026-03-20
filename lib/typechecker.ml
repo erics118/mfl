@@ -14,6 +14,7 @@ type type_error =
   | ContinueOutsideLoop
   | NotLvalue
   | IncDecTypeMismatch of [ `Pre | `Post ] * [ `Inc | `Dec ] * typ
+  | InvalidCast of typ * typ
 
 exception Type_error of pos * type_error
 
@@ -79,6 +80,9 @@ let string_of_type_error = function
       in
       Printf.sprintf "operator '%s %s': invalid operand type '%s'" fix_s dir_s
         (string_of_typ t)
+  | InvalidCast (from_t, to_t) ->
+      Printf.sprintf "cannot cast from '%s' to '%s'" (string_of_typ from_t)
+        (string_of_typ to_t)
 
 type func_sig = {
   params : typ list;
@@ -122,7 +126,9 @@ let expr_typ : checked expr -> typ = function
   | PreInc (ann, _)
   | PreDec (ann, _)
   | PostInc (ann, _)
-  | PostDec (ann, _) -> typ_of ann
+  | PostDec (ann, _)
+  | Cast (ann, _, _)
+  | ImplicitCast (ann, _, _) -> typ_of ann
 
 let assert_lvalue (pos : pos) (e : checked expr) : unit =
   match e with
@@ -178,6 +184,14 @@ let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
       typecheck_incdec env ann `Post `Inc e (fun a x -> PostInc (a, x))
   | PostDec (ann, e) ->
       typecheck_incdec env ann `Post `Dec e (fun a x -> PostDec (a, x))
+  | Cast (ann, var_type, e) ->
+      let pos = pos_of ann in
+      let to_t = resolve_var_type pos var_type in
+      let e = typecheck_expr env e in
+      let from_t = expr_typ e in
+      if to_t = Void then raise (Type_error (pos, InvalidCast (from_t, to_t)));
+      Cast (Checked (pos, to_t), var_type, e)
+  | ImplicitCast (_ann, _ty, _e) -> assert false
 
 and typecheck_int_lit (ann : parsed ann) (n : int) : checked expr =
   IntLiteral (Checked (pos_of ann, Int), n)

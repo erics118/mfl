@@ -66,6 +66,16 @@ let rec pp_expr_aux : type a. ?parent_prec:int -> a expr -> string =
         | _ -> s
       in
       s ^ "--"
+  | Cast (_, ty, e) ->
+      let e_str =
+        match e with
+        | BinaryOp _ | Ternary _ | Assign _ -> "(" ^ pp_expr_aux e ^ ")"
+        | _ -> pp_expr_aux e
+      in
+      Printf.sprintf "(%s)%s" (string_of_var_type ty) e_str
+  | ImplicitCast (_, _, e) ->
+      (* implicit casts don't need to be shown *)
+      pp_expr_aux e
 
 (* print an 'a expr option, handling spacing, for use within a for loop *)
 let pp_expr_aux_opt = function

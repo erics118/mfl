@@ -1,0 +1,15 @@
+int trunc_cast(long x) {
+  return (int)x;
+}
+
+long sext_cast(int x) {
+  return (long)x;
+}
+
+bool to_bool(int x) {
+  return (bool)x;
+}
+
+int widen_char(char c) {
+  return (int)c;
+}

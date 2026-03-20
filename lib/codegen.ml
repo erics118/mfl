@@ -14,6 +14,15 @@ let short_type = Llvm.i16_type context
 let int_type = Llvm.i32_type context
 let long_type = Llvm.i64_type context
 
+(** gets the size of a type in bits *)
+let sizeof_typ = function
+  | Bool -> 1
+  | Char | UChar -> 8
+  | Short | UShort -> 16
+  | Int | UInt -> 32
+  | Long | ULong | LongLong | ULongLong -> 64
+  | Void -> 0
+
 (* maps variable names to their alloca ptr within the current function *)
 let locals : (string, Llvm.llvalue) Hashtbl.t = Hashtbl.create 16
 
@@ -58,7 +67,9 @@ let expr_type : checked expr -> typ = function
   | PreInc (Checked (_, t), _)
   | PreDec (Checked (_, t), _)
   | PostInc (Checked (_, t), _)
-  | PostDec (Checked (_, t), _) -> t
+  | PostDec (Checked (_, t), _)
+  | Cast (Checked (_, t), _, _)
+  | ImplicitCast (Checked (_, t), _, _) -> t
   | _ -> assert false [@coverage off]
 
 let codegen_int n = Llvm.const_int int_type n
@@ -187,6 +198,8 @@ and codegen_expr (e : checked expr) : Llvm.llvalue =
   | PreDec (Checked _, e) -> codegen_incdec e `Dec `Pre
   | PostInc (Checked _, e) -> codegen_incdec e `Inc `Post
   | PostDec (Checked _, e) -> codegen_incdec e `Dec `Post
+  | Cast (Checked _, t, e) -> codegen_cast (typ_of_var_type t) e
+  | ImplicitCast (Checked _, t, e) -> codegen_cast t e
   | _ -> assert false [@coverage off]
 
 and codegen_if cond then_body else_body =
@@ -339,6 +352,37 @@ and codegen_incdec e dir fix =
   match fix with
   | `Post -> old_val
   | `Pre -> new_val
+
+and codegen_cast to_t e =
+  let v = codegen_expr e in
+  let from_t = expr_type e in
+  if from_t = to_t then
+    (* already the same type, we don't need to do anything *)
+    v
+  else
+    (* different types, we need to convert *)
+    let to_ll = llvm_of_typ to_t in
+    match to_t with
+    | Bool ->
+        (* we have to explicitly handle bool bc trunc may not necessarily work.
+           ie, trunc i32 2 to i1 gives 0 not 1. it should be that any nonzero
+           value is true. instead, we do a != 0 comparison *)
+        let zero = Llvm.const_null (llvm_of_typ from_t) in
+        Llvm.build_icmp Llvm.Icmp.Ne v zero "booltmp" builder
+    | _ ->
+        (* non-bool case *)
+        let from_size = sizeof_typ from_t in
+        let to_size = sizeof_typ to_t in
+        if to_size < from_size then
+          (* if we need to make the value smaller, we trunc *)
+          Llvm.build_trunc v to_ll "trunctmp" builder
+        else if to_size > from_size then
+          (* if we need to make the value larger, we ext, handling sign *)
+          if is_signed from_t then Llvm.build_sext v to_ll "sexttmp" builder
+          else Llvm.build_zext v to_ll "zexttmp" builder
+        else
+          (* same size, different signedness, don't do anything *)
+          v
 
 and codegen_func_def ret_type name params body =
   let param_types =

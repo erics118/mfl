@@ -73,12 +73,119 @@ let parse_rparen_list st parse_item =
       in
       loop []
 
+(* parses the "long"/"long int" after consuming the first "long" *)
+let parse_long_suffix signedness st =
+  if st.cur_tok = TokLongKw then begin
+    advance st;
+    (* ignore the "int" if there is one *)
+    if st.cur_tok = TokIntKw then advance st;
+    match signedness with
+    | `Signed -> VLongLong
+    | `Unsigned -> VULongLong
+  end
+  else begin
+    (* ignore the "int" if there is one *)
+    if st.cur_tok = TokIntKw then advance st;
+    match signedness with
+    | `Signed -> VLong
+    | `Unsigned -> VULong
+  end
+
+(* parses the rest of the integer type, after the "signed"/"unsigned" has been
+   consumed. defaults to (unsigned) "int". *)
+let parse_int_base signedness st =
+  match st.cur_tok with
+  | TokCharKw -> begin
+      advance st;
+      match signedness with
+      | `Signed -> VChar
+      | `Unsigned -> VUChar
+    end
+  | TokShortKw -> begin
+      advance st;
+      if st.cur_tok = TokIntKw then advance st;
+      match signedness with
+      | `Signed -> VShort
+      | `Unsigned -> VUShort
+    end
+  | TokIntKw -> begin
+      advance st;
+      match signedness with
+      | `Signed -> VInt
+      | `Unsigned -> VUInt
+    end
+  | TokLongKw -> begin
+      advance st;
+      parse_long_suffix signedness st
+    end
+  | _ -> begin
+      match signedness with
+      | `Signed -> VInt
+      | `Unsigned -> VUInt
+    end
+
+(* parse the type of a variable *)
+let parse_type_name st =
+  match st.cur_tok with
+  | TokBoolKw ->
+      advance st;
+      VBool
+  | TokVoidKw ->
+      advance st;
+      VVoid
+  | TokCharKw ->
+      advance st;
+      VChar
+  | TokShortKw ->
+      advance st;
+      if st.cur_tok = TokIntKw then advance st;
+      VShort
+  | TokIntKw ->
+      advance st;
+      VInt
+  | TokLongKw ->
+      advance st;
+      parse_long_suffix `Signed st
+  | TokUnsignedKw ->
+      advance st;
+      parse_int_base `Unsigned st
+  | TokSignedKw ->
+      advance st;
+      parse_int_base `Signed st
+  | TokIdent type_name ->
+      advance st;
+      VNamed type_name
+  | _ -> raise (Parse_error (cur_pos st, "expected type")) [@coverage off]
+
+let is_type_token st =
+  match st.cur_tok with
+  | TokBoolKw
+  | TokVoidKw
+  | TokCharKw
+  | TokShortKw
+  | TokIntKw
+  | TokLongKw
+  | TokUnsignedKw
+  | TokSignedKw -> true
+  | _ -> false
+
 (* expressions *)
 let rec parse_paren_expr st =
-  advance st;
-  let e = parse_expr st in
-  consume st TokRParen;
-  e
+  let pos = cur_pos st in
+  consume st TokLParen;
+  if is_type_token st then begin
+    (* type cast, (type)expr *)
+    let ty = parse_type_name st in
+    consume st TokRParen;
+    let e = parse_postfix st in
+    Cast (Parsed pos, ty, e)
+  end
+  else begin
+    (* normal paren expr *)
+    let e = parse_expr st in
+    consume st TokRParen;
+    e
+  end
 
 and parse_identifier_expr st pos =
   let name = consume_identifier st in
@@ -178,90 +285,6 @@ and parse_conditional_expr st =
   | _ -> cond
 
 and parse_expr (st : state) : parsed expr = parse_conditional_expr st
-
-(* parses the "long"/"long int" after consuming the first "long" *)
-let parse_long_suffix signedness st =
-  if st.cur_tok = TokLongKw then begin
-    advance st;
-    (* ignore the "int" if there is one *)
-    if st.cur_tok = TokIntKw then advance st;
-    match signedness with
-    | `Signed -> VLongLong
-    | `Unsigned -> VULongLong
-  end
-  else begin
-    (* ignore the "int" if there is one *)
-    if st.cur_tok = TokIntKw then advance st;
-    match signedness with
-    | `Signed -> VLong
-    | `Unsigned -> VULong
-  end
-
-(* parses the rest of the integer type, after the "signed"/"unsigned" has been
-   consumed. defaults to (unsigned) "int". *)
-let parse_int_base signedness st =
-  match st.cur_tok with
-  | TokCharKw -> begin
-      advance st;
-      match signedness with
-      | `Signed -> VChar
-      | `Unsigned -> VUChar
-    end
-  | TokShortKw -> begin
-      advance st;
-      if st.cur_tok = TokIntKw then advance st;
-      match signedness with
-      | `Signed -> VShort
-      | `Unsigned -> VUShort
-    end
-  | TokIntKw -> begin
-      advance st;
-      match signedness with
-      | `Signed -> VInt
-      | `Unsigned -> VUInt
-    end
-  | TokLongKw -> begin
-      advance st;
-      parse_long_suffix signedness st
-    end
-  | _ -> begin
-      match signedness with
-      | `Signed -> VInt
-      | `Unsigned -> VUInt
-    end
-
-(* parse the type of a variable *)
-let parse_type_name st =
-  match st.cur_tok with
-  | TokBoolKw ->
-      advance st;
-      VBool
-  | TokVoidKw ->
-      advance st;
-      VVoid
-  | TokCharKw ->
-      advance st;
-      VChar
-  | TokShortKw ->
-      advance st;
-      if st.cur_tok = TokIntKw then advance st;
-      VShort
-  | TokIntKw ->
-      advance st;
-      VInt
-  | TokLongKw ->
-      advance st;
-      parse_long_suffix `Signed st
-  | TokUnsignedKw ->
-      advance st;
-      parse_int_base `Unsigned st
-  | TokSignedKw ->
-      advance st;
-      parse_int_base `Signed st
-  | TokIdent type_name ->
-      advance st;
-      VNamed type_name
-  | _ -> raise (Parse_error (cur_pos st, "expected type")) [@coverage off]
 
 let parse_return_stmt st =
   let pos = cur_pos st in

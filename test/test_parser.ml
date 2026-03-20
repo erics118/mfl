@@ -266,6 +266,25 @@ let test_for _ =
   roundtrip "for (int i = 0;; ++i) {}";
   ()
 
+(* cast: (type)expr *)
+let test_cast _ =
+  (* all type keywords work as cast targets *)
+  roundtrip "(int)x;";
+  roundtrip "(long)x;";
+  roundtrip "(bool)x;";
+  roundtrip "(char)x;";
+  roundtrip "(short)x;";
+  roundtrip "(unsigned int)x;";
+  roundtrip "(unsigned long)x;";
+  (* cast of an expression *)
+  roundtrip "(int)(x + 1);";
+  (* cast of a literal *)
+  roundtrip "(long)5;";
+  (* cast binds tighter than binary ops *)
+  check "(int)x + 1;" "(int)(x) + 1;";
+  (* nested cast *)
+  roundtrip "(int)(long)x;"
+
 let test_errors _ =
   fails "unexpected end of input" "";
   fails "unexpected end of input" "1 +";
@@ -320,6 +339,7 @@ let tests =
          "while" >:: test_while;
          "do_while" >:: test_do_while;
          "for" >:: test_for;
+         "cast" >:: test_cast;
          "errors" >:: test_errors;
        ]
 

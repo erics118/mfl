@@ -135,6 +135,9 @@ type 'a expr =
   | PreDec : 'a ann * 'a expr -> 'a expr
   | PostInc : 'a ann * 'a expr -> 'a expr
   | PostDec : 'a ann * 'a expr -> 'a expr
+  | Cast : 'a ann * var_type * 'a expr -> 'a expr  (** produced by the parser *)
+  | ImplicitCast : checked ann * typ * checked expr -> checked expr
+      (** only produced by the typechecker *)
 
 (** statements *)
 type 'a stmt =

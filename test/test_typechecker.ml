@@ -179,6 +179,7 @@ let test_ternary_errors _ =
   check_err "expected type 'int' but got 'bool'" (tern (b true) (i 1) (b false));
   check_err "expected type 'bool' but got 'int'" (tern (b true) (b false) (i 1))
 
+let cast ty e = Cast (p, ty, e)
 let pre_inc e = PreInc (p, e)
 let post_inc e = PostInc (p, e)
 let pre_dec e = PreDec (p, e)
@@ -207,6 +208,19 @@ let test_incdec_errors _ =
     (post_inc (v "flag"));
   check_err ~env:env_bool "operator 'postfix --': invalid operand type 'bool'"
     (post_dec (v "flag"))
+
+let test_cast _ =
+  let env = env_with [ ("x", Long); ("n", Int); ("c", Char) ] in
+  check_typ ~env Int (cast VInt (v "x"));
+  check_typ ~env Long (cast VLong (v "n"));
+  check_typ ~env Bool (cast VBool (v "n"));
+  check_typ ~env Char (cast VChar (v "n"));
+  check_typ Int (cast VInt (i 5));
+  check_typ Long (cast VLong (i 5))
+
+let test_cast_errors _ =
+  let env = env_with [ ("x", Long) ] in
+  check_err ~env "cannot cast from 'long' to 'void'" (cast VVoid (v "x"))
 
 let test_break_continue _ =
   (* break and continue are valid inside loops *)
@@ -270,6 +284,8 @@ let tests =
          "ternary" >:: test_ternary;
          "ternary_errors" >:: test_ternary_errors;
          "var_type_resolution" >:: test_var_type_resolution;
+         "cast" >:: test_cast;
+         "cast_errors" >:: test_cast_errors;
          "break_continue" >:: test_break_continue;
          "break_continue_errors" >:: test_break_continue_errors;
          "incdec" >:: test_incdec;
