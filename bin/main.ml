@@ -7,6 +7,16 @@ let read_file path =
   close_in ic;
   content
 
+let parse_with_errors path content =
+  match Parser.parse content with
+  | s -> s
+  | exception Lexer.Lex_error ({ line; col }, msg) ->
+      Printf.eprintf "%s:%d:%d: lexical error: %s\n" path line col msg;
+      exit 1
+  | exception Parser.Parse_error ({ line; col }, msg) ->
+      Printf.eprintf "%s:%d:%d: parse error: %s\n" path line col msg;
+      exit 1
+
 let parse_source path =
   let content =
     match read_file path with
@@ -15,13 +25,7 @@ let parse_source path =
         Printf.eprintf "io error: %s\n" msg;
         exit 1
   in
-  let stmt =
-    match Parser.parse content with
-    | s -> s
-    | exception Parser.Parse_error ({ line; col }, msg) ->
-        Printf.eprintf "%s:%d:%d: parse error: %s\n" path line col msg;
-        exit 1
-  in
+  let stmt = parse_with_errors path content in
   match stmt with
   | Ast.CompoundStmt (_, stmts) -> stmts
   | _ -> [ stmt ]
@@ -47,13 +51,7 @@ let run_format input =
         Printf.eprintf "io error: %s\n" msg;
         exit 1
   in
-  let stmt =
-    match Parser.parse content with
-    | s -> s
-    | exception Parser.Parse_error ({ line; col }, msg) ->
-        Printf.eprintf "%s:%d:%d: parse error: %s\n" input line col msg;
-        exit 1
-  in
+  let stmt = parse_with_errors input content in
   print_string (Pretty.pp_stmt stmt ^ "\n")
 
 let usage_msg =
