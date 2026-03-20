@@ -133,6 +133,8 @@ and pp_stmt_aux ?(top_level = true) ?(indent = 0) stmt =
     | ForLoop { init; cond; incr; body; _ } ->
         Printf.sprintf "for (%s%s;%s) %s" (pp_stmt_aux init)
           (pp_expr_aux_opt cond) (pp_expr_aux_opt incr) (pp_body body)
+    | DoWhileLoop { body; cond; _ } ->
+        Printf.sprintf "do %s while (%s);" (pp_body body) (pp_expr_aux cond)
   in
   p ^ rest
 

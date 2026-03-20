@@ -228,6 +228,25 @@ and codegen_for_loop init cond incr body =
   br_if_open cond_bb;
   Llvm.position_at_end after_bb builder
 
+and codegen_do_while_loop body cond =
+  let fn = Llvm.block_parent (Llvm.insertion_block builder) in
+  let body_bb = Llvm.append_block context "do_body" fn in
+  let cond_bb = Llvm.append_block context "do_cond" fn in
+  let after_bb = Llvm.append_block context "do_after" fn in
+  (* fall into the body unconditionally *)
+  ignore (Llvm.build_br body_bb builder);
+  (* run the body, then jump to cond *)
+  Llvm.position_at_end body_bb builder;
+  Stack.push (cond_bb, after_bb) loop_stack;
+  codegen_stmt body;
+  ignore (Stack.pop loop_stack);
+  br_if_open cond_bb;
+  (* evaluate cond; loop back or exit *)
+  Llvm.position_at_end cond_bb builder;
+  let c = codegen_expr cond in
+  ignore (Llvm.build_cond_br c body_bb after_bb builder);
+  Llvm.position_at_end after_bb builder
+
 and codegen_ternary cond then_e else_e =
   let c = codegen_expr cond in
   let fn = Llvm.block_parent (Llvm.insertion_block builder) in
@@ -334,6 +353,7 @@ and codegen_stmt = function
   | WhileLoop { cond; body; _ } -> codegen_while_loop cond body
   | ForLoop { init; cond; incr; body; _ } ->
       codegen_for_loop init cond incr body
+  | DoWhileLoop { body; cond; _ } -> codegen_do_while_loop body cond
 
 let codegen_program stmts =
   let printint_ty =

@@ -43,6 +43,7 @@ let test_identifiers_and_keywords _ =
   check [ TokIfKw ] "if";
   check [ TokElseKw ] "else";
   check [ TokWhileKw ] "while";
+  check [ TokDoKw ] "do";
   check [ TokForKw ] "for";
   check [ TokVoidKw ] "void";
   check [ TokIdent "x" ] "x";

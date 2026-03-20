@@ -157,7 +157,7 @@ and typecheck_binary_op env ann op lhs rhs =
 
 and typecheck_var_ref env ann x =
   let pos = pos_of ann in
-  (* error if the variable doesnt exist *)
+  (* error if the variable doesn't exist *)
   let t =
     match lookup_var env x with
     | Some t -> t
@@ -247,6 +247,7 @@ and typecheck_stmt env (stmt : parsed stmt) : checked stmt =
   | WhileLoop { pos; cond; body } -> typecheck_while env pos cond body
   | ForLoop { pos; init; cond; incr; body } ->
       typecheck_for env pos init cond incr body
+  | DoWhileLoop { pos; body; cond } -> typecheck_do_while env pos body cond
 
 and typecheck_return env pos e =
   (* if return type is None, that means we are returning outside a function *)
@@ -343,6 +344,14 @@ and typecheck_for env pos init cond incr body =
       ForLoop { pos; init; cond = Some cond; incr; body }
     end
   end
+
+and typecheck_do_while env pos body cond =
+  let body = typecheck_stmt { env with in_loop = true } body in
+  let cond = typecheck_expr env cond in
+  let cond_t = expr_typ cond in
+  (* ensure cond is Bool *)
+  if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
+  DoWhileLoop { pos; body; cond }
 
 and typecheck_assign env ann x e =
   let pos = pos_of ann in

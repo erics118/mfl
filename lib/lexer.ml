@@ -51,7 +51,7 @@ let peek2 st =
   if pos < String.length st.input then Some st.input.[pos] else None
 
 let rec skip_whitespace_and_comments st =
-  (* ship whittespace *)
+  (* ship whitespace *)
   advance_while
     (function
       | ' ' | '\t' | '\r' | '\n' -> true
@@ -114,6 +114,7 @@ let read_ident st =
   | "for" -> TokForKw
   | "break" -> TokBreakKw
   | "continue" -> TokContinueKw
+  | "do" -> TokDoKw
   | "void" -> TokVoidKw
   | s -> TokIdent s
 

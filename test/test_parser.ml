@@ -208,6 +208,12 @@ let test_while _ =
   roundtrip "while (true) {\n    if (x) {\n        return;\n    }\n}";
   check "while (true) {\n    return;\n}" "while (true) return;"
 
+let test_do_while _ =
+  roundtrip "do {} while (true);";
+  roundtrip "do {\n    i + 1;\n} while (i < 10);";
+  roundtrip "do {\n    if (x) {\n        return;\n    }\n} while (true);";
+  check "do {\n    return;\n} while (true);" "do return; while (true);"
+
 let test_assign _ =
   roundtrip "x = 1;";
   roundtrip "x = 1 + 2;";
@@ -281,6 +287,7 @@ let tests =
          "if" >:: test_if;
          "assign" >:: test_assign;
          "while" >:: test_while;
+         "do_while" >:: test_do_while;
          "for" >:: test_for;
          "errors" >:: test_errors;
        ]

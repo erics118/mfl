@@ -127,6 +127,11 @@ type 'a stmt =
       incr : 'a expr option;
       body : 'a stmt;
     }  (** [for (init; cond; incr) body] is a for loop *)
+  | DoWhileLoop of {
+      pos : pos;
+      body : 'a stmt;
+      cond : 'a expr;
+    }  (** [do body while (cond);] is a do-while loop *)
 
 (** [precedence op] returns the binding precedence of [op] higher numbers bind
     more tightly *)

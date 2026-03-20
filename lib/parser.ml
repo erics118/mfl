@@ -235,6 +235,7 @@ let rec parse_statement st =
   | TokIfKw -> parse_if st
   | TokWhileKw -> parse_while st
   | TokForKw -> parse_for st
+  | TokDoKw -> parse_do_while st
   | _ when looks_like_definition st -> parse_declaration st
   | TokSemicolon ->
       consume st TokSemicolon;
@@ -314,6 +315,17 @@ and parse_while st =
   consume st TokRParen;
   let body = parse_statement st in
   Ast.WhileLoop { pos; cond; body }
+
+and parse_do_while st =
+  let pos = cur_pos st in
+  consume st TokDoKw;
+  let body = parse_statement st in
+  consume st TokWhileKw;
+  consume st TokLParen;
+  let cond = parse_expr st in
+  consume st TokRParen;
+  consume st TokSemicolon;
+  Ast.DoWhileLoop { pos; body; cond }
 
 and parse_for st =
   let pos = cur_pos st in

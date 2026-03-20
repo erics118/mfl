@@ -18,6 +18,7 @@ type token =
   | TokForKw  (** [for] keyword *)
   | TokBreakKw  (** [break] keyword *)
   | TokContinueKw  (** [continue] keyword *)
+  | TokDoKw  (** [do] keyword *)
   (* binary operators *)
   | TokPlus  (** [+] *)
   | TokMinus  (** [-] *)
@@ -75,6 +76,7 @@ let string_of_token = function
   | TokForKw -> "for"
   | TokBreakKw -> "break"
   | TokContinueKw -> "continue"
+  | TokDoKw -> "do"
   (* binary operators *)
   | TokPlus -> "+"
   | TokMinus -> "-"
