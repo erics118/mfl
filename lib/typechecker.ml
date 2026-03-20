@@ -32,8 +32,9 @@ let string_of_typ = function
   | LongLong -> "long long"
   | ULongLong -> "unsigned long long"
 
-(** true for any integer type (excludes Bool and Void) *)
-let is_int_type = function
+(** true for any integer type, including Bool, excluding Void *)
+let is_integer_type = function
+  | Bool
   | Char
   | UChar
   | Short
@@ -44,7 +45,48 @@ let is_int_type = function
   | ULong
   | LongLong
   | ULongLong -> true
-  | Bool | Void -> false
+  | Void -> false
+
+(** is a pointer, integer, float, not array, struct, union *)
+let is_scalar_type = function
+  | Void -> false
+  | t -> is_integer_type t
+
+(** width in bits of an integer type *)
+let integer_width = function
+  | Bool -> 1
+  | Char | UChar -> 8
+  | Short | UShort -> 16
+  | Int | UInt -> 32
+  | Long | ULong | LongLong | ULongLong -> 64
+  | Void -> 0
+
+(** rank of integers, in order of priority when casting implicitly *)
+let integer_rank = function
+  | Bool -> 0
+  | Char | UChar -> 1
+  | Short | UShort -> 2
+  | Int | UInt -> 3
+  | Long | ULong -> 4
+  | LongLong | ULongLong -> 5
+  | Void -> -1
+
+(** true for signed integer types *)
+let is_signed_type = function
+  | Char | Short | Int | Long | LongLong -> true
+  | UChar | UShort | UInt | ULong | ULongLong | Bool | Void -> false
+
+(** gets the unsigned version of a signed type *)
+let unsigned_counterpart = function
+  | Char -> UChar
+  | Short -> UShort
+  | Int -> UInt
+  | Long -> ULong
+  | LongLong -> ULongLong
+  (* these types don't change *)
+  | (UChar | UShort | UInt | ULong | ULongLong) as t -> t
+  (* these types don't have an unsigned counterpart *)
+  | Bool | Void -> invalid_arg "unsigned counterpart"
 
 let string_of_type_error = function
   | UnknownType name -> Printf.sprintf "unknown type '%s'" name
@@ -139,9 +181,9 @@ let check_binary pos op lt rt =
   let err () = raise (Type_error (pos, BinaryTypeMismatch (op, lt, rt))) in
   match op with
   | Add | Sub | Mul | Div | Mod | BitAnd | BitOr | BitXor | LShift | RShift ->
-      if is_int_type lt && lt = rt then lt else err ()
+      if is_integer_type lt && lt = rt then lt else err ()
   | Less | Leq | Greater | Geq ->
-      if is_int_type lt && lt = rt then Bool else err ()
+      if is_integer_type lt && lt = rt then Bool else err ()
   | And | Or -> if lt = Bool && rt = Bool then Bool else err ()
   | Equal | Neq -> if lt = rt then Bool else err ()
 
@@ -149,7 +191,7 @@ let check_unary pos op t =
   let err () = raise (Type_error (pos, UnaryTypeMismatch (op, t))) in
   match op with
   | Not -> if t = Bool then Bool else err ()
-  | Neg | Compl -> if is_int_type t then t else err ()
+  | Neg | Compl -> if is_integer_type t then t else err ()
 
 let check_ternary pos cond_t then_t else_t =
   if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
@@ -157,14 +199,61 @@ let check_ternary pos cond_t then_t else_t =
     raise (Type_error (pos, TypeMismatch (then_t, else_t)));
   then_t
 
-(** if [e] is an [IntLiteral] typed as [Int] and [t] is any integer type, make
-    [e]'s type to be [t]. Used for int literals, as we need to automatically
-    convert them to the correct type *)
-let coerce_int_lit (t : typ) (e : checked expr) : checked expr =
-  match e with
-  | IntLiteral (Checked (pos, Int), n) when is_int_type t ->
-      IntLiteral (Checked (pos, t), n)
-  | _ -> e
+(** insert an implicit cast node unless the type already matches *)
+let implicit_cast pos to_t (e : checked expr) : checked expr =
+  let from_t = expr_typ e in
+  if from_t = to_t then
+    (* same type, no cast needed *)
+    e
+  else
+    (* different type, need a cast *)
+    ImplicitCast (Checked (pos, to_t), to_t, e)
+
+(** if we can cast to a different scalar type *)
+let can_cast from_t to_t =
+  is_scalar_type from_t && is_scalar_type to_t && to_t <> Void
+
+(** apply "conversion as if by assignment" *)
+let cast_expr pos to_t (e : checked expr) : checked expr =
+  let from_t = expr_typ e in
+  if can_cast from_t to_t then implicit_cast pos to_t e
+  else raise (Type_error (pos, TypeMismatch (to_t, from_t)))
+
+(** integer promotions used by unary and binary integer operators *)
+let promote_integer pos (e : checked expr) : checked expr =
+  let t = expr_typ e in
+  (* it must be an integer type *)
+  assert (is_integer_type t);
+  if integer_rank t <= integer_rank Int then
+    (* if the rank is lower than int, cast it to int *)
+    implicit_cast pos Int e
+  else
+    (* otherwise, leave it *)
+    e
+
+(** get the common type after the arithmetic conversions for integers. this
+    should be an accurate implementation of the c conversion rules *)
+let common_integer_type lt rt =
+  if lt = rt then
+    (* if they are the same, just return one of their types *)
+    lt
+  else if is_signed_type lt = is_signed_type rt then
+    (* if they are both signed, then take the larger *)
+    if integer_rank lt < integer_rank rt then rt else lt
+  else
+    (* if one is signed, the other isn't *)
+    let unsigned_t, signed_t =
+      if is_signed_type lt then (rt, lt) else (lt, rt)
+    in
+    if integer_rank unsigned_t >= integer_rank signed_t then
+      (* if the unsigned one has a higher rank, use it *)
+      unsigned_t
+    else if integer_width signed_t > integer_width unsigned_t then
+      (* if the signed has a larger width, use it *)
+      signed_t
+    else
+      (* otherwise, use the the other type, but as unsigned *)
+      unsigned_counterpart signed_t
 
 let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
   match expr with
@@ -189,7 +278,8 @@ let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
       let to_t = resolve_var_type pos var_type in
       let e = typecheck_expr env e in
       let from_t = expr_typ e in
-      if to_t = Void then raise (Type_error (pos, InvalidCast (from_t, to_t)));
+      if not (can_cast from_t to_t) then
+        raise (Type_error (pos, InvalidCast (from_t, to_t)));
       Cast (Checked (pos, to_t), var_type, e)
   | ImplicitCast (_ann, _ty, _e) -> assert false
 
@@ -203,12 +293,47 @@ and typecheck_binary_op env ann op lhs rhs =
   let pos = pos_of ann in
   let lhs = typecheck_expr env lhs in
   let rhs = typecheck_expr env rhs in
-  (* coerce integer literals to match the other operand's type *)
-  let lhs = coerce_int_lit (expr_typ rhs) lhs in
-  let rhs = coerce_int_lit (expr_typ lhs) rhs in
-  (* ensure lhs and rhs have the correct type for the operator *)
-  let t = check_binary pos op (expr_typ lhs) (expr_typ rhs) in
-  BinaryOp (Checked (pos, t), op, lhs, rhs)
+  let err () =
+    raise
+      (Type_error (pos, BinaryTypeMismatch (op, expr_typ lhs, expr_typ rhs)))
+  in
+  match op with
+  | And | Or ->
+      let t = check_binary pos op (expr_typ lhs) (expr_typ rhs) in
+      BinaryOp (Checked (pos, t), op, lhs, rhs)
+  | LShift | RShift ->
+      if not (is_integer_type (expr_typ lhs) && is_integer_type (expr_typ rhs))
+      then err ();
+      let lhs = promote_integer pos lhs in
+      let rhs = promote_integer pos rhs in
+      BinaryOp (Checked (pos, expr_typ lhs), op, lhs, rhs)
+  | Add
+  | Sub
+  | Mul
+  | Div
+  | Mod
+  | BitAnd
+  | BitOr
+  | BitXor
+  | Less
+  | Leq
+  | Greater
+  | Geq
+  | Equal
+  | Neq ->
+      if not (is_integer_type (expr_typ lhs) && is_integer_type (expr_typ rhs))
+      then err ();
+      let lhs = promote_integer pos lhs in
+      let rhs = promote_integer pos rhs in
+      let common_t = common_integer_type (expr_typ lhs) (expr_typ rhs) in
+      let lhs = implicit_cast pos common_t lhs in
+      let rhs = implicit_cast pos common_t rhs in
+      let t =
+        match op with
+        | Less | Leq | Greater | Geq | Equal | Neq -> Bool
+        | _ -> common_t
+      in
+      BinaryOp (Checked (pos, t), op, lhs, rhs)
 
 and typecheck_var_ref env ann x =
   let pos = pos_of ann in
@@ -223,9 +348,15 @@ and typecheck_var_ref env ann x =
 and typecheck_unary_op env ann op e =
   let pos = pos_of ann in
   let e = typecheck_expr env e in
-  (* ensure lhs has the correct type for the operator *)
-  let t = check_unary pos op (expr_typ e) in
-  UnaryOp (Checked (pos, t), op, e)
+  match op with
+  | Neg | Compl ->
+      if not (is_integer_type (expr_typ e)) then
+        raise (Type_error (pos, UnaryTypeMismatch (op, expr_typ e)));
+      let e = promote_integer pos e in
+      UnaryOp (Checked (pos, expr_typ e), op, e)
+  | Not ->
+      let t = check_unary pos op (expr_typ e) in
+      UnaryOp (Checked (pos, t), op, e)
 
 and typecheck_ternary_op env ann cond then_e else_e =
   let pos = pos_of ann in
@@ -255,7 +386,7 @@ and typecheck_func_call env ann f args =
     List.map2
       (fun param_t arg ->
         let arg = typecheck_expr env arg in
-        let arg = coerce_int_lit param_t arg in
+        let arg = cast_expr pos param_t arg in
         let at = expr_typ arg in
         if at <> param_t then
           raise (Type_error (pos, TypeMismatch (param_t, at)));
@@ -271,7 +402,7 @@ and typecheck_incdec env ann fix dir operand make =
   let e = typecheck_expr env operand in
   assert_lvalue pos e;
   let t = expr_typ e in
-  if not (is_int_type t) then
+  if not (is_integer_type t) then
     raise (Type_error (pos, IncDecTypeMismatch (fix, dir, t)));
   make (Checked (pos, t)) e
 
@@ -321,7 +452,7 @@ and typecheck_return env pos e =
   | Some e ->
       (* ensure that return value is equal to ret, the correct return type *)
       let e = typecheck_expr env e in
-      let e = coerce_int_lit ret e in
+      let e = cast_expr pos ret e in
       let t = expr_typ e in
       if t <> ret then raise (Type_error (pos, TypeMismatch (ret, t)));
       ReturnStmt (pos, Some e)
@@ -334,7 +465,7 @@ and typecheck_var_def env pos var_type name init =
     | None -> None
     | Some init -> begin
         let init = typecheck_expr env init in
-        let init = coerce_int_lit var_t init in
+        let init = cast_expr pos var_t init in
         let init_t = expr_typ init in
         (* ensure init has the right type *)
         if var_t <> init_t then
@@ -420,7 +551,7 @@ and typecheck_assign env ann x e =
     | None -> raise (Type_error (pos, UnboundVariable x))
   in
   let e = typecheck_expr env e in
-  let e = coerce_int_lit t e in
+  let e = cast_expr pos t e in
   let et = expr_typ e in
   if et <> t then raise (Type_error (pos, TypeMismatch (t, et)));
   Assign (Checked (pos, t), x, e)
