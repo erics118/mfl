@@ -179,20 +179,88 @@ and parse_conditional_expr st =
 
 and parse_expr st = parse_conditional_expr st
 
+(* parses the "long"/"long int" after consuming the first "long" *)
+let parse_long_suffix signedness st =
+  if st.cur_tok = TokLongKw then begin
+    advance st;
+    (* ignore the "int" if there is one *)
+    if st.cur_tok = TokIntKw then advance st;
+    match signedness with
+    | `Signed -> Ast.VLongLong
+    | `Unsigned -> Ast.VULongLong
+  end
+  else begin
+    (* ignore the "int" if there is one *)
+    if st.cur_tok = TokIntKw then advance st;
+    match signedness with
+    | `Signed -> Ast.VLong
+    | `Unsigned -> Ast.VULong
+  end
+
+(* parses the rest of the integer type, after the "signed"/"unsigned" has been
+   consumed. defaults to (unsigned) "int". *)
+let parse_int_base signedness st =
+  match st.cur_tok with
+  | TokCharKw -> begin
+      advance st;
+      match signedness with
+      | `Signed -> Ast.VChar
+      | `Unsigned -> Ast.VUChar
+    end
+  | TokShortKw -> begin
+      advance st;
+      if st.cur_tok = TokIntKw then advance st;
+      match signedness with
+      | `Signed -> Ast.VShort
+      | `Unsigned -> Ast.VUShort
+    end
+  | TokIntKw -> begin
+      advance st;
+      match signedness with
+      | `Signed -> Ast.VInt
+      | `Unsigned -> Ast.VUInt
+    end
+  | TokLongKw -> begin
+      advance st;
+      parse_long_suffix signedness st
+    end
+  | _ -> begin
+      match signedness with
+      | `Signed -> Ast.VInt
+      | `Unsigned -> Ast.VUInt
+    end
+
+(* parse the type of a variable *)
 let parse_type_name st =
   match st.cur_tok with
-  | TokIntKw ->
-      advance st;
-      Ast.VarType "int"
   | TokBoolKw ->
       advance st;
-      Ast.VarType "bool"
+      Ast.VBool
   | TokVoidKw ->
       advance st;
-      Ast.VarType "void"
+      Ast.VVoid
+  | TokCharKw ->
+      advance st;
+      Ast.VChar
+  | TokShortKw ->
+      advance st;
+      if st.cur_tok = TokIntKw then advance st;
+      Ast.VShort
+  | TokIntKw ->
+      advance st;
+      Ast.VInt
+  | TokLongKw ->
+      advance st;
+      parse_long_suffix `Signed st
+  | TokUnsignedKw ->
+      advance st;
+      parse_int_base `Unsigned st
+  | TokSignedKw ->
+      advance st;
+      parse_int_base `Signed st
   | TokIdent type_name ->
       advance st;
-      Ast.VarType type_name
+      Ast.VNamed type_name
   | _ -> raise (Parse_error (cur_pos st, "expected type")) [@coverage off]
 
 let parse_return_stmt st =
@@ -209,7 +277,14 @@ let parse_return_stmt st =
 
 let looks_like_definition st =
   match st.cur_tok with
-  | TokIntKw | TokBoolKw | TokVoidKw -> true
+  | TokIntKw
+  | TokBoolKw
+  | TokVoidKw
+  | TokCharKw
+  | TokShortKw
+  | TokLongKw
+  | TokUnsignedKw
+  | TokSignedKw -> true
   | TokIdent _ -> (
       match Lexer.peek_token st.lex with
       | TokIdent _ -> true

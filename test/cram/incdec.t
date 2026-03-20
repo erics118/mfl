@@ -17,10 +17,10 @@
     %incdec3 = add i32 %x2, 1
     store i32 %incdec3, ptr %x, align 4
     %x4 = load i32, ptr %x, align 4
-    %incdec5 = add i32 %x4, -1
+    %incdec5 = sub i32 %x4, 1
     store i32 %incdec5, ptr %x, align 4
     %x6 = load i32, ptr %x, align 4
-    %incdec7 = add i32 %x6, -1
+    %incdec7 = sub i32 %x6, 1
     store i32 %incdec7, ptr %x, align 4
     %a = alloca i32, align 4
     %x8 = load i32, ptr %x, align 4

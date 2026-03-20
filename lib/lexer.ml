@@ -115,6 +115,11 @@ let read_ident st =
   | "break" -> TokBreakKw
   | "continue" -> TokContinueKw
   | "do" -> TokDoKw
+  | "char" -> TokCharKw
+  | "short" -> TokShortKw
+  | "long" -> TokLongKw
+  | "unsigned" -> TokUnsignedKw
+  | "signed" -> TokSignedKw
   | "void" -> TokVoidKw
   | s -> TokIdent s
 

@@ -1,0 +1,20 @@
+int main() {
+    /* signed arithmetic uses sdiv/srem and signed comparisons */
+    char c = 100;
+    c = c + 5;
+    c = c - 3;
+
+    /* unsigned arithmetic uses udiv/urem and unsigned comparisons */
+    unsigned int u = 100;
+    u = u + 5;
+    u = u / 3;
+    u = u % 7;
+
+    /* long and long long are both i64 */
+    long l = 1000000;
+    l = l * 2;
+    long long ll = 1000000;
+    ll = ll * 2;
+
+    return 0;
+}

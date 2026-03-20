@@ -18,9 +18,32 @@ type type_error =
 exception Type_error of pos * type_error
 
 let string_of_typ = function
-  | Int -> "int"
   | Bool -> "bool"
   | Void -> "void"
+  | Char -> "char"
+  | UChar -> "unsigned char"
+  | Short -> "short"
+  | UShort -> "unsigned short"
+  | Int -> "int"
+  | UInt -> "unsigned int"
+  | Long -> "long"
+  | ULong -> "unsigned long"
+  | LongLong -> "long long"
+  | ULongLong -> "unsigned long long"
+
+(** true for any integer type (excludes Bool and Void) *)
+let is_int_type = function
+  | Char
+  | UChar
+  | Short
+  | UShort
+  | Int
+  | UInt
+  | Long
+  | ULong
+  | LongLong
+  | ULongLong -> true
+  | Bool | Void -> false
 
 let string_of_type_error = function
   | UnknownType name -> Printf.sprintf "unknown type '%s'" name
@@ -80,11 +103,12 @@ let define_var env name t =
 
 let push_scope env = { env with vars = Hashtbl.create 8 :: env.vars }
 
-let typ_of_var_type pos = function
-  | VarType "int" -> Int
-  | VarType "bool" -> Bool
-  | VarType "void" -> Void
-  | VarType name -> raise (Type_error (pos, UnknownType name))
+(* converts a var_type to a typ, raising a user-facing error for unknown
+   user-defined type names (VNamed). used during typechecking before VNamed
+   types are guaranteed to be valid. *)
+let resolve_var_type pos = function
+  | VNamed name -> raise (Type_error (pos, UnknownType name))
+  | vt -> Ast.typ_of_var_type vt
 
 let expr_typ : checked expr -> typ = function
   | IntLiteral (ann, _)
@@ -108,8 +132,9 @@ let check_binary pos op lt rt =
   let err () = raise (Type_error (pos, BinaryTypeMismatch (op, lt, rt))) in
   match op with
   | Add | Sub | Mul | Div | Mod | BitAnd | BitOr | BitXor | LShift | RShift ->
-      if lt = Int && rt = Int then Int else err ()
-  | Less | Leq | Greater | Geq -> if lt = Int && rt = Int then Bool else err ()
+      if is_int_type lt && lt = rt then lt else err ()
+  | Less | Leq | Greater | Geq ->
+      if is_int_type lt && lt = rt then Bool else err ()
   | And | Or -> if lt = Bool && rt = Bool then Bool else err ()
   | Equal | Neq -> if lt = rt then Bool else err ()
 
@@ -117,13 +142,22 @@ let check_unary pos op t =
   let err () = raise (Type_error (pos, UnaryTypeMismatch (op, t))) in
   match op with
   | Not -> if t = Bool then Bool else err ()
-  | Neg | Compl -> if t = Int then Int else err ()
+  | Neg | Compl -> if is_int_type t then t else err ()
 
 let check_ternary pos cond_t then_t else_t =
   if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
   if then_t <> else_t then
     raise (Type_error (pos, TypeMismatch (then_t, else_t)));
   then_t
+
+(** if [e] is an [IntLiteral] typed as [Int] and [t] is any integer type, make
+    [e]'s type to be [t]. Used for int literals, as we need to automatically
+    convert them to the correct type *)
+let coerce_int_lit t e =
+  match e with
+  | IntLiteral (Checked (pos, Int), n) when is_int_type t ->
+      IntLiteral (Checked (pos, t), n)
+  | _ -> e
 
 let rec typecheck_expr env (expr : parsed expr) : checked expr =
   match expr with
@@ -151,6 +185,9 @@ and typecheck_binary_op env ann op lhs rhs =
   let pos = pos_of ann in
   let lhs = typecheck_expr env lhs in
   let rhs = typecheck_expr env rhs in
+  (* coerce integer literals to match the other operand's type *)
+  let lhs = coerce_int_lit (expr_typ rhs) lhs in
+  let rhs = coerce_int_lit (expr_typ lhs) rhs in
   (* ensure lhs and rhs have the correct type for the operator *)
   let t = check_binary pos op (expr_typ lhs) (expr_typ rhs) in
   BinaryOp (Checked (pos, t), op, lhs, rhs)
@@ -200,6 +237,7 @@ and typecheck_func_call env ann f args =
     List.map2
       (fun param_t arg ->
         let arg = typecheck_expr env arg in
+        let arg = coerce_int_lit param_t arg in
         let at = expr_typ arg in
         if at <> param_t then
           raise (Type_error (pos, TypeMismatch (param_t, at)));
@@ -215,8 +253,9 @@ and typecheck_incdec env ann fix dir operand make =
   let e = typecheck_expr env operand in
   assert_lvalue pos e;
   let t = expr_typ e in
-  if t <> Int then raise (Type_error (pos, IncDecTypeMismatch (fix, dir, t)));
-  make (Checked (pos, Int)) e
+  if not (is_int_type t) then
+    raise (Type_error (pos, IncDecTypeMismatch (fix, dir, t)));
+  make (Checked (pos, t)) e
 
 and typecheck_stmt env (stmt : parsed stmt) : checked stmt =
   match stmt with
@@ -264,18 +303,20 @@ and typecheck_return env pos e =
   | Some e ->
       (* ensure that return value is equal to ret, the correct return type *)
       let e = typecheck_expr env e in
+      let e = coerce_int_lit ret e in
       let t = expr_typ e in
       if t <> ret then raise (Type_error (pos, TypeMismatch (ret, t)));
       ReturnStmt (pos, Some e)
 
 and typecheck_var_def env pos var_type name init =
-  let var_t = typ_of_var_type pos var_type in
+  let var_t = resolve_var_type pos var_type in
   (* if init exists, we check its type to ensure it is valid *)
   let init =
     match init with
     | None -> None
     | Some init -> begin
         let init = typecheck_expr env init in
+        let init = coerce_int_lit var_t init in
         let init_t = expr_typ init in
         (* ensure init has the right type *)
         if var_t <> init_t then
@@ -287,11 +328,11 @@ and typecheck_var_def env pos var_type name init =
   VarDef { pos; var_type; name; init }
 
 and typecheck_func_def env pos ret_type name params body =
-  let ret_t = typ_of_var_type pos ret_type in
+  let ret_t = resolve_var_type pos ret_type in
   (* add function to env first *)
   Hashtbl.replace env.funcs name
     {
-      params = List.map (fun (vt, _) -> typ_of_var_type pos vt) params;
+      params = List.map (fun (vt, _) -> resolve_var_type pos vt) params;
       ret = ret_t;
     };
   let fn_env =
@@ -304,7 +345,7 @@ and typecheck_func_def env pos ret_type name params body =
   in
   (* then we add the variables to the env *)
   List.iter
-    (fun (vt, pname) -> define_var fn_env pname (typ_of_var_type pos vt))
+    (fun (vt, pname) -> define_var fn_env pname (resolve_var_type pos vt))
     params;
   let body = List.map (typecheck_stmt fn_env) body in
   FuncDef { pos; ret_type; name; params; body }
@@ -361,6 +402,7 @@ and typecheck_assign env ann x e =
     | None -> raise (Type_error (pos, UnboundVariable x))
   in
   let e = typecheck_expr env e in
+  let e = coerce_int_lit t e in
   let et = expr_typ e in
   if et <> t then raise (Type_error (pos, TypeMismatch (t, et)));
   Assign (Checked (pos, t), x, e)

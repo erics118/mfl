@@ -19,6 +19,11 @@ type token =
   | TokBreakKw  (** [break] keyword *)
   | TokContinueKw  (** [continue] keyword *)
   | TokDoKw  (** [do] keyword *)
+  | TokCharKw  (** [char] keyword *)
+  | TokShortKw  (** [short] keyword *)
+  | TokLongKw  (** [long] keyword *)
+  | TokUnsignedKw  (** [unsigned] keyword *)
+  | TokSignedKw  (** [signed] keyword *)
   (* binary operators *)
   | TokPlus  (** [+] *)
   | TokMinus  (** [-] *)
@@ -77,6 +82,11 @@ let string_of_token = function
   | TokBreakKw -> "break"
   | TokContinueKw -> "continue"
   | TokDoKw -> "do"
+  | TokCharKw -> "char"
+  | TokShortKw -> "short"
+  | TokLongKw -> "long"
+  | TokUnsignedKw -> "unsigned"
+  | TokSignedKw -> "signed"
   (* binary operators *)
   | TokPlus -> "+"
   | TokMinus -> "-"

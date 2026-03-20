@@ -28,10 +28,36 @@ type uop =
   | Compl  (** bitwise complement *)
 
 (** variable and return types *)
-type var_type = VarType of string
+type var_type =
+  | VBool
+  | VVoid
+  | VChar
+  | VUChar
+  | VShort
+  | VUShort
+  | VInt
+  | VUInt
+  | VLong
+  | VULong
+  | VLongLong
+  | VULongLong
+  | VNamed of string  (** user-defined type names *)
 
 (** render a variable type as a string *)
-let string_of_var_type (VarType name) = name
+let string_of_var_type = function
+  | VBool -> "bool"
+  | VVoid -> "void"
+  | VChar -> "char"
+  | VUChar -> "unsigned char"
+  | VShort -> "short"
+  | VUShort -> "unsigned short"
+  | VInt -> "int"
+  | VUInt -> "unsigned int"
+  | VLong -> "long"
+  | VULong -> "unsigned long"
+  | VLongLong -> "long long"
+  | VULongLong -> "unsigned long long"
+  | VNamed name -> name
 
 (** source location *)
 type pos = {
@@ -41,9 +67,36 @@ type pos = {
 
 (** types resolved by the typechecker *)
 type typ =
-  | Int
-  | Bool
   | Void
+  | Bool  (** i1 *)
+  | Char  (** i8, signed *)
+  | UChar  (** i8, unsigned *)
+  | Short  (** i16, signed *)
+  | UShort  (** i16, unsigned *)
+  | Int  (** i32, signed *)
+  | UInt  (** i32, unsigned *)
+  | Long  (** i64, signed *)
+  | ULong  (** i64, unsigned *)
+  | LongLong  (** i64, signed *)
+  | ULongLong  (** i64, unsigned *)
+
+(** [typ_of_var_type vt] converts a built-in [var_type] to its [typ]. Only safe
+    to call after typechecking, when all [VNamed] types have already been
+    validated. Raises [Assert_failure] if called with [VNamed]. *)
+let typ_of_var_type = function
+  | VBool -> Bool
+  | VVoid -> Void
+  | VChar -> Char
+  | VUChar -> UChar
+  | VShort -> Short
+  | VUShort -> UShort
+  | VInt -> Int
+  | VUInt -> UInt
+  | VLong -> Long
+  | VULong -> ULong
+  | VLongLong -> LongLong
+  | VULongLong -> ULongLong
+  | VNamed _ -> assert false [@coverage off]
 
 (** phantom types marking which compiler phase produced an expr *)
 type parsed

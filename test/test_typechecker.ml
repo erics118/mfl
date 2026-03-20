@@ -218,6 +218,28 @@ let test_break_continue _ =
   | ContinueStmt _ -> ()
   | _ -> assert_failure "expected ContinueStmt"
 
+let test_var_type_resolution _ =
+  let check vt =
+    ignore
+      (typecheck_stmt empty_env
+         (VarDef { pos = dummy_pos; var_type = vt; name = "x"; init = None }))
+  in
+  check VBool;
+  check VChar;
+  check VUChar;
+  check VShort;
+  check VUShort;
+  check VInt;
+  check VUInt;
+  check VLong;
+  check VULong;
+  check VLongLong;
+  check VULongLong;
+  (* VNamed with an unknown name must raise UnknownType *)
+  check_stmt_err "unknown type 'Foo'"
+    (VarDef
+       { pos = dummy_pos; var_type = VNamed "Foo"; name = "x"; init = None })
+
 let test_break_continue_errors _ =
   (* break and continue outside a loop are errors *)
   check_stmt_err "break statement outside of a loop" (BreakStmt dummy_pos);
@@ -247,6 +269,7 @@ let tests =
          "func_call_errors" >:: test_func_call_errors;
          "ternary" >:: test_ternary;
          "ternary_errors" >:: test_ternary_errors;
+         "var_type_resolution" >:: test_var_type_resolution;
          "break_continue" >:: test_break_continue;
          "break_continue_errors" >:: test_break_continue_errors;
          "incdec" >:: test_incdec;

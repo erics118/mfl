@@ -1,0 +1,31 @@
+int main() {
+    char c = 10;
+    short s = 1000;
+    int i = 1000;
+    long l = 100000;
+    long long ll = 100000;
+    short int si = 1000;
+    long int li = 100000;
+    long long int lli = 100000;
+
+
+    signed char sc = 10;
+    signed short ss = 1000;
+    signed int si = 1000;
+    signed long sl = 100000;
+    signed long long sll = 100000;
+    signed short int ssi = 1000;
+    signed long int sli = 100000;
+    signed long long int slli = 100000;
+
+    unsigned char uc = 10;
+    unsigned short us = 1000;
+    unsigned int ui = 1000;
+    unsigned long ul = 100000;
+    unsigned long long ull = 100000;
+    unsigned short int usi = 1000;
+    unsigned long int uli = 100000;
+    unsigned long long int ulli = 100000;
+
+    return 0;
+}

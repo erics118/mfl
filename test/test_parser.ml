@@ -140,6 +140,36 @@ let test_var_defs _ =
   roundtrip "{\n    UserType x = 7;\n}";
   roundtrip "1;\nint x = 2;\n3;"
 
+let test_int_types _ =
+  roundtrip "char x;";
+  roundtrip "short x;";
+  roundtrip "int x;";
+  roundtrip "long x;";
+  roundtrip "long long x;";
+  (* unsigned integer types *)
+  roundtrip "unsigned char x;";
+  roundtrip "unsigned short x;";
+  roundtrip "unsigned int x;";
+  roundtrip "unsigned long x;";
+  roundtrip "unsigned long long x;";
+  (* "int" suffix is consumed and removed *)
+  check "short x;" "short int x;";
+  check "long x;" "long int x;";
+  check "long long x;" "long long int x;";
+  check "unsigned short x;" "unsigned short int x;";
+  check "unsigned long x;" "unsigned long int x;";
+  check "unsigned long long x;" "unsigned long long int x;";
+  (* signed keyword is consumed and removed *)
+  check "char x;" "signed char x;";
+  check "short x;" "signed short x;";
+  check "int x;" "signed int x;";
+  check "long x;" "signed long x;";
+  check "long long x;" "signed long long x;";
+  (* signed alone gets converted to int *)
+  check "int x;" "signed x;";
+  (* unsigned alone gets converted to unsigned int *)
+  check "unsigned int x;" "unsigned x;"
+
 let test_break_continue _ =
   roundtrip "break;";
   roundtrip "continue;";
@@ -279,6 +309,7 @@ let tests =
          "incdec" >:: test_incdec;
          "multiple_statements" >:: test_multiple_statements;
          "var_defs" >:: test_var_defs;
+         "int_types" >:: test_int_types;
          "break_continue" >:: test_break_continue;
          "returns" >:: test_returns;
          "function_calls" >:: test_function_calls;

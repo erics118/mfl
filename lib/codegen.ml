@@ -5,8 +5,14 @@ open Ast
 let context = Llvm.global_context ()
 let the_module = Llvm.create_module context "mfl"
 let builder = Llvm.builder context
-let int_type = Llvm.i32_type context
+
+(* builtin types *)
+let void_type = Llvm.void_type context
 let bool_type = Llvm.i1_type context
+let char_type = Llvm.i8_type context
+let short_type = Llvm.i16_type context
+let int_type = Llvm.i32_type context
+let long_type = Llvm.i64_type context
 
 (* maps variable names to their alloca ptr within the current function *)
 let locals : (string, Llvm.llvalue) Hashtbl.t = Hashtbl.create 16
@@ -24,41 +30,78 @@ let block_terminated () =
 let br_if_open bb =
   if not (block_terminated ()) then ignore (Llvm.build_br bb builder)
 
-let llvm_type = function
-  | VarType "int" -> int_type
-  | VarType "bool" -> bool_type
-  | VarType "void" -> Llvm.void_type context
-  | VarType name -> failwith ("unknown type: " ^ name)
-
 (* convert a typechecker typ to an llvm type *)
 let llvm_of_typ = function
-  | Int -> int_type
   | Bool -> bool_type
-  | Void -> Llvm.void_type context
+  | Void -> void_type
+  | Char | UChar -> char_type
+  | Short | UShort -> short_type
+  | Int | UInt -> int_type
+  | Long | ULong | LongLong | ULongLong -> long_type
+
+(* true for signed integer types *)
+let is_signed = function
+  | Char | Short | Int | Long | LongLong -> true
+  | UChar | UShort | UInt | ULong | ULongLong -> false
+  | Bool | Void -> false
+
+(* extract the resolved type from a checked expression annotation *)
+let expr_type : checked expr -> typ = function
+  | IntLiteral (Checked (_, t), _)
+  | BoolLiteral (Checked (_, t), _)
+  | VarRef (Checked (_, t), _)
+  | BinaryOp (Checked (_, t), _, _, _)
+  | UnaryOp (Checked (_, t), _, _)
+  | Ternary (Checked (_, t), _, _, _)
+  | FuncCall (Checked (_, t), _, _)
+  | Assign (Checked (_, t), _, _)
+  | PreInc (Checked (_, t), _)
+  | PreDec (Checked (_, t), _)
+  | PostInc (Checked (_, t), _)
+  | PostDec (Checked (_, t), _) -> t
+  | _ -> assert false [@coverage off]
 
 let codegen_int n = Llvm.const_int int_type n
 
-let rec codegen_binop op lhs rhs =
+let rec codegen_binop operand_typ op lhs rhs =
   let lv = codegen_expr lhs in
   let rv = codegen_expr rhs in
+  let signed = is_signed operand_typ in
   match op with
   | Add -> Llvm.build_add lv rv "addtmp" builder
   | Sub -> Llvm.build_sub lv rv "subtmp" builder
   | Mul -> Llvm.build_mul lv rv "multmp" builder
-  | Div -> Llvm.build_sdiv lv rv "divtmp" builder
-  | Mod -> Llvm.build_srem lv rv "modtmp" builder
+  | Div ->
+      if signed then Llvm.build_sdiv lv rv "divtmp" builder
+      else Llvm.build_udiv lv rv "divtmp" builder
+  | Mod ->
+      if signed then Llvm.build_srem lv rv "modtmp" builder
+      else Llvm.build_urem lv rv "modtmp" builder
   | Equal -> Llvm.build_icmp Llvm.Icmp.Eq lv rv "eqtmp" builder
   | Neq -> Llvm.build_icmp Llvm.Icmp.Ne lv rv "neqtmp" builder
-  | Less -> Llvm.build_icmp Llvm.Icmp.Slt lv rv "lttmp" builder
-  | Leq -> Llvm.build_icmp Llvm.Icmp.Sle lv rv "letmp" builder
-  | Greater -> Llvm.build_icmp Llvm.Icmp.Sgt lv rv "gttmp" builder
-  | Geq -> Llvm.build_icmp Llvm.Icmp.Sge lv rv "getmp" builder
-  | And | Or -> assert false (* implemented separately *) [@coverage off]
+  | Less ->
+      let pred = if signed then Llvm.Icmp.Slt else Llvm.Icmp.Ult in
+      Llvm.build_icmp pred lv rv "lttmp" builder
+  | Leq ->
+      let pred = if signed then Llvm.Icmp.Sle else Llvm.Icmp.Ule in
+      Llvm.build_icmp pred lv rv "letmp" builder
+  | Greater ->
+      let pred = if signed then Llvm.Icmp.Sgt else Llvm.Icmp.Ugt in
+      Llvm.build_icmp pred lv rv "gttmp" builder
+  | Geq ->
+      let pred = if signed then Llvm.Icmp.Sge else Llvm.Icmp.Uge in
+      Llvm.build_icmp pred lv rv "getmp" builder
+  | And | Or ->
+      (* implemented separately *)
+      assert false [@coverage off]
   | BitAnd -> Llvm.build_and lv rv "bandtmp" builder
   | BitOr -> Llvm.build_or lv rv "bortmp" builder
   | BitXor -> Llvm.build_xor lv rv "xortmp" builder
   | LShift -> Llvm.build_shl lv rv "shltmp" builder
-  | RShift -> Llvm.build_ashr lv rv "ashrtmp" builder
+  (* signed fills with sign bit, unsigned fills with zero *)
+  | RShift ->
+      if signed then Llvm.build_ashr lv rv "ashrtmp" builder
+      else Llvm.build_lshr lv rv "lsrtmp" builder
 
 and codegen_uop op e =
   let v = codegen_expr e in
@@ -113,26 +156,26 @@ and codegen_or_binop lhs rhs =
 
 and codegen_expr (e : checked expr) : Llvm.llvalue =
   match e with
-  | IntLiteral (_, n) -> codegen_int n
-  | BoolLiteral (_, b) -> Llvm.const_int bool_type (if b then 1 else 0)
-  | BinaryOp (_, And, lhs, rhs) -> codegen_and_binop lhs rhs
-  | BinaryOp (_, Or, lhs, rhs) -> codegen_or_binop lhs rhs
-  | BinaryOp (_, op, lhs, rhs) -> codegen_binop op lhs rhs
+  | IntLiteral (Checked (_, t), n) -> Llvm.const_int (llvm_of_typ t) n
+  | BoolLiteral (Checked _, b) -> Llvm.const_int bool_type (if b then 1 else 0)
+  | BinaryOp (Checked _, And, lhs, rhs) -> codegen_and_binop lhs rhs
+  | BinaryOp (Checked _, Or, lhs, rhs) -> codegen_or_binop lhs rhs
+  | BinaryOp (Checked _, op, lhs, rhs) ->
+      codegen_binop (expr_type lhs) op lhs rhs
   | VarRef (Checked (_, t), name) -> (
       (* load the value from the variable's alloca; type comes from the
          annotation *)
       match Hashtbl.find_opt locals name with
       | Some ptr -> Llvm.build_load (llvm_of_typ t) ptr name builder
       | None -> failwith ("undefined variable: " ^ name))
-  | VarRef (Parsed _, _) -> assert false
-  | UnaryOp (_, op, e) -> codegen_uop op e
-  | Ternary (_, cond, then_e, else_e) -> codegen_ternary cond then_e else_e
+  | UnaryOp (Checked _, op, e) -> codegen_uop op e
+  | Ternary (Checked _, cond, then_e, else_e) ->
+      codegen_ternary cond then_e else_e
   | FuncCall (Checked (_, ret_t), name, args) ->
       (* ret_t from the annotation determines whether the call can have a
          name *)
       codegen_func_call ret_t name args
-  | FuncCall (Parsed _, _, _) -> assert false
-  | Assign (_, name, value) -> (
+  | Assign (Checked _, name, value) -> (
       match Hashtbl.find_opt locals name with
       | Some ptr ->
           (* codegen, then return the assigned value, so we can do x = y = 2 *)
@@ -140,10 +183,11 @@ and codegen_expr (e : checked expr) : Llvm.llvalue =
           ignore (Llvm.build_store v ptr builder);
           v
       | None -> failwith ("undefined variable: " ^ name))
-  | PreInc (_, e) -> codegen_incdec e `Inc `Pre
-  | PreDec (_, e) -> codegen_incdec e `Dec `Pre
-  | PostInc (_, e) -> codegen_incdec e `Inc `Post
-  | PostDec (_, e) -> codegen_incdec e `Dec `Post
+  | PreInc (Checked _, e) -> codegen_incdec e `Inc `Pre
+  | PreDec (Checked _, e) -> codegen_incdec e `Dec `Pre
+  | PostInc (Checked _, e) -> codegen_incdec e `Inc `Post
+  | PostDec (Checked _, e) -> codegen_incdec e `Dec `Post
+  | _ -> assert false [@coverage off]
 
 and codegen_if cond then_body else_body =
   let c = codegen_expr cond in
@@ -270,25 +314,24 @@ and codegen_ternary cond then_e else_e =
   Llvm.build_phi [ (tv, then_bb'); (ev, else_bb') ] "ternary" builder
 
 and codegen_incdec e dir fix =
-  let delta =
-    match dir with
-    | `Inc -> 1
-    | `Dec -> -1
-  in
-  let name =
+  let name, ty =
     match e with
-    | VarRef (_, n) -> n
+    | VarRef (Checked (_, t), n) -> (n, t)
     | _ ->
         (* we know it is a lvalue, ie a VarRef. this will have to change in the
            future though, after adding pointers, arrays, etc *)
-        assert false
+        assert false [@coverage off]
   in
+  let ll_ty = llvm_of_typ ty in
   let ptr = Hashtbl.find locals name in
   (* get the old value *)
-  let old_val = Llvm.build_load int_type ptr name builder in
-  (* update the new value with by adding 1 or -1 *)
+  let old_val = Llvm.build_load ll_ty ptr name builder in
+  let one = Llvm.const_int ll_ty 1 in
+  (* update the new value by adding or subtracting 1 *)
   let new_val =
-    Llvm.build_add old_val (Llvm.const_int int_type delta) "incdec" builder
+    match dir with
+    | `Inc -> Llvm.build_add old_val one "incdec" builder
+    | `Dec -> Llvm.build_sub old_val one "incdec" builder
   in
   (* update the value *)
   ignore (Llvm.build_store new_val ptr builder);
@@ -299,9 +342,12 @@ and codegen_incdec e dir fix =
 
 and codegen_func_def ret_type name params body =
   let param_types =
-    Array.of_list (List.map (fun (vt, _) -> llvm_type vt) params)
+    Array.of_list
+      (List.map (fun (vt, _) -> llvm_of_typ (Ast.typ_of_var_type vt)) params)
   in
-  let ty = Llvm.function_type (llvm_type ret_type) param_types in
+  let ty =
+    Llvm.function_type (llvm_of_typ (Ast.typ_of_var_type ret_type)) param_types
+  in
   let fn = Llvm.define_function name ty the_module in
   (* clear scope for each function. no global variables atm *)
   Hashtbl.clear locals;
@@ -312,7 +358,7 @@ and codegen_func_def ret_type name params body =
       let param = Llvm.param fn i in
       Llvm.set_value_name pname param;
       Llvm.position_at_end (Llvm.entry_block fn) builder;
-      let ty = llvm_type ptype in
+      let ty = llvm_of_typ (Ast.typ_of_var_type ptype) in
       let ptr = Llvm.build_alloca ty pname builder in
       ignore (Llvm.build_store param ptr builder);
       Hashtbl.replace locals pname ptr)
@@ -324,7 +370,10 @@ and codegen_func_def ret_type name params body =
       ignore (Llvm.build_ret_void builder)
     else if name = "main" then
       (* add return 0; to main if missing *)
-      ignore (Llvm.build_ret (Llvm.const_null (llvm_type ret_type)) builder)
+      ignore
+        (Llvm.build_ret
+           (Llvm.const_null (llvm_of_typ (Ast.typ_of_var_type ret_type)))
+           builder)
 
 and codegen_stmt = function
   | FuncDef { ret_type; name; params; body; _ } ->
@@ -341,7 +390,7 @@ and codegen_stmt = function
   | EmptyStmt _ -> ()
   | CompoundStmt (_, stmts) -> List.iter codegen_stmt stmts
   | VarDef { var_type; name; init; _ } ->
-      let ty = llvm_type var_type in
+      let ty = llvm_of_typ (Ast.typ_of_var_type var_type) in
       let ptr = Llvm.build_alloca ty name builder in
       (* set variable to init if it exists *)
       begin match init with
