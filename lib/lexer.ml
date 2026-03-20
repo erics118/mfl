@@ -46,12 +46,43 @@ let advance_while pred st =
     advance st
   done
 
-let skip_whitespace st =
+let peek2 st =
+  let pos = st.pos + 1 in
+  if pos < String.length st.input then Some st.input.[pos] else None
+
+let rec skip_whitespace_and_comments st =
+  (* ship whittespace *)
   advance_while
     (function
       | ' ' | '\t' | '\r' | '\n' -> true
       | _ -> false)
-    st
+    st;
+  (* line comment, skip until end of line *)
+  if peek st = Some '/' && peek2 st = Some '/' then begin
+    advance_while (fun c -> c <> '\n') st;
+    skip_whitespace_and_comments st
+  end (* block comment, skip until close *)
+  else if peek st = Some '/' && peek2 st = Some '*' then begin
+    advance st;
+    advance st;
+    let rec skip () =
+      match peek st with
+      | None ->
+          (* reached end of file, error *)
+          raise (Lex_error (tok_pos st, "unterminated block comment"))
+      | Some '*' when peek2 st = Some '/' ->
+          (* stop if is comment terminator *)
+          advance st;
+          advance st
+      | _ ->
+          (* keep advancing *)
+          advance st;
+          skip ()
+    in
+    skip ();
+    (* skip more whitespace as necessary *)
+    skip_whitespace_and_comments st
+  end
 
 let read_number st =
   let start = st.pos in
@@ -86,14 +117,10 @@ let read_ident st =
   | "void" -> TokVoidKw
   | s -> TokIdent s
 
-let peek2 st =
-  let pos = st.pos + 1 in
-  if pos < String.length st.input then Some st.input.[pos] else None
-
 (** [next_token st] returns the next token and advances [st]
     @raise Lex_error on invalid input *)
 let next_token st =
-  skip_whitespace st;
+  skip_whitespace_and_comments st;
   (* snapshot position at start of the token being returned *)
   st.tok_line <- st.line;
   st.tok_col <- st.col;

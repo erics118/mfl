@@ -171,6 +171,30 @@ let test_string_of_token _ =
   assert_equal "!" (string_of_token TokBang);
   assert_equal "=" (string_of_token TokAssign)
 
+let test_comments _ =
+  (* line comments are stripped *)
+  check [] "// hello world";
+  check [] "//hello world";
+  check [] "//////hello world";
+  check [] "//////";
+  check [] "// hello world\n";
+  check [ TokInt 1 ] "// hello world\n1";
+  check [ TokInt 1; TokInt 2 ] "1 // hello world\n2";
+  check [ TokInt 1 ] "1 // no newline at eof";
+  (* block comments are stripped *)
+  check [] "/* hello world */";
+  check [] "/*hello world*/";
+  check [] "/**/";
+  check [] "/*****/";
+  check [ TokInt 1 ] "/* hello world */ 1";
+  check [ TokInt 1; TokInt 2 ] "1 /* hello world */ 2";
+  check [ TokInt 1 ] "/* line1\nline2 */ 1";
+  (* block comment w normal tokens *)
+  check [ TokInt 1; TokPlus; TokInt 2 ] "1/**/+/**/2";
+  check [ TokStar; TokSlash ] "/* outer */ * /";
+  (* unterminated block comment *)
+  lex_fails "unterminated block comment" "/* bad"
+
 let test_errors _ =
   lex_fails "invalid numeric literal '1a'" "1a";
   lex_fails "invalid numeric literal '123abc'" "123abc";
@@ -191,6 +215,7 @@ let tests =
          "whitespace" >:: test_whitespace;
          "sequences" >:: test_sequences;
          "string_of_token" >:: test_string_of_token;
+         "comments" >:: test_comments;
          "errors" >:: test_errors;
        ]
 

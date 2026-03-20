@@ -81,8 +81,8 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [ ] `<stdint.h>` types: `int32_t`, `uint64_t`, etc.
 
 **comments**
-- [ ] `//` line comments
-- [ ] `/* */` block comments
+- [x] `//` line comments
+- [x] `/* */` block comments
 
 **preprocessor**
 - [ ] `#include`
