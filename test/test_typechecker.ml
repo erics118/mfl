@@ -398,6 +398,36 @@ let test_break_continue_errors _ =
   check_stmt_err "break statement outside of a loop" (BreakStmt dummy_pos);
   check_stmt_err "continue statement outside of a loop" (ContinueStmt dummy_pos)
 
+let test_missing_return _ =
+  check_stmt_err "control reaches end of non-void function 'f'"
+    (FuncDef
+       {
+         pos = dummy_pos;
+         ret_type = VInt;
+         name = "f";
+         params = [];
+         body = [ EmptyStmt dummy_pos ];
+       });
+  ignore
+    (typecheck_stmt empty_env
+       (FuncDef
+          {
+            pos = dummy_pos;
+            ret_type = VInt;
+            name = "f";
+            params = [];
+            body =
+              [
+                If
+                  {
+                    pos = dummy_pos;
+                    cond = b true;
+                    then_body = ReturnStmt (dummy_pos, Some (i 1));
+                    else_body = Some (ReturnStmt (dummy_pos, Some (i 2)));
+                  };
+              ];
+          }))
+
 let tests =
   "typechecker"
   >::: [
@@ -430,6 +460,7 @@ let tests =
          "implicit_casts" >:: test_implicit_casts;
          "break_continue" >:: test_break_continue;
          "break_continue_errors" >:: test_break_continue_errors;
+         "missing_return" >:: test_missing_return;
          "incdec" >:: test_incdec;
          "incdec_errors" >:: test_incdec_errors;
        ]

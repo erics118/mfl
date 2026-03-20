@@ -4,6 +4,7 @@ type type_error =
   | UnknownType of string
   | UnboundVariable of string
   | UnboundFunction of string
+  | MissingReturn of string
   | ArityMismatch of string * int * int (* name, expected, got *)
   | BinaryTypeMismatch of op * typ * typ
   | UnaryTypeMismatch of uop * typ
@@ -92,6 +93,8 @@ let string_of_type_error = function
   | UnknownType name -> Printf.sprintf "unknown type '%s'" name
   | UnboundVariable x -> Printf.sprintf "unbound variable '%s'" x
   | UnboundFunction f -> Printf.sprintf "unbound function '%s'" f
+  | MissingReturn f ->
+      Printf.sprintf "control reaches end of non-void function '%s'" f
   | ArityMismatch (f, expected, got) ->
       Printf.sprintf "'%s' expects %d argument(s) but got %d" f expected got
   | BinaryTypeMismatch (op, lt, rt) ->
@@ -148,6 +151,32 @@ let define_var env name t =
   | [] -> failwith "empty scope stack"
 
 let push_scope env = { env with vars = Hashtbl.create 8 :: env.vars }
+
+(** this is true if execution may continue past it. we need this to determine of
+    a function has a missing return statement. "fall through" means can exit the
+    block without a return statement *)
+let rec stmt_can_fall_through = function
+  | ReturnStmt _ -> false
+  | CompoundStmt (_, stmts) -> stmts_can_fall_through stmts
+  | If { then_body; else_body = Some else_body; _ } ->
+      stmt_can_fall_through then_body || stmt_can_fall_through else_body
+  | If { else_body = None; _ } -> true
+  | ExprStmt _
+  | EmptyStmt _
+  | VarDef _
+  | FuncDef _
+  | BreakStmt _
+  | ContinueStmt _
+  | WhileLoop _
+  | ForLoop _
+  | DoWhileLoop _ -> true
+
+(** goes through a list of statements until it finds a statement that cannot
+    fall through. *)
+and stmts_can_fall_through = function
+  | [] -> true
+  | stmt :: rest ->
+      if stmt_can_fall_through stmt then stmts_can_fall_through rest else false
 
 (* converts a var_type to a typ, raising a user-facing error for unknown
    user-defined type names (VNamed). used during typechecking before VNamed
@@ -497,6 +526,8 @@ and typecheck_func_def env pos ret_type name params body =
     (fun (vt, pname) -> define_var fn_env pname (resolve_var_type pos vt))
     params;
   let body = List.map (typecheck_stmt fn_env) body in
+  if ret_t <> Void && name <> "main" && stmts_can_fall_through body then
+    raise (Type_error (pos, MissingReturn name));
   FuncDef { pos; ret_type; name; params; body }
 
 and typecheck_if env pos cond then_body else_body =
