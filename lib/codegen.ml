@@ -118,7 +118,9 @@ and codegen_uop op e =
   let v = codegen_expr e in
   match op with
   | Neg -> Llvm.build_neg v "" builder
-  | Not -> Llvm.build_not v "nottmp" builder
+  | Not ->
+      let zero = Llvm.const_null (llvm_of_typ (expr_type e)) in
+      Llvm.build_icmp Llvm.Icmp.Eq v zero "nottmp" builder
   | Compl -> Llvm.build_not v "compltmp" builder
 
 and codegen_func_call ret_t name args =

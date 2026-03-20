@@ -190,7 +190,7 @@ let check_binary pos op lt rt =
 let check_unary pos op t =
   let err () = raise (Type_error (pos, UnaryTypeMismatch (op, t))) in
   match op with
-  | Not -> if t = Bool then Bool else err ()
+  | Not -> if is_integer_type t then Bool else err ()
   | Neg | Compl -> if is_integer_type t then t else err ()
 
 let check_ternary pos cond_t then_t else_t =

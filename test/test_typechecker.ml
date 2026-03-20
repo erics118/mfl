@@ -32,6 +32,40 @@ let env_with_funcs funcs =
   List.iter (fun (k, v) -> Hashtbl.add tbl k v) funcs;
   { empty_env with funcs = tbl }
 
+let all_integer_types =
+  [
+    Bool;
+    Char;
+    UChar;
+    Short;
+    UShort;
+    Int;
+    UInt;
+    Long;
+    ULong;
+    LongLong;
+    ULongLong;
+  ]
+
+let name_of_typ = function
+  | Bool -> "b"
+  | Char -> "c"
+  | UChar -> "uc"
+  | Short -> "s"
+  | UShort -> "us"
+  | Int -> "i"
+  | UInt -> "u"
+  | Long -> "l"
+  | ULong -> "ul"
+  | LongLong -> "ll"
+  | ULongLong -> "ull"
+  | Void -> "v"
+
+let all_integer_vars = List.map (fun t -> (name_of_typ t, t)) all_integer_types
+
+let expected_promoted_type t =
+  if integer_rank t < integer_rank Int then Int else t
+
 let check_typ ?(env = empty_env) expected e =
   let result = typecheck_expr env e in
   assert_equal ~printer:string_of_typ expected (expr_typ result)
@@ -93,8 +127,37 @@ let test_logical _ =
 let test_unary _ =
   check_typ Bool (un Not (b true));
   check_typ Bool (un Not (b false));
+  check_typ Bool (un Not (i 0));
   check_typ Int (un Neg (i 1));
   check_typ Int (un Compl (i 0))
+
+let test_unary_conversions _ =
+  let env = env_with all_integer_vars in
+  List.iter
+    (fun t ->
+      let expected = expected_promoted_type t in
+      let name = name_of_typ t in
+      let not_e = typecheck_expr env (un Not (v name)) in
+      let neg = typecheck_expr env (un Neg (v name)) in
+      let compl = typecheck_expr env (un Compl (v name)) in
+      assert_equal ~printer:string_of_typ Bool (expr_typ not_e);
+      assert_equal ~printer:string_of_typ expected (expr_typ neg);
+      assert_equal ~printer:string_of_typ expected (expr_typ compl);
+      if expected <> t then begin
+        let neg_operand =
+          match neg with
+          | UnaryOp (_, _, operand) -> operand
+          | _ -> assert_failure "expected UnaryOp"
+        in
+        let compl_operand =
+          match compl with
+          | UnaryOp (_, _, operand) -> operand
+          | _ -> assert_failure "expected UnaryOp"
+        in
+        assert_implicit_cast_to expected neg_operand;
+        assert_implicit_cast_to expected compl_operand
+      end)
+    all_integer_types
 
 let test_nested _ =
   (* (1 + 2) * 3 *)
@@ -132,8 +195,9 @@ let test_logical_errors _ =
     (bi Or (b true) (i 1))
 
 let test_unary_errors _ =
-  check_err "operator '!': invalid operand type 'int'" (un Not (i 1));
   let env = env_with_funcs [ ("noop", { params = []; ret = Void }) ] in
+  check_err ~env "operator '!': invalid operand type 'void'"
+    (un Not (call "noop" []));
   check_err ~env "operator '-': invalid operand type 'void'"
     (un Neg (call "noop" []));
   check_err ~env "operator '~': invalid operand type 'void'"
@@ -246,12 +310,31 @@ let test_cast_errors _ =
   check_err ~env "cannot cast from 'void' to 'int'" (cast VInt (call "noop" []))
 
 let test_conversions _ =
-  let env = env_with [ ("c", Char); ("u", UInt); ("l", Long) ] in
+  let env =
+    env_with
+      [
+        ("c", Char);
+        ("uc", UChar);
+        ("s", Short);
+        ("us", UShort);
+        ("u", UInt);
+        ("l", Long);
+        ("ul", ULong);
+        ("ll", LongLong);
+      ]
+  in
   check_typ ~env Int (bi Add (v "c") (i 1));
+  check_typ ~env Int (bi Add (v "uc") (v "s"));
+  check_typ ~env Int (bi Add (v "us") (v "s"));
   check_typ ~env UInt (bi Add (v "u") (i 1));
   check_typ ~env Long (bi Add (v "l") (v "u"));
+  check_typ ~env ULong (bi Add (v "ul") (v "l"));
+  check_typ ~env LongLong (bi Add (v "ll") (v "u"));
+  check_typ ~env ULongLong (bi Add (v "ll") (v "ul"));
   check_typ ~env Int (bi LShift (v "c") (i 1));
+  check_typ ~env Int (bi RShift (v "us") (b false));
   check_typ Bool (bi Equal (b true) (i 1));
+  check_typ ~env Bool (bi Less (v "ul") (v "ll"));
   check_typ Int (un Neg (b true));
   check_typ Int (un Compl (b false));
   let env = env_with [ ("ok", Bool) ] in
@@ -265,7 +348,9 @@ let test_conversions _ =
   in
   check_typ ~env Bool (call "flag" [ i 1 ]);
   check_typ ~env Long (call "widen" [ i 1 ]);
-  check_typ Int (cast VInt (b true))
+  check_typ Int (cast VInt (b true));
+  check_typ Bool (cast VBool (i 7));
+  check_typ ULongLong (cast VULongLong (i 7))
 
 let test_implicit_casts _ =
   let env = env_with [ ("ok", Bool); ("c", Char); ("l", Long) ] in
@@ -323,6 +408,7 @@ let tests =
          "equality" >:: test_equality;
          "logical" >:: test_logical;
          "unary" >:: test_unary;
+         "unary_conversions" >:: test_unary_conversions;
          "nested" >:: test_nested;
          "arithmetic_errors" >:: test_arithmetic_errors;
          "comparison_errors" >:: test_comparison_errors;

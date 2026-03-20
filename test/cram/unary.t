@@ -18,7 +18,7 @@
     store i32 %0, ptr %a, align 4
     %c = alloca i1, align 1
     %b4 = load i1, ptr %b2, align 1
-    %nottmp = xor i1 %b4, true
+    %nottmp = icmp eq i1 %b4, false
     store i1 %nottmp, ptr %c, align 1
     %a5 = load i32, ptr %a, align 4
     ret i32 %a5
