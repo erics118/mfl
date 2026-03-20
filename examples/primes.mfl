@@ -1,15 +1,15 @@
-bool is_prime(int n) {
-    for (int d = 2; d * d <= n; ++d) {
-        if (n % d == 0) {
-            return false;
-        }
-    }
-    return true;
-}
-
 int main() {
     for (int n = 2; n < 100; ++n) {
-        if (is_prime(n)) printint(n);
+        bool is_prime = true;
+
+        for (int d = 2; d * d <= n; ++d) {
+            if (n % d == 0) {
+                is_prime = false;
+                break;
+            }
+        }
+
+        if (is_prime) printint(n);
     }
 
     return 0;

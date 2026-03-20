@@ -6,7 +6,7 @@ subset of C implemented in OCaml, compiled to LLVM IR
 
 **types**
 - [x] `int`, `bool`, `void`
-- [ ] `char`, `short`, `long`, `long long`, unsigned variants
+- [x] `char`, `short`, `long`, `long long`, unsigned variants
 - [ ] `float`, `double`
 - [ ] pointer types: `int *p`
 - [ ] array types: `int a[10]`
@@ -51,7 +51,7 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [x] `return`
 - [x] blocks / compound statements
 - [x] `break`, `continue`
-- [ ] `do`/`while`
+- [x] `do`/`while`
 - [ ] `switch`/`case`/`default`
 - [ ] `goto` and labels
 - [x] `for` with optional init/cond/incr (e.g. `for (;;)`)

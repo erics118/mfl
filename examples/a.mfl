@@ -1,5 +1,0 @@
-int main() {
-    for (int i;; ++i) {
-        printint(i* i * i * i * i * i);
-    }
-}
