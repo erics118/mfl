@@ -89,8 +89,30 @@ let rec codegen_binop operand_typ op lhs rhs =
   let rv = codegen_expr rhs in
   let signed = is_signed operand_typ in
   match op with
-  | Add -> Llvm.build_add lv rv "addtmp" builder
-  | Sub -> Llvm.build_sub lv rv "subtmp" builder
+  | Add -> (
+      match (expr_type lhs, expr_type rhs) with
+      | Ptr t, _ ->
+          (* ptr + int: ptr is lv, index is rv *)
+          Llvm.build_gep (llvm_of_typ t) lv [| rv |] "addtmp" builder
+      | _, Ptr t ->
+          (* int + ptr: ptr is rv, index is lv *)
+          Llvm.build_gep (llvm_of_typ t) rv [| lv |] "addtmp" builder
+      | _ -> Llvm.build_add lv rv "addtmp" builder)
+  | Sub -> (
+      match (expr_type lhs, expr_type rhs) with
+      | Ptr t, Ptr _ ->
+          (* ptr - ptr: calculate ptrdiff with ptrtoint then sub *)
+          let li = Llvm.build_ptrtoint lv long_type "ptrdiffl" builder in
+          let ri = Llvm.build_ptrtoint rv long_type "ptrdiffr" builder in
+          let diff = Llvm.build_sub li ri "ptrdiff" builder in
+          (* sizeof typ gives the size in bits, we need to convert to bytes *)
+          let size = Llvm.const_int long_type (sizeof_typ t / 8) in
+          Llvm.build_sdiv diff size "ptrdiff" builder
+      | Ptr t, _ ->
+          (* ptr - int: negate the index, then gep *)
+          let neg_rv = Llvm.build_neg rv "negidx" builder in
+          Llvm.build_gep (llvm_of_typ t) lv [| neg_rv |] "subtmp" builder
+      | _ -> Llvm.build_sub lv rv "subtmp" builder)
   | Mul -> Llvm.build_mul lv rv "multmp" builder
   | Div ->
       if signed then Llvm.build_sdiv lv rv "divtmp" builder
