@@ -28,13 +28,6 @@ let sizeof_typ = function
 (* maps variable names to their alloca ptr within the current function *)
 let locals : (string, Llvm.llvalue) Hashtbl.t = Hashtbl.create 16
 
-(** gets the pointer to an lvalue *)
-let rec lvalue_ptr (e : checked expr) : Llvm.llvalue =
-  match e with
-  | VarRef (_, name) -> Hashtbl.find locals name
-  | UnaryOp (_, Deref, inner) -> lvalue_ptr inner
-  | _ -> failwith "undefined variable"
-
 (* stack of (continue_bb, break_bb) for the each of the enclosing loops *)
 let loop_stack : (Llvm.llbasicblock * Llvm.llbasicblock) Stack.t =
   Stack.create ()
@@ -250,6 +243,13 @@ and codegen_expr (e : checked expr) : Llvm.llvalue =
   | PostDec (Checked _, e) -> codegen_incdec e `Dec `Post
   | Cast (Checked _, t, e) -> codegen_cast (typ_of_var_type t) e
   | ImplicitCast (Checked _, t, e) -> codegen_cast t e
+  | _ -> assert false [@coverage off]
+
+(** gets the pointer to an lvalue *)
+and lvalue_ptr (e : checked expr) : Llvm.llvalue =
+  match e with
+  | VarRef (_, name) -> Hashtbl.find locals name
+  | UnaryOp (_, Deref, inner) -> codegen_expr inner
   | _ -> assert false [@coverage off]
 
 and codegen_if cond then_body else_body =
