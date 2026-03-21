@@ -45,7 +45,8 @@ let rec pp_expr_aux : type a. ?parent_prec:int -> a expr -> string =
   | FuncCall (_, name, args) ->
       let args_str = String.concat ", " (List.map pp_expr_aux args) in
       Printf.sprintf "%s(%s)" name args_str
-  | Assign (_, name, value) -> Printf.sprintf "%s = %s" name (pp_expr_aux value)
+  | Assign (_, e, value) ->
+      Printf.sprintf "%s = %s" (pp_expr_aux e) (pp_expr_aux value)
   | PreInc (_, e) -> "++" ^ pp_expr_aux e
   | PreDec (_, e) -> "--" ^ pp_expr_aux e
   (* if there is a prefix operator, we need parentheses to prevent ambiguity, so

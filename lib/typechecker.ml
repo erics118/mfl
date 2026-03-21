@@ -149,8 +149,12 @@ type env = {
   in_loop : bool;
 }
 
-let lookup_var env x =
+let lookup_var env (x : string) =
   List.find_map (fun scope -> Hashtbl.find_opt scope x) env.vars
+
+(* let rec lookup_var2 (env : env) (e : 'a expr) : typ option = match e with |
+   VarRef (_, name) -> lookup_var env name | UnaryOp (_, Deref, inner) ->
+   lookup_var2 env inner | _ -> failwith "undefined variable" *)
 
 let define_var env name t =
   match env.vars with
@@ -353,11 +357,32 @@ and typecheck_binary_op env ann op lhs rhs =
   | And | Or ->
       let t = check_binary pos op (expr_typ lhs) (expr_typ rhs) in
       BinaryOp (Checked (pos, t), op, lhs, rhs)
-  | (Equal | Neq)
-    when is_pointer_type (expr_typ lhs) || is_pointer_type (expr_typ rhs) ->
-      (* equality for between pointers *)
-      let t = check_binary pos op (expr_typ lhs) (expr_typ rhs) in
+  | (Less | Leq | Greater | Geq | Equal | Neq)
+    when is_pointer_type (expr_typ lhs) && is_pointer_type (expr_typ rhs) ->
+      (* comparisons between pointers *)
+      if expr_typ lhs = expr_typ rhs then
+        BinaryOp (Checked (pos, Bool), op, lhs, rhs)
+      else
+        raise
+          (Type_error (pos, BinaryTypeMismatch (op, expr_typ lhs, expr_typ rhs)))
+  | Add
+    when (is_pointer_type (expr_typ lhs) && is_integer_type (expr_typ rhs))
+         || (is_integer_type (expr_typ lhs) && is_pointer_type (expr_typ rhs))
+    ->
+      (* ptr + int or int + ptr *)
+      let t =
+        if is_pointer_type (expr_typ lhs) then expr_typ lhs else expr_typ rhs
+      in
       BinaryOp (Checked (pos, t), op, lhs, rhs)
+  | Sub when is_pointer_type (expr_typ lhs) && is_integer_type (expr_typ rhs) ->
+      (* ptr - int *)
+      BinaryOp (Checked (pos, expr_typ lhs), op, lhs, rhs)
+  | Sub when is_pointer_type (expr_typ lhs) && is_pointer_type (expr_typ rhs) ->
+      (* ptr - ptr: types must match *)
+      if expr_typ lhs <> expr_typ rhs then
+        raise
+          (Type_error (pos, BinaryTypeMismatch (op, expr_typ lhs, expr_typ rhs)));
+      BinaryOp (Checked (pos, Long), op, lhs, rhs)
   | LShift | RShift ->
       if not (is_integer_type (expr_typ lhs) && is_integer_type (expr_typ rhs))
       then err ();
@@ -423,7 +448,7 @@ and typecheck_unary_op env ann op e =
       if not (is_integer_type t) then
         raise (Type_error (pos, UnaryTypeMismatch (op, t)));
       let e = promote_integer pos e in
-      UnaryOp (Checked (pos, t), op, e)
+      UnaryOp (Checked (pos, expr_typ e), op, e)
   | Not ->
       let t = check_unary pos op t in
       UnaryOp (Checked (pos, t), op, e)
@@ -472,7 +497,7 @@ and typecheck_incdec env ann fix dir operand make =
   let e = typecheck_expr env operand in
   assert_lvalue pos e;
   let t = expr_typ e in
-  if not (is_integer_type t) then
+  if (not (is_integer_type t)) && not (is_pointer_type t) then
     raise (Type_error (pos, IncDecTypeMismatch (fix, dir, t)));
   make (Checked (pos, t)) e
 
@@ -615,18 +640,17 @@ and typecheck_do_while env pos body cond =
   if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
   DoWhileLoop { pos; body; cond }
 
-and typecheck_assign env ann x e =
+and typecheck_assign env ann lhs rhs =
   let pos = pos_of ann in
-  let t =
-    match lookup_var env x with
-    | Some t -> t
-    | None -> raise (Type_error (pos, UnboundVariable x))
-  in
-  let e = typecheck_expr env e in
-  let e = cast_expr pos t e in
-  let et = expr_typ e in
-  if et <> t then raise (Type_error (pos, TypeMismatch (t, et)));
-  Assign (Checked (pos, t), x, e)
+  let lhs = typecheck_expr env lhs in
+  (* lhs must be a lvalue *)
+  assert_lvalue pos lhs;
+  let lhs_t = expr_typ lhs in
+  let rhs = typecheck_expr env rhs in
+  let rhs = cast_expr pos lhs_t rhs in
+  let rhs_t = expr_typ rhs in
+  if rhs_t <> lhs_t then raise (Type_error (pos, TypeMismatch (lhs_t, rhs_t)));
+  Assign (Checked (pos, lhs_t), lhs, rhs)
 
 let typecheck_program (stmts : parsed stmt list) : checked stmt list =
   let funcs = Hashtbl.create 8 in

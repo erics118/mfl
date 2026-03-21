@@ -28,6 +28,13 @@ let sizeof_typ = function
 (* maps variable names to their alloca ptr within the current function *)
 let locals : (string, Llvm.llvalue) Hashtbl.t = Hashtbl.create 16
 
+(** gets the pointer to an lvalue *)
+let rec lvalue_ptr (e : checked expr) : Llvm.llvalue =
+  match e with
+  | VarRef (_, name) -> Hashtbl.find locals name
+  | UnaryOp (_, Deref, inner) -> lvalue_ptr inner
+  | _ -> failwith "undefined variable"
+
 (* stack of (continue_bb, break_bb) for the each of the enclosing loops *)
 let loop_stack : (Llvm.llbasicblock * Llvm.llbasicblock) Stack.t =
   Stack.create ()
@@ -210,14 +217,11 @@ and codegen_expr (e : checked expr) : Llvm.llvalue =
       (* ret_t from the annotation determines whether the call can have a
          name *)
       codegen_func_call ret_t name args
-  | Assign (Checked _, name, value) -> (
-      match Hashtbl.find_opt locals name with
-      | Some ptr ->
-          (* codegen, then return the assigned value, so we can do x = y = 2 *)
-          let v = codegen_expr value in
-          ignore (Llvm.build_store v ptr builder);
-          v
-      | None -> failwith ("undefined variable: " ^ name))
+  | Assign (Checked _, e, value) ->
+      let ptr = lvalue_ptr e in
+      let v = codegen_expr value in
+      ignore (Llvm.build_store v ptr builder);
+      v
   | PreInc (Checked _, e) -> codegen_incdec e `Inc `Pre
   | PreDec (Checked _, e) -> codegen_incdec e `Dec `Pre
   | PostInc (Checked _, e) -> codegen_incdec e `Inc `Post

@@ -208,7 +208,9 @@ and parse_identifier_expr st pos =
   | TokAssign ->
       consume st TokAssign;
       let value = parse_expr st in
-      Assign (Parsed pos, name, value)
+      (* turn name into an expr *)
+      let e = VarRef (Parsed pos, name) in
+      Assign (Parsed pos, e, value)
   | _ -> VarRef (Parsed pos, name)
 
 and parse_primary st =
