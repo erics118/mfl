@@ -276,7 +276,15 @@ let test_do_while _ =
 let test_assign _ =
   roundtrip "x = 1;";
   roundtrip "x = 1 + 2;";
-  roundtrip "{\n    x = 0;\n    x = x + 1;\n}"
+  roundtrip "{\n    x = 0;\n    x = x + 1;\n}";
+  (* assign a pointer *)
+  roundtrip "*p = 1;";
+  roundtrip "*p = *q;";
+  (* right associativity *)
+  roundtrip "a = b = 5;";
+  check "a = b = 5;" "a = (b = 5);";
+  (* ptr arith and assign *)
+  roundtrip "*(p + 1) = 5;"
 
 let test_for _ =
   roundtrip "for (int i = 0; i < 10; i + 1) {\n    i;\n}";

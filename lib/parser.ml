@@ -205,12 +205,6 @@ and parse_identifier_expr st pos =
       let args = parse_rparen_list st parse_expr in
       consume st TokRParen;
       FuncCall (Parsed pos, name, args)
-  | TokAssign ->
-      consume st TokAssign;
-      let value = parse_expr st in
-      (* turn name into an expr *)
-      let e = VarRef (Parsed pos, name) in
-      Assign (Parsed pos, e, value)
   | _ -> VarRef (Parsed pos, name)
 
 and parse_primary st =
@@ -302,7 +296,16 @@ and parse_conditional_expr st =
       Ternary (Parsed pos, cond, then_e, else_e)
   | _ -> cond
 
-and parse_expr (st : state) : parsed expr = parse_conditional_expr st
+and parse_expr (st : state) : parsed expr =
+  let pos = cur_pos st in
+  let e = parse_conditional_expr st in
+  (* after parsing the full expression, check for a assign token *)
+  match st.cur_tok with
+  | TokAssign ->
+      consume st TokAssign;
+      let value = parse_expr st in
+      Assign (Parsed pos, e, value)
+  | _ -> e
 
 let parse_return_stmt st =
   let pos = cur_pos st in
