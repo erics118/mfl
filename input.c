@@ -1,0 +1,9 @@
+#include <stdbool.h>
+bool f () {
+    return false;
+}
+
+int main() {
+    bool x = f();
+    bool a;
+}

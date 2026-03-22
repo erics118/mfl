@@ -4,7 +4,7 @@
   
   declare void @printint(i32)
   
-  declare void @printbool(i1)
+  declare void @printbool(i8)
   
   define void @greet(i32 %x) {
   entry:

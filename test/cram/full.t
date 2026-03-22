@@ -4,7 +4,7 @@
   
   declare void @printint(i32)
   
-  declare void @printbool(i1)
+  declare void @printbool(i8)
   
   define i32 @main() {
   entry:
@@ -12,7 +12,8 @@
     store i32 5, ptr %x, align 4
     %x1 = load i32, ptr %x, align 4
     %eqtmp = icmp eq i32 %x1, 3
-    call void @printbool(i1 %eqtmp)
+    %argb = zext i1 %eqtmp to i8
+    call void @printbool(i8 %argb)
     %x2 = load i32, ptr %x, align 4
     %eqtmp3 = icmp eq i32 %x2, 3
     br i1 %eqtmp3, label %then, label %else

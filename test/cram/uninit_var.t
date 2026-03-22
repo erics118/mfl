@@ -4,14 +4,14 @@
   
   declare void @printint(i32)
   
-  declare void @printbool(i1)
+  declare void @printbool(i8)
   
   define i32 @main() {
   entry:
     %x = alloca i32, align 4
-    %flag = alloca i1, align 1
+    %flag = alloca i8, align 1
     store i32 5, ptr %x, align 4
-    store i1 true, ptr %flag, align 1
+    store i8 1, ptr %flag, align 1
     %x1 = load i32, ptr %x, align 4
     ret i32 %x1
   }

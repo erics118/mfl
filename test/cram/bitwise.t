@@ -4,7 +4,7 @@
   
   declare void @printint(i32)
   
-  declare void @printbool(i1)
+  declare void @printbool(i8)
   
   define i32 @bitwise(i32 %x, i32 %y) {
   entry:

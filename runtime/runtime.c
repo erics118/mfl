@@ -7,6 +7,6 @@ void printint(int32_t i) {
   printf("%d\n", i);
 }
 
-void printbool(int b) {
+void printbool(uint8_t b) {
   printf("%s\n", b ? "true" : "false");
 }

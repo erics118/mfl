@@ -9,6 +9,9 @@ let builder = Llvm.builder context
 (* builtin types *)
 let void_type = Llvm.void_type context
 let bool_type = Llvm.i1_type context
+
+(* bool should be an i8 in memory, but for computation it is a i1 *)
+let bool_mem_type = Llvm.i8_type context
 let char_type = Llvm.i8_type context
 let short_type = Llvm.i16_type context
 let int_type = Llvm.i32_type context
@@ -18,11 +21,11 @@ let pointer_type = Llvm.pointer_type context
 (** gets the size of a type in bits *)
 let sizeof_typ = function
   | Bool -> 1
-  | Char | UChar -> 8
-  | Short | UShort -> 16
-  | Int | UInt -> 32
-  | Long | ULong | LongLong | ULongLong -> 64
-  | Ptr _ -> 64
+  | Char | UChar -> 1
+  | Short | UShort -> 2
+  | Int | UInt -> 4
+  | Long | ULong | LongLong | ULongLong -> 8
+  | Ptr _ -> 8
   | Void -> 0
 
 (* maps variable names to their alloca ptr within the current function *)
@@ -41,15 +44,33 @@ let block_terminated () =
 let br_if_open bb =
   if not (block_terminated ()) then ignore (Llvm.build_br bb builder)
 
+(** zext i1 to i8 for storing a bool to memory *)
+let bool_to_mem v name = Llvm.build_zext v bool_mem_type name builder
+
+(** trunc i8 to i1 for loading a bool from memory *)
+let bool_from_mem v name = Llvm.build_trunc v bool_type name builder
+
 (* convert a typechecker typ to an llvm type *)
 let llvm_of_typ = function
-  | Bool -> bool_type
+  | Bool -> bool_mem_type
   | Void -> void_type
   | Char | UChar -> char_type
   | Short | UShort -> short_type
   | Int | UInt -> int_type
   | Long | ULong | LongLong | ULongLong -> long_type
   | Ptr _ -> pointer_type
+
+(** load a value of type [t] from [ptr], returning the computation-ready value.
+    handles any type-specific conversions, ie bool i8->i1 *)
+let emit_load t ptr name =
+  let v = Llvm.build_load (llvm_of_typ t) ptr name builder in
+  if t = Bool then bool_from_mem v (name ^ "_b") else v
+
+(** store a computation value of type [t] to [ptr]. handles any type-specific
+    conversions, ie bool i1->i8 *)
+let emit_store t v ptr =
+  let v' = if t = Bool then bool_to_mem v "storeb" else v in
+  ignore (Llvm.build_store v' ptr builder)
 
 (* true for signed integer types *)
 let is_signed = function
@@ -99,14 +120,14 @@ let rec codegen_binop operand_typ op lhs rhs =
           let ri = Llvm.build_ptrtoint rv long_type "ptrdiffr" builder in
           let diff = Llvm.build_sub li ri "ptrdiff" builder in
           (* we need to convert bits to bytes. use ceiling division. *)
-          let size = Llvm.const_int long_type ((sizeof_typ t + 7) / 8) in
+          let size = Llvm.const_int long_type (sizeof_typ t) in
           Llvm.build_sdiv diff size "ptrdiff" builder
       | Ptr t, rhs_t ->
           (* ptr - int: first convert index to i64, negate, then gep. this way,
              we prevent wrap-around issues if offset is unsigned and greater
              than INT32_MAX *)
           let rv64 =
-            if sizeof_typ rhs_t < 64 then
+            if sizeof_typ rhs_t < 8 then
               if is_signed rhs_t then
                 Llvm.build_sext rv long_type "sext" builder
               else Llvm.build_zext rv long_type "zext" builder
@@ -155,7 +176,7 @@ and codegen_uop op e =
       Llvm.build_neg v "" builder
   | Not ->
       let v = codegen_expr e in
-      let zero = Llvm.const_null (llvm_of_typ (expr_type e)) in
+      let zero = Llvm.const_null (Llvm.type_of v) in
       Llvm.build_icmp Llvm.Icmp.Eq v zero "nottmp" builder
   | Compl ->
       let v = codegen_expr e in
@@ -172,7 +193,7 @@ and codegen_uop op e =
       match expr_type e with
       | Ptr t ->
           let ptr = codegen_expr e in
-          Llvm.build_load (llvm_of_typ t) ptr "deref" builder
+          emit_load t ptr "deref"
       | _ -> assert false [@coverage off]
     end
 
@@ -183,10 +204,20 @@ and codegen_func_call ret_t name args =
     | None -> failwith ("undefined function: " ^ name)
   in
   let fn_ty = Llvm_ext.global_value_type fn in
-  let arg_vals = Array.of_list (List.map codegen_expr args) in
+  (* we have to zext the bools to i8 before the call *)
+  let arg_vals =
+    Array.of_list
+      (List.map
+         (fun arg ->
+           let v = codegen_expr arg in
+           if expr_type arg = Bool then bool_to_mem v "argb" else v)
+         args)
+  in
   (* if the return type is void, the call instruction can't have a name *)
   let call_name = if ret_t = Void then "" else "calltmp" in
-  Llvm.build_call fn_ty fn arg_vals call_name builder
+  let result = Llvm.build_call fn_ty fn arg_vals call_name builder in
+  (* and also trunc the i8 to i1 *)
+  if ret_t = Bool then bool_from_mem result "callb" else result
 
 and codegen_and_binop lhs rhs =
   let lv = codegen_expr lhs in
@@ -223,7 +254,9 @@ and codegen_or_binop lhs rhs =
 and codegen_expr (e : checked expr) : Llvm.llvalue =
   match e with
   | IntLiteral (Checked (_, t), n) -> Llvm.const_int (llvm_of_typ t) n
-  | BoolLiteral (Checked _, b) -> Llvm.const_int bool_type (if b then 1 else 0)
+  | BoolLiteral (Checked _, b) ->
+      (* bool literals produce i1 for computation *)
+      Llvm.const_int bool_type (if b then 1 else 0)
   | BinaryOp (Checked _, And, lhs, rhs) -> codegen_and_binop lhs rhs
   | BinaryOp (Checked _, Or, lhs, rhs) -> codegen_or_binop lhs rhs
   | BinaryOp (Checked _, op, lhs, rhs) ->
@@ -232,7 +265,7 @@ and codegen_expr (e : checked expr) : Llvm.llvalue =
       (* load the value from the variable's alloca; type comes from the
          annotation *)
       match Hashtbl.find_opt locals name with
-      | Some ptr -> Llvm.build_load (llvm_of_typ t) ptr name builder
+      | Some ptr -> emit_load t ptr name
       | None -> failwith ("undefined variable: " ^ name))
   | UnaryOp (Checked _, op, e) -> codegen_uop op e
   | Ternary (Checked _, cond, then_e, else_e) ->
@@ -244,8 +277,8 @@ and codegen_expr (e : checked expr) : Llvm.llvalue =
   | Assign (Checked _, e, value) ->
       let ptr = lvalue_ptr e in
       let v = codegen_expr value in
-      ignore (Llvm.build_store v ptr builder);
-      v
+      emit_store (expr_type value) v ptr;
+      v (* return the computation value, not memory value *)
   | PreInc (Checked _, e) -> codegen_incdec e `Inc `Pre
   | PreDec (Checked _, e) -> codegen_incdec e `Dec `Pre
   | PostInc (Checked _, e) -> codegen_incdec e `Inc `Post
@@ -396,7 +429,9 @@ and codegen_incdec e dir fix =
   in
   let ll_ty = llvm_of_typ ty in
   let ptr = Hashtbl.find locals name in
-  (* get the old value *)
+  (* load the raw memory value — we do arithmetic on it directly, so we want the
+     memory type (e.g. i8 for bool), not the computation type (i1). emit_load is
+     intentionally not used here. *)
   let old_val = Llvm.build_load ll_ty ptr name builder in
   (* update the new value by adding or subtracting 1 *)
   let new_val =
@@ -421,9 +456,13 @@ and codegen_incdec e dir fix =
   (* update the value *)
   ignore (Llvm.build_store new_val ptr builder);
   (* if postfix, return the old value; if prefix, return the new value *)
-  match fix with
-  | `Post -> old_val
-  | `Pre -> new_val
+  let result =
+    match fix with
+    | `Post -> old_val
+    | `Pre -> new_val
+  in
+  (* bool is stored as i8; trunc back to i1 for computation *)
+  if ty = Bool then bool_from_mem result "incdecb" else result
 
 and codegen_cast to_t e =
   let v = codegen_expr e in
@@ -503,7 +542,11 @@ and codegen_func_def ret_type name params body =
 and codegen_stmt = function
   | FuncDef { ret_type; name; params; body; _ } ->
       codegen_func_def ret_type name params body
-  | ReturnStmt (_, Some e) -> ignore (Llvm.build_ret (codegen_expr e) builder)
+  | ReturnStmt (_, Some e) ->
+      let v = codegen_expr e in
+      (* we have to zext the bool type to an i8 to match return type *)
+      let v_ret = if expr_type e = Bool then bool_to_mem v "retb" else v in
+      ignore (Llvm.build_ret v_ret builder)
   | ReturnStmt (_, None) -> ignore (Llvm.build_ret_void builder)
   | BreakStmt _ ->
       let _, break_bb = Stack.top loop_stack in
@@ -520,7 +563,9 @@ and codegen_stmt = function
       (* set variable to init if it exists *)
       begin match init with
       | None -> ()
-      | Some init -> ignore (Llvm.build_store (codegen_expr init) ptr builder)
+      | Some init ->
+          let v = codegen_expr init in
+          emit_store (Ast.typ_of_var_type var_type) v ptr
       end;
       Hashtbl.replace locals name ptr
   | If { cond; then_body; else_body; _ } -> codegen_if cond then_body else_body
@@ -535,7 +580,7 @@ let codegen_program (stmts : checked stmt list) : unit =
   in
   ignore (Llvm.declare_function "printint" printint_ty the_module);
   let printbool_ty =
-    Llvm.function_type (Llvm.void_type context) [| bool_type |]
+    Llvm.function_type (Llvm.void_type context) [| bool_mem_type |]
   in
   ignore (Llvm.declare_function "printbool" printbool_ty the_module);
   List.iter codegen_stmt stmts
