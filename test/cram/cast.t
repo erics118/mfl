@@ -4,7 +4,7 @@
   
   declare void @printint(i32)
   
-  declare void @printbool(i8)
+  declare void @printbool(i1 zeroext)
   
   define i32 @trunc_cast(i64 %x) {
   entry:
@@ -24,14 +24,13 @@
     ret i64 %sexttmp
   }
   
-  define i8 @to_bool(i32 %x) {
+  define zeroext i1 @to_bool(i32 %x) {
   entry:
     %x1 = alloca i32, align 4
     store i32 %x, ptr %x1, align 4
     %x2 = load i32, ptr %x1, align 4
     %booltmp = icmp ne i32 %x2, 0
-    %retb = zext i1 %booltmp to i8
-    ret i8 %retb
+    ret i1 %booltmp
   }
   
   define i32 @widen_char(i8 %c) {

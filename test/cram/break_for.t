@@ -5,7 +5,7 @@
   
   declare void @printint(i32)
   
-  declare void @printbool(i8)
+  declare void @printbool(i1 zeroext)
   
   define i32 @main() {
   entry:

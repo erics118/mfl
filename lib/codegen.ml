@@ -50,6 +50,10 @@ let bool_to_mem v name = Llvm.build_zext v bool_mem_type name builder
 (** trunc i8 to i1 for loading a bool from memory *)
 let bool_from_mem v name = Llvm.build_trunc v bool_type name builder
 
+(* zext attribute for bool function params and ret values. zext i1 as necessary,
+   matching the C ABI *)
+let zext_attr = Llvm.create_enum_attr context "zeroext" 0L
+
 (* convert a typechecker typ to an llvm type *)
 let llvm_of_typ = function
   | Bool -> bool_mem_type
@@ -204,20 +208,19 @@ and codegen_func_call ret_t name args =
     | None -> failwith ("undefined function: " ^ name)
   in
   let fn_ty = Llvm_ext.global_value_type fn in
-  (* we have to zext the bools to i8 before the call *)
-  let arg_vals =
-    Array.of_list
-      (List.map
-         (fun arg ->
-           let v = codegen_expr arg in
-           if expr_type arg = Bool then bool_to_mem v "argb" else v)
-         args)
-  in
+  let arg_vals = Array.of_list (List.map codegen_expr args) in
   (* if the return type is void, the call instruction can't have a name *)
   let call_name = if ret_t = Void then "" else "calltmp" in
   let result = Llvm.build_call fn_ty fn arg_vals call_name builder in
-  (* and also trunc the i8 to i1 *)
-  if ret_t = Bool then bool_from_mem result "callb" else result
+  (* add zext attr to bool args and bool return at the call site *)
+  if ret_t = Bool then
+    Llvm.add_call_site_attr result zext_attr Llvm.AttrIndex.Return;
+  List.iteri
+    (fun i arg ->
+      if expr_type arg = Bool then
+        Llvm.add_call_site_attr result zext_attr (Llvm.AttrIndex.Param i))
+    args;
+  result
 
 and codegen_and_binop lhs rhs =
   let lv = codegen_expr lhs in
@@ -505,14 +508,24 @@ and codegen_cast to_t e =
           v
 
 and codegen_func_def ret_type name params body =
+  (* use i1 for bool in signatures, not i8. zeroext handles the ABI *)
+  let llvm_of_sig_typ t = if t = Bool then bool_type else llvm_of_typ t in
   let param_types =
     Array.of_list
-      (List.map (fun (vt, _) -> llvm_of_typ (Ast.typ_of_var_type vt)) params)
+      (List.map
+         (fun (vt, _) -> llvm_of_sig_typ (Ast.typ_of_var_type vt))
+         params)
   in
-  let ty =
-    Llvm.function_type (llvm_of_typ (Ast.typ_of_var_type ret_type)) param_types
-  in
+  let ret_t = Ast.typ_of_var_type ret_type in
+  let ty = Llvm.function_type (llvm_of_sig_typ ret_t) param_types in
   let fn = Llvm.define_function name ty the_module in
+  (* add zeroext to bool return and bool parameters *)
+  if ret_t = Bool then Llvm.add_function_attr fn zext_attr Llvm.AttrIndex.Return;
+  List.iteri
+    (fun i (vt, _) ->
+      if Ast.typ_of_var_type vt = Bool then
+        Llvm.add_function_attr fn zext_attr (Llvm.AttrIndex.Param i))
+    params;
   (* clear scope for each function. no global variables atm *)
   Hashtbl.clear locals;
   (* allocate each param on the stack and store the incoming value, so params
@@ -522,9 +535,9 @@ and codegen_func_def ret_type name params body =
       let param = Llvm.param fn i in
       Llvm.set_value_name pname param;
       Llvm.position_at_end (Llvm.entry_block fn) builder;
-      let ty = llvm_of_typ (Ast.typ_of_var_type ptype) in
-      let ptr = Llvm.build_alloca ty pname builder in
-      ignore (Llvm.build_store param ptr builder);
+      let t = Ast.typ_of_var_type ptype in
+      let ptr = Llvm.build_alloca (llvm_of_typ t) pname builder in
+      emit_store t param ptr;
       Hashtbl.replace locals pname ptr)
     params;
   Llvm.position_at_end (Llvm.entry_block fn) builder;
@@ -534,19 +547,14 @@ and codegen_func_def ret_type name params body =
       ignore (Llvm.build_ret_void builder)
     else if name = "main" then
       (* add return 0; to main if missing *)
-      ignore
-        (Llvm.build_ret
-           (Llvm.const_null (llvm_of_typ (Ast.typ_of_var_type ret_type)))
-           builder)
+      ignore (Llvm.build_ret (Llvm.const_null (Llvm.return_type ty)) builder)
 
 and codegen_stmt = function
   | FuncDef { ret_type; name; params; body; _ } ->
       codegen_func_def ret_type name params body
   | ReturnStmt (_, Some e) ->
       let v = codegen_expr e in
-      (* we have to zext the bool type to an i8 to match return type *)
-      let v_ret = if expr_type e = Bool then bool_to_mem v "retb" else v in
-      ignore (Llvm.build_ret v_ret builder)
+      ignore (Llvm.build_ret v builder)
   | ReturnStmt (_, None) -> ignore (Llvm.build_ret_void builder)
   | BreakStmt _ ->
       let _, break_bb = Stack.top loop_stack in
@@ -580,9 +588,12 @@ let codegen_program (stmts : checked stmt list) : unit =
   in
   ignore (Llvm.declare_function "printint" printint_ty the_module);
   let printbool_ty =
-    Llvm.function_type (Llvm.void_type context) [| bool_mem_type |]
+    Llvm.function_type (Llvm.void_type context) [| bool_type |]
   in
-  ignore (Llvm.declare_function "printbool" printbool_ty the_module);
+  let printbool_fn =
+    Llvm.declare_function "printbool" printbool_ty the_module
+  in
+  Llvm.add_function_attr printbool_fn zext_attr (Llvm.AttrIndex.Param 0);
   List.iter codegen_stmt stmts
 
 let emit_ir () = Llvm.string_of_llmodule the_module [@coverage off]

@@ -4,12 +4,13 @@
   
   declare void @printint(i32)
   
-  declare void @printbool(i8)
+  declare void @printbool(i1 zeroext)
   
-  define i32 @ternary(i8 %cond, i32 %x, i32 %y) {
+  define i32 @ternary(i1 zeroext %cond, i32 %x, i32 %y) {
   entry:
     %cond1 = alloca i8, align 1
-    store i8 %cond, ptr %cond1, align 1
+    %storeb = zext i1 %cond to i8
+    store i8 %storeb, ptr %cond1, align 1
     %x2 = alloca i32, align 4
     store i32 %x, ptr %x2, align 4
     %y3 = alloca i32, align 4
