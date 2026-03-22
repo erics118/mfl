@@ -98,12 +98,21 @@ let rec codegen_binop operand_typ op lhs rhs =
           let li = Llvm.build_ptrtoint lv long_type "ptrdiffl" builder in
           let ri = Llvm.build_ptrtoint rv long_type "ptrdiffr" builder in
           let diff = Llvm.build_sub li ri "ptrdiff" builder in
-          (* sizeof typ gives the size in bits, we need to convert to bytes *)
-          let size = Llvm.const_int long_type (sizeof_typ t / 8) in
+          (* we need to convert bits to bytes. use ceiling division. *)
+          let size = Llvm.const_int long_type ((sizeof_typ t + 7) / 8) in
           Llvm.build_sdiv diff size "ptrdiff" builder
-      | Ptr t, _ ->
-          (* ptr - int: negate the index, then gep *)
-          let neg_rv = Llvm.build_neg rv "negidx" builder in
+      | Ptr t, rhs_t ->
+          (* ptr - int: first convert index to i64, negate, then gep. this way,
+             we prevent wrap-around issues if offset is unsigned and greater
+             than INT32_MAX *)
+          let rv64 =
+            if sizeof_typ rhs_t < 64 then
+              if is_signed rhs_t then
+                Llvm.build_sext rv long_type "sext" builder
+              else Llvm.build_zext rv long_type "zext" builder
+            else rv
+          in
+          let neg_rv = Llvm.build_neg rv64 "negidx" builder in
           Llvm.build_gep (llvm_of_typ t) lv [| neg_rv |] "subtmp" builder
       | _ -> Llvm.build_sub lv rv "subtmp" builder)
   | Mul -> Llvm.build_mul lv rv "multmp" builder
@@ -389,12 +398,25 @@ and codegen_incdec e dir fix =
   let ptr = Hashtbl.find locals name in
   (* get the old value *)
   let old_val = Llvm.build_load ll_ty ptr name builder in
-  let one = Llvm.const_int ll_ty 1 in
   (* update the new value by adding or subtracting 1 *)
   let new_val =
-    match dir with
-    | `Inc -> Llvm.build_add old_val one "incdec" builder
-    | `Dec -> Llvm.build_sub old_val one "incdec" builder
+    match (dir, ty) with
+    | `Inc, Ptr t ->
+        (* we need to use gep 1 for pointers *)
+        let one = Llvm.const_int int_type 1 in
+        Llvm.build_gep (llvm_of_typ t) old_val [| one |] "incdec" builder
+    | `Dec, Ptr t ->
+        (* we need to use gep -1 for pointers *)
+        let neg_one = Llvm.const_int int_type (-1) in
+        Llvm.build_gep (llvm_of_typ t) old_val [| neg_one |] "incdec" builder
+    | `Inc, _ ->
+        (* add 1 *)
+        let one = Llvm.const_int ll_ty 1 in
+        Llvm.build_add old_val one "incdec" builder
+    | `Dec, _ ->
+        (* subtract 1 *)
+        let one = Llvm.const_int ll_ty 1 in
+        Llvm.build_sub old_val one "incdec" builder
   in
   (* update the value *)
   ignore (Llvm.build_store new_val ptr builder);
