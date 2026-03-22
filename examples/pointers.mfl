@@ -1,0 +1,37 @@
+// swap two ints using pointers
+void swap(int* a, int* b) {
+    int tmp = *a;
+    *a = *b;
+    *b = tmp;
+}
+
+// increment via pointer
+void increment(int* n) {
+    *n = *n + 1;
+}
+
+int main() {
+    // read and write
+    int x = 10;
+    int* p = &x;
+    *p = 42;
+    printint(x);        // 42
+
+    // pointer to increment a variable
+    increment(&x);
+    printint(x);        // 43
+
+    // swap two variables with pointers
+    int a = 1;
+    int b = 99;
+    swap(&a, &b);
+    printint(a);        // 99
+    printint(b);        // 1
+
+    // pointer to pointer
+    int val = 7;
+    int* q = &val;
+    int** pp = &q;
+    **pp = 100;
+    printint(val);      // 100
+}

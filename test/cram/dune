@@ -2,4 +2,5 @@
  (deps
   (glob_files_rec fixtures/*)
   (glob_files_rec ../../runtime/*)
+  (glob_files_rec ../../examples/*)
   (package mfl)))
