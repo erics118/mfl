@@ -450,6 +450,36 @@ let test_pointer_arithmetic_errors _ =
     (bi Equal !"px" !"pc");
   ()
 
+let test_void_ptr _ =
+  let env = env_with [ ("p", Ptr Int); ("vp", Ptr Void); ("n", Int) ] in
+  let env_funcs =
+    {
+      (env_with [ ("p", Ptr Int); ("vp", Ptr Void) ]) with
+      funcs =
+        make_tbl
+          [
+            ("take_vp", { params = [ Ptr Void ]; ret = Void });
+            ("take_p", { params = [ Ptr Int ]; ret = Void });
+            ("noop", { params = []; ret = Void });
+          ];
+    }
+  in
+  (* void* to/from T* implicit conversion in assignment *)
+  check_typ ~env (Ptr Void) ("vp" := !"p");
+  check_typ ~env (Ptr Int) ("p" := !"vp");
+  (* void* <-> T* implicit conversion in function arguments *)
+  check_typ ~env:env_funcs Void ("take_vp" $ [ !"p" ]);
+  check_typ ~env:env_funcs Void ("take_p" $ [ !"vp" ]);
+  (* void* arithmetic is rejected *)
+  check_err ~env "operator '+': type mismatch between 'void*' and 'int'"
+    (bi Add !"vp" !"n");
+  check_err ~env "operator '+': type mismatch between 'int' and 'void*'"
+    (bi Add !"n" !"vp");
+  check_err ~env "operator '-': type mismatch between 'void*' and 'int'"
+    (bi Sub !"vp" !"n");
+  check_err ~env "operator '-': type mismatch between 'void*' and 'void*'"
+    (bi Sub !"vp" !"vp")
+
 let test_pointer_errors _ =
   let env =
     env_with [ ("x", Int); ("p", Ptr Int); ("vp", Ptr Void); ("q", Ptr Int) ]
@@ -566,6 +596,7 @@ let tests =
          "pointer_errors" >:: test_pointer_errors;
          "pointer_arithmetic" >:: test_pointer_arithmetic;
          "pointer_arithmetic_errors" >:: test_pointer_arithmetic_errors;
+         "void_ptr" >:: test_void_ptr;
          "break_continue" >:: test_break_continue;
          "break_continue_errors" >:: test_break_continue_errors;
          "missing_return" >:: test_missing_return;

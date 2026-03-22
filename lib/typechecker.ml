@@ -267,7 +267,15 @@ let can_explicit_cast from_t to_t =
 
 (** if we can do an cast/conversion as if by assignment *)
 let can_assign_cast from_t to_t =
-  if from_t = to_t then true else is_integer_type from_t && is_integer_type to_t
+  if from_t = to_t then true
+  else
+    match (from_t, to_t) with
+    | Ptr _, Ptr Void | Ptr Void, Ptr _ ->
+        (* void* cast is always allowed *)
+        true
+    | _ ->
+        (* otherwise, check that both are integer types *)
+        is_integer_type from_t && is_integer_type to_t
 
 (** apply "conversion as if by assignment" *)
 let cast_expr pos to_t (e : checked expr) : checked expr =
@@ -369,17 +377,27 @@ and typecheck_binary_op env ann op lhs rhs =
     when (is_pointer_type (expr_typ lhs) && is_integer_type (expr_typ rhs))
          || (is_integer_type (expr_typ lhs) && is_pointer_type (expr_typ rhs))
     ->
-      (* ptr + int or int + ptr *)
+      (* ptr + int or int + ptr — void* arithmetic is rejected *)
+      if expr_typ lhs = Ptr Void || expr_typ rhs = Ptr Void then
+        raise
+          (Type_error (pos, BinaryTypeMismatch (op, expr_typ lhs, expr_typ rhs)));
       let t =
         if is_pointer_type (expr_typ lhs) then expr_typ lhs else expr_typ rhs
       in
       BinaryOp (Checked (pos, t), op, lhs, rhs)
   | Sub when is_pointer_type (expr_typ lhs) && is_integer_type (expr_typ rhs) ->
-      (* ptr - int *)
+      (* ptr - int — void* arithmetic is rejected *)
+      if expr_typ lhs = Ptr Void then
+        raise
+          (Type_error (pos, BinaryTypeMismatch (op, expr_typ lhs, expr_typ rhs)));
       BinaryOp (Checked (pos, expr_typ lhs), op, lhs, rhs)
   | Sub when is_pointer_type (expr_typ lhs) && is_pointer_type (expr_typ rhs) ->
-      (* ptr - ptr: types must match *)
-      if expr_typ lhs <> expr_typ rhs then
+      (* ptr - ptr: types must match; void* - void* is rejected *)
+      if
+        expr_typ lhs = Ptr Void
+        || expr_typ rhs = Ptr Void
+        || expr_typ lhs <> expr_typ rhs
+      then
         raise
           (Type_error (pos, BinaryTypeMismatch (op, expr_typ lhs, expr_typ rhs)));
       BinaryOp (Checked (pos, Long), op, lhs, rhs)

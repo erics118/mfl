@@ -18,7 +18,7 @@ let int_type = Llvm.i32_type context
 let long_type = Llvm.i64_type context
 let pointer_type = Llvm.pointer_type context
 
-(** gets the size of a type in bits *)
+(** gets the size of a type in bytes *)
 let sizeof_typ = function
   | Bool -> 1
   | Char | UChar -> 1
