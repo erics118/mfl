@@ -25,10 +25,19 @@ let rec pp_expr_aux : type a. ?parent_prec:int -> a expr -> string =
       in
       if parent_prec > 5 then "(" ^ s ^ ")" else s
   | UnaryOp (_, op, e) ->
+      let needs_parens =
+        (* handle needing parens only when absolutely necessary *)
+        match (op, e) with
+        (* bin ops, assign, ternary always do *)
+        | _, (BinaryOp _ | Assign _ | Ternary _) -> true
+        (* prevent Neg Neg to turn into --, and Neg PreDec into --- *)
+        | Neg, (UnaryOp (_, Neg, _) | PreDec _) -> true
+        (* prevent AddrOf AddrOf from turning into && *)
+        | AddrOf, UnaryOp (_, AddrOf, _) -> true
+        | _ -> false
+      in
       let e_str =
-        match e with
-        | BinaryOp _ | UnaryOp _ -> "(" ^ pp_expr_aux e ^ ")"
-        | _ -> pp_expr_aux e
+        if needs_parens then "(" ^ pp_expr_aux e ^ ")" else pp_expr_aux e
       in
       string_of_uop op ^ e_str
   | BinaryOp (_, op, lhs, rhs) ->

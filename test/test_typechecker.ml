@@ -108,7 +108,10 @@ let test_literals _ =
   check_typ Int (i 123);
   check_typ Int (i (-1));
   check_typ Bool (b true);
-  check_typ Bool (b false)
+  check_typ Bool (b false);
+  (* literals outside the 32-bit signed range are typed as long *)
+  check_typ Long (i 2147483648);
+  check_typ Long (i (-2147483649))
 
 let test_arithmetic _ =
   check_typ Int (bi Add (i 1) (i 2));
@@ -138,7 +141,14 @@ let test_equality _ =
 
 let test_logical _ =
   check_typ Bool (bi And (b true) (b false));
-  check_typ Bool (bi Or (b false) (b true))
+  check_typ Bool (bi Or (b false) (b true));
+  (* && and || accept any scalar type *)
+  check_typ Bool (bi And (i 1) (i 0));
+  check_typ Bool (bi And (b true) (i 1));
+  check_typ Bool (bi And (i 0) (b false));
+  check_typ Bool (bi Or (i 1) (i 0));
+  check_typ Bool (bi Or (b true) (i 1));
+  check_typ Bool (bi Or (i 0) (b false))
 
 let test_unary _ =
   check_typ Bool (un Not (b true));
@@ -202,10 +212,11 @@ let test_equality_errors _ =
     (bi Neq (b false) noop)
 
 let test_logical_errors _ =
-  check_err "operator '&&': type mismatch between 'int' and 'int'"
-    (bi And (i 1) (i 0));
-  check_err "operator '||': type mismatch between 'bool' and 'int'"
-    (bi Or (b true) (i 1))
+  (* void isn't scalar, so rejected by && and || *)
+  check_err "operator '&&': type mismatch between 'void' and 'int'"
+    (bi And noop (i 1));
+  check_err "operator '||': type mismatch between 'bool' and 'void'"
+    (bi Or (b true) noop)
 
 let test_unary_errors _ =
   check_err "operator '!': invalid operand type 'void'" (un Not noop);
@@ -252,13 +263,25 @@ let test_func_call_errors _ =
 
 let test_ternary _ =
   check_typ Int (tern (b true) (i 1) (i 2));
-  check_typ Bool (tern (b false) (b true) (b false));
-  check_typ Bool (tern (bi Less (i 1) (i 2)) (b true) (b false))
+  (* bool branches both promote to int *)
+  check_typ Int (tern (b false) (b true) (b false));
+  check_typ Int (tern (bi Less (i 1) (i 2)) (b true) (b false));
+  (* scalar is coerced to bool *)
+  check_typ Int (tern (i 1) (i 2) (i 3));
+  (* promote to the larger type *)
+  let env = env_with [ ("c", Char); ("l", Long) ] in
+  check_typ ~env Int (tern (b true) !"c" (i 2));
+  check_typ ~env Long (tern (b true) (i 1) !"l");
+  (* bool promotes to int *)
+  check_typ Int (tern (b true) (b false) (i 1));
+  check_typ Int (tern (b true) (i 1) (b false))
 
 let test_ternary_errors _ =
-  check_err "condition must be 'bool' but got 'int'" (tern (i 1) (i 2) (i 3));
-  check_err "expected type 'int' but got 'bool'" (tern (b true) (i 1) (b false));
-  check_err "expected type 'bool' but got 'int'" (tern (b true) (b false) (i 1))
+  (* void is not a scalar condition *)
+  check_err "condition must be 'bool' but got 'void'" (tern noop (i 1) (i 2));
+  (* not an integer type, so mismatch *)
+  check_err "expected type 'int' but got 'void'" (tern (b true) (i 1) noop);
+  check_err "expected type 'void' but got 'int'" (tern (b true) noop (i 1))
 
 let test_incdec _ =
   let env = env_with [ ("x", Int); ("flag", Bool) ] in
@@ -269,7 +292,18 @@ let test_incdec _ =
   check_typ ~env Bool (pre_inc !"flag");
   check_typ ~env Bool (post_inc !"flag");
   check_typ ~env Bool (pre_dec !"flag");
-  check_typ ~env Bool (post_dec !"flag")
+  check_typ ~env Bool (post_dec !"flag");
+  (* inc/dec through a dereferenced pointer lvalue *)
+  let env = env_with [ ("p", Ptr Int); ("pp", Ptr (Ptr Int)) ] in
+  check_typ ~env Int (pre_inc (un Deref !"p"));
+  check_typ ~env Int (post_inc (un Deref !"p"));
+  check_typ ~env Int (pre_dec (un Deref !"p"));
+  check_typ ~env Int (post_dec (un Deref !"p"));
+  (* inc/dec through a double-pointer dereference *)
+  check_typ ~env (Ptr Int) (pre_inc (un Deref !"pp"));
+  check_typ ~env (Ptr Int) (post_inc (un Deref !"pp"));
+  check_typ ~env (Ptr Int) (pre_dec (un Deref !"pp"));
+  check_typ ~env (Ptr Int) (post_dec (un Deref !"pp"))
 
 let test_incdec_errors _ =
   let env_int = env_with [ ("x", Int) ] in
@@ -278,7 +312,11 @@ let test_incdec_errors _ =
   check_err ~env:env_int "expression is not an lvalue"
     (post_inc (bi Add !"x" (i 1)));
   check_err "expression is not an lvalue" (pre_inc noop);
-  check_err "expression is not an lvalue" (post_dec noop)
+  check_err "expression is not an lvalue" (post_dec noop);
+  (* inc/dec on void ptr dereference is not allowed *)
+  let env_vp = env_with [ ("vp", Ptr Void) ] in
+  check_err ~env:env_vp "operator '*': invalid operand type 'void*'"
+    (pre_inc (un Deref !"vp"))
 
 let test_cast _ =
   let env = env_with [ ("x", Long); ("n", Int); ("c", Char); ("p", Ptr Int) ] in
@@ -338,6 +376,42 @@ let test_conversions _ =
   check_typ Int (cast VInt (b true));
   check_typ Bool (cast VBool (i 7));
   check_typ ULongLong (cast VULongLong (i 7))
+
+let test_int_promotion _ =
+  (* small integer types promote to int before binary operations *)
+  let env =
+    env_with [ ("c", Char); ("uc", UChar); ("s", Short); ("us", UShort) ]
+  in
+  check_typ ~env Int (bi Add !"c" !"c");
+  check_typ ~env Int (bi Add !"uc" !"uc");
+  check_typ ~env Int (bi Add !"s" !"s");
+  check_typ ~env Int (bi Add !"us" !"us");
+  (* bool promotes to int too *)
+  check_typ Int (bi Add (b true) (b false));
+  (* verify the promoted type in the AST *)
+  match typecheck_expr env (bi Add !"c" !"c") with
+  | BinaryOp (Checked (_, Int), Add, lhs, rhs) ->
+      assert_implicit_cast_to Int lhs;
+      assert_implicit_cast_to Int rhs
+  | _ -> assert_failure "expected BinaryOp with Int result and cast operands"
+
+let test_sign_zero_ext _ =
+  (* signed values are widened *)
+  let env =
+    env_with [ ("sc", Char); ("uc", UChar); ("ss", Short); ("us", UShort) ]
+  in
+  (match typecheck_expr env (bi Add !"sc" (i 0)) with
+  | BinaryOp (_, _, lhs, _) -> assert_implicit_cast_to Int lhs
+  | _ -> assert_failure "expected BinaryOp");
+  (match typecheck_expr env (bi Add !"uc" (i 0)) with
+  | BinaryOp (_, _, lhs, _) -> assert_implicit_cast_to Int lhs
+  | _ -> assert_failure "expected BinaryOp");
+  (match typecheck_expr env (bi Add !"ss" (i 0)) with
+  | BinaryOp (_, _, lhs, _) -> assert_implicit_cast_to Int lhs
+  | _ -> assert_failure "expected BinaryOp");
+  match typecheck_expr env (bi Add !"us" (i 0)) with
+  | BinaryOp (_, _, lhs, _) -> assert_implicit_cast_to Int lhs
+  | _ -> assert_failure "expected BinaryOp"
 
 let test_implicit_casts _ =
   let env = env_with [ ("ok", Bool); ("c", Char); ("l", Long) ] in
@@ -493,6 +567,27 @@ let test_pointer_errors _ =
   check_err ~env "expected type 'int' but got 'int*'"
     (Assign (p, un Deref !"p", !"p"))
 
+let test_stmt_conditions _ =
+  (* any scalar can be used as a condition in control flow stmts *)
+  let ok s = ignore (typecheck_stmt default_env s) in
+  let e = EmptyStmt dummy_pos in
+  ok (If { pos = dummy_pos; cond = i 1; then_body = e; else_body = None });
+  ok (WhileLoop { pos = dummy_pos; cond = i 1; body = e });
+  ok (DoWhileLoop { pos = dummy_pos; body = e; cond = i 1 });
+  ok
+    (ForLoop
+       { pos = dummy_pos; init = e; cond = Some (i 1); incr = None; body = e });
+  (* void is not scalar, so void conditions are still rejected *)
+  check_stmt_err "condition must be 'bool' but got 'void'"
+    (If { pos = dummy_pos; cond = noop; then_body = e; else_body = None });
+  check_stmt_err "condition must be 'bool' but got 'void'"
+    (WhileLoop { pos = dummy_pos; cond = noop; body = e });
+  check_stmt_err "condition must be 'bool' but got 'void'"
+    (DoWhileLoop { pos = dummy_pos; body = e; cond = noop });
+  check_stmt_err "condition must be 'bool' but got 'void'"
+    (ForLoop
+       { pos = dummy_pos; init = e; cond = Some noop; incr = None; body = e })
+
 let test_break_continue _ =
   (* break and continue are valid inside loops *)
   let loop_env = { default_env with in_loop = true } in
@@ -591,12 +686,15 @@ let tests =
          "var_type_resolution" >:: test_var_type_resolution;
          "cast" >:: test_cast;
          "cast_errors" >:: test_cast_errors;
+         "int_promotion" >:: test_int_promotion;
+         "sign_zero_ext" >:: test_sign_zero_ext;
          "implicit_casts" >:: test_implicit_casts;
          "pointers" >:: test_pointers;
          "pointer_errors" >:: test_pointer_errors;
          "pointer_arithmetic" >:: test_pointer_arithmetic;
          "pointer_arithmetic_errors" >:: test_pointer_arithmetic_errors;
          "void_ptr" >:: test_void_ptr;
+         "stmt_conditions" >:: test_stmt_conditions;
          "break_continue" >:: test_break_continue;
          "break_continue_errors" >:: test_break_continue_errors;
          "missing_return" >:: test_missing_return;

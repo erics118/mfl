@@ -237,12 +237,6 @@ let check_unary pos op t =
   | Neg | Compl -> if is_integer_type t then t else err ()
   | AddrOf | Deref -> assert false
 
-let check_ternary pos cond_t then_t else_t =
-  if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
-  if then_t <> else_t then
-    raise (Type_error (pos, TypeMismatch (then_t, else_t)));
-  then_t
-
 (** insert an implicit cast node unless the type already matches *)
 let implicit_cast pos to_t (e : checked expr) : checked expr =
   let from_t = expr_typ e in
@@ -252,6 +246,19 @@ let implicit_cast pos to_t (e : checked expr) : checked expr =
   else
     (* different type, need a cast *)
     ImplicitCast (Checked (pos, to_t), to_t, e)
+
+(** coerce conditional to bool *)
+let coerce_cond pos (e : checked expr) : checked expr =
+  let t = expr_typ e in
+  if t = Bool then e
+  else if is_scalar_type t then implicit_cast pos Bool e
+  else raise (Type_error (pos, CondNotBool t))
+
+(** two branches must have the same type *)
+let check_ternary pos then_t else_t =
+  if then_t <> else_t then
+    raise (Type_error (pos, TypeMismatch (then_t, else_t)));
+  then_t
 
 (** if we can cast to a different scalar type *)
 let can_explicit_cast from_t to_t =
@@ -348,7 +355,11 @@ let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
   | ImplicitCast (_ann, _ty, _e) -> assert false
 
 and typecheck_int_lit (ann : parsed ann) (n : int) : checked expr =
-  IntLiteral (Checked (pos_of ann, Int), n)
+  (* decimal literals outside of the 32 bit range are turned into longs *)
+  (* todo: might overflow bc we can represent 64 bit integers but integers in
+  ocaml only have 63 bits *)
+  let t = if n >= -2147483648 && n <= 2147483647 then Int else Long in
+  IntLiteral (Checked (pos_of ann, t), n)
 
 and typecheck_bool_lit (ann : parsed ann) (b : bool) : checked expr =
   BoolLiteral (Checked (pos_of ann, Bool), b)
@@ -363,8 +374,12 @@ and typecheck_binary_op env ann op lhs rhs =
   in
   match op with
   | And | Or ->
-      let t = check_binary pos op (expr_typ lhs) (expr_typ rhs) in
-      BinaryOp (Checked (pos, t), op, lhs, rhs)
+      (* in C, && and || accept any scalar type; coerce operands to bool *)
+      if not (is_scalar_type (expr_typ lhs) && is_scalar_type (expr_typ rhs))
+      then err ();
+      let lhs = implicit_cast pos Bool lhs in
+      let rhs = implicit_cast pos Bool rhs in
+      BinaryOp (Checked (pos, Bool), op, lhs, rhs)
   | (Less | Leq | Greater | Geq | Equal | Neq)
     when is_pointer_type (expr_typ lhs) && is_pointer_type (expr_typ rhs) ->
       (* comparisons between pointers *)
@@ -474,13 +489,23 @@ and typecheck_unary_op env ann op e =
 and typecheck_ternary_op env ann cond then_e else_e =
   let pos = pos_of ann in
   let cond = typecheck_expr env cond in
+  let cond = coerce_cond pos cond in
   let then_e = typecheck_expr env then_e in
   let else_e = typecheck_expr env else_e in
-  (* ensure cond is a bool, and then_e and else_e have the same type *)
-  let t =
-    check_ternary pos (expr_typ cond) (expr_typ then_e) (expr_typ else_e)
-  in
-  Ternary (Checked (pos, t), cond, then_e, else_e)
+  let then_t = expr_typ then_e in
+  let else_t = expr_typ else_e in
+  (* for integer types, apply standard arithmetic conversions *)
+  if is_integer_type then_t && is_integer_type else_t then
+    let then_e = promote_integer pos then_e in
+    let else_e = promote_integer pos else_e in
+    let common_t = common_integer_type (expr_typ then_e) (expr_typ else_e) in
+    let then_e = implicit_cast pos common_t then_e in
+    let else_e = implicit_cast pos common_t else_e in
+    Ternary (Checked (pos, common_t), cond, then_e, else_e)
+  else
+    (* for non-integer types, require exact match *)
+    let t = check_ternary pos then_t else_t in
+    Ternary (Checked (pos, t), cond, then_e, else_e)
 
 and typecheck_func_call env ann f args =
   let pos = pos_of ann in
@@ -616,21 +641,17 @@ and typecheck_func_def env pos ret_type name params body =
 
 and typecheck_if env pos cond then_body else_body =
   let cond = typecheck_expr env cond in
+  let cond = coerce_cond pos cond in
   (* recursively typecheck then_body *)
   let then_body = typecheck_stmt env then_body in
   (* recursively typecheck else_body is Some *)
   let else_body = Option.map (typecheck_stmt env) else_body in
-  let cond_t = expr_typ cond in
-  (* ensure cond is Bool *)
-  if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
   If { pos; cond; then_body; else_body }
 
 and typecheck_while env pos cond body =
   let cond = typecheck_expr env cond in
+  let cond = coerce_cond pos cond in
   let body = typecheck_stmt { env with in_loop = true } body in
-  let cond_t = expr_typ cond in
-  (* ensure cond is Bool *)
-  if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
   WhileLoop { pos; cond; body }
 
 and typecheck_for env pos init cond incr body =
@@ -641,21 +662,16 @@ and typecheck_for env pos init cond incr body =
   let body = typecheck_stmt env body in
   begin match cond with
   | None -> ForLoop { pos; init; cond = None; incr; body }
-  | Some cond -> begin
-      let cond_t = expr_typ cond in
-      (* ensure cond is Bool *)
-      if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
+  | Some cond ->
+      let cond = coerce_cond pos cond in
       (* incr can be anything, we don't need to check its type *)
       ForLoop { pos; init; cond = Some cond; incr; body }
-    end
   end
 
 and typecheck_do_while env pos body cond =
   let body = typecheck_stmt { env with in_loop = true } body in
   let cond = typecheck_expr env cond in
-  let cond_t = expr_typ cond in
-  (* ensure cond is Bool *)
-  if cond_t <> Bool then raise (Type_error (pos, CondNotBool cond_t));
+  let cond = coerce_cond pos cond in
   DoWhileLoop { pos; body; cond }
 
 and typecheck_assign env ann lhs rhs =
