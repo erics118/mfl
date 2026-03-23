@@ -99,7 +99,17 @@ let test_mixed_precedence _ =
   (* && lower than comparison *)
   check "1 < 2 && 3 > 0;" "(1 < 2) && (3 > 0);";
   (* || lower than && *)
-  check "1 == 1 || 2 == 3 && 4 == 4;" "1 == 1 || (2 == 3 && 4 == 4);"
+  check "1 == 1 || 2 == 3 && 4 == 4;" "1 == 1 || (2 == 3 && 4 == 4);";
+  (* bit ops have lower precedence than comparison *)
+  check "a & b == c;" "a & (b == c);";
+  check "a | b == c;" "a | (b == c);";
+  check "a ^ b < c;" "a ^ (b < c);";
+  check "a & b < c;" "a & (b < c);";
+  (* equality has lower precedence than relations *)
+  check "a < b == c < d;" "(a < b) == (c < d);";
+  check "a >= b != c >= d;" "(a >= b) != (c >= d);";
+  (* ternary has lower precedence than || *)
+  check "a || b ? c : d;" "(a || b) ? c : d;"
 
 let test_unary _ =
   roundtrip "-1;";
@@ -107,13 +117,21 @@ let test_unary _ =
   roundtrip "-(-5);";
   roundtrip "&x;";
   roundtrip "*p;";
-  check "*(&p);" "*&p;";
-  check "&(*p);" "&*p;";
+  (* *& and &* are unambiguous *)
+  roundtrip "*&p;";
+  roundtrip "&*p;";
   roundtrip "!true;";
   roundtrip "!false;";
-  check "!(!true);" "!!true;";
-  roundtrip "~x;";
-  check "~(~x);" "~~x;";
+  (* !! is unambiguous *)
+  roundtrip "!!true;";
+  (* ~~ is unambiguous *)
+  roundtrip "~~x;";
+  roundtrip "-(-x);";
+  (* AddrOf of AddrOf would form && without parens *)
+  roundtrip "&(&x);";
+  (* unary of ternary or assign needs parens *)
+  roundtrip "-(a ? b : c);";
+  roundtrip "~(x = 5);";
   (* unary binds tighter than binary *)
   roundtrip "-1 + 2;";
   roundtrip "!true && false;";
@@ -131,9 +149,25 @@ let test_incdec _ =
   roundtrip "x++;";
   (* postfix binds tighter than prefix *)
   check "++x++;" "++(x++);";
+  roundtrip "++x++;";
   roundtrip "(++x)++;";
   roundtrip "x++++;";
-  roundtrip "++++x;"
+  roundtrip "++++x;";
+  (* postfix binds tighter than (unary) deref *)
+  check "*p++;" "*(p++);";
+  roundtrip "*p++;";
+  roundtrip "*p--;";
+  roundtrip "(*p)++;";
+  roundtrip "(*p)--;";
+  (* postfix binds tighter than neg *)
+  check "-x++;" "-(x++);";
+  roundtrip "-x++;";
+  roundtrip "--x++;";
+  (* postfix binds looser than (unary) deref *)
+  check "++*p;" "++(*p);";
+  check "--*p;" "--(*p);";
+  roundtrip "++*p;";
+  roundtrip "--*p;"
 
 let test_multiple_statements _ =
   roundtrip "1;\n2;\n3;\n4;\n5;";
@@ -322,7 +356,13 @@ let test_cast _ =
   (* cast binds tighter than binary ops *)
   check "(int)x + 1;" "(int)(x) + 1;";
   (* nested cast *)
-  roundtrip "(int)(long)x;"
+  roundtrip "(int)(long)x;";
+  (* postfix binds tighter than casting *)
+  check "(int)x++;" "(int)(x++);";
+  (* unary binds tighter than of unary minus *)
+  check "(int)-x;" "(int)(-x);";
+  (* postfix binds tighter than cast and deref*)
+  check "(int)*p++;" "(int)(*(p++));"
 
 let test_errors _ =
   fails "unexpected end of input" "";
