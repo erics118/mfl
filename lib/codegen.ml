@@ -167,11 +167,26 @@ let rec codegen_binop operand_typ op lhs rhs =
   | BitAnd -> Llvm.build_and lv rv "bandtmp" builder
   | BitOr -> Llvm.build_or lv rv "bortmp" builder
   | BitXor -> Llvm.build_xor lv rv "xortmp" builder
-  | LShift -> Llvm.build_shl lv rv "shltmp" builder
-  (* signed fills with sign bit, unsigned fills with zero *)
-  | RShift ->
-      if signed then Llvm.build_ashr lv rv "ashrtmp" builder
-      else Llvm.build_lshr lv rv "lsrtmp" builder
+  | LShift | RShift -> (
+      let lv_ty = Llvm.type_of lv in
+      let rv_ty = Llvm.type_of rv in
+      (* zext right type as necessary, because lhs and rhs must have the same
+         type *)
+      let rv =
+        if lv_ty = rv_ty then rv
+        else
+          let lv_bits = Llvm.integer_bitwidth lv_ty in
+          let rv_bits = Llvm.integer_bitwidth rv_ty in
+          if rv_bits < lv_bits then Llvm.build_zext rv lv_ty "shift_ext" builder
+          else Llvm.build_trunc rv lv_ty "shift_trunc" builder
+      in
+      match op with
+      | LShift -> Llvm.build_shl lv rv "shltmp" builder
+      (* signed fills with sign bit, unsigned fills with zero *)
+      | RShift ->
+          if signed then Llvm.build_ashr lv rv "ashrtmp" builder
+          else Llvm.build_lshr lv rv "lsrtmp" builder
+      | _ -> assert false [@coverage off])
 
 and codegen_uop op e =
   match op with
@@ -447,6 +462,14 @@ and codegen_incdec e dir fix =
         (* subtract 1 *)
         let one = Llvm.const_int ll_ty 1 in
         Llvm.build_sub old_val one "incdec" builder
+  in
+  (* normalize bool to 0 or 1. non-zero becomes 1, zero stays 0 *)
+  let new_val =
+    if ty = Bool then
+      let zero = Llvm.const_null bool_mem_type in
+      let b = Llvm.build_icmp Llvm.Icmp.Ne new_val zero "boolnorm" builder in
+      bool_to_mem b "boolnorm_mem"
+    else new_val
   in
   (* update the value *)
   ignore (Llvm.build_store new_val ptr builder);
