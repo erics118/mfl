@@ -200,11 +200,11 @@ type 'a stmt =
 let precedence = function
   | Or -> 10
   | And -> 20
-  | Equal | Neq -> 30
-  | Less | Leq | Greater | Geq -> 40
-  | BitOr -> 50
-  | BitXor -> 60
-  | BitAnd -> 70
+  | BitOr -> 30
+  | BitXor -> 40
+  | BitAnd -> 50
+  | Equal | Neq -> 60
+  | Less | Leq | Greater | Geq -> 70
   | LShift | RShift -> 75
   | Add | Sub -> 80
   | Mul | Div | Mod -> 90
