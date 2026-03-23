@@ -220,27 +220,27 @@ and parse_primary st =
   | TokLParen -> parse_paren_expr st
   | TokMinus ->
       advance st;
-      UnaryOp (Parsed pos, Neg, parse_primary st)
+      UnaryOp (Parsed pos, Neg, parse_postfix st)
   | TokAmp ->
       advance st;
-      UnaryOp (Parsed pos, AddrOf, parse_primary st)
+      UnaryOp (Parsed pos, AddrOf, parse_postfix st)
   | TokStar ->
       advance st;
-      UnaryOp (Parsed pos, Deref, parse_primary st)
+      UnaryOp (Parsed pos, Deref, parse_postfix st)
   | TokBang ->
       advance st;
-      UnaryOp (Parsed pos, Not, parse_primary st)
+      UnaryOp (Parsed pos, Not, parse_postfix st)
   | TokTilde ->
       advance st;
-      UnaryOp (Parsed pos, Compl, parse_primary st)
+      UnaryOp (Parsed pos, Compl, parse_postfix st)
   | TokEof -> raise (Parse_error (pos, "unexpected end of input"))
   | TokPlusPlus ->
       advance st;
-      let e = parse_primary st in
+      let e = parse_postfix st in
       PreInc (Parsed pos, e)
   | TokMinusMinus ->
       advance st;
-      let e = parse_primary st in
+      let e = parse_postfix st in
       PreDec (Parsed pos, e)
   | _ ->
       raise
