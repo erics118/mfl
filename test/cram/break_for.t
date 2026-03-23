@@ -24,9 +24,9 @@
     br i1 %lttmp, label %for_body, label %for_after
   
   for_incr:                                         ; preds = %merge
-    %i5 = load i32, ptr %i, align 4
-    %incdec = add i32 %i5, 1
-    store i32 %incdec, ptr %i, align 4
+    %incdec = load i32, ptr %i, align 4
+    %incdec5 = add i32 %incdec, 1
+    store i32 %incdec5, ptr %i, align 4
     br label %for_cond
   
   for_body:                                         ; preds = %for_cond

@@ -7,7 +7,7 @@ void swap(int* a, int* b) {
 
 // increment via pointer
 void increment(int* n) {
-    *n = *n + 1;
+    ++*n;
 }
 
 int main() {

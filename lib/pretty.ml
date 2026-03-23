@@ -49,13 +49,13 @@ let rec pp_expr_aux : type a. ?parent_prec:int -> a expr -> string =
       Printf.sprintf "%s = %s" (pp_expr_aux e) (pp_expr_aux value)
   | PreInc (_, e) -> "++" ^ pp_expr_aux e
   | PreDec (_, e) -> "--" ^ pp_expr_aux e
-  (* if there is a prefix operator, we need parentheses to prevent ambiguity, so
-     we put parentheses around the inner expr *)
+  (* postfix binds tighter than any prefix operator, so any prefix-op operand
+     needs parens around it *)
   | PostInc (_, e) ->
       let s = pp_expr_aux e in
       let s =
         match e with
-        | PreInc _ | PreDec _ -> "(" ^ s ^ ")"
+        | PreInc _ | PreDec _ | UnaryOp _ -> "(" ^ s ^ ")"
         | _ -> s
       in
       s ^ "++"
@@ -63,7 +63,7 @@ let rec pp_expr_aux : type a. ?parent_prec:int -> a expr -> string =
       let s = pp_expr_aux e in
       let s =
         match e with
-        | PreInc _ | PreDec _ -> "(" ^ s ^ ")"
+        | PreInc _ | PreDec _ | UnaryOp _ -> "(" ^ s ^ ")"
         | _ -> s
       in
       s ^ "--"

@@ -55,9 +55,9 @@
     br label %for_cond8
   
   for_body10:                                       ; preds = %for_cond8
-    %i13 = load i32, ptr %i, align 4
-    %incdec = add i32 %i13, 1
-    store i32 %incdec, ptr %i, align 4
+    %incdec = load i32, ptr %i, align 4
+    %incdec13 = add i32 %incdec, 1
+    store i32 %incdec13, ptr %i, align 4
     br label %for_incr9
   
   for_after11:                                      ; preds = %for_cond8
@@ -70,8 +70,8 @@
     br label %for_body17
   
   for_incr16:                                       ; No predecessors!
-    %i20 = load i32, ptr %i, align 4
-    %incdec21 = add i32 %i20, 1
+    %incdec20 = load i32, ptr %i, align 4
+    %incdec21 = add i32 %incdec20, 1
     store i32 %incdec21, ptr %i, align 4
     br label %for_cond15
   
@@ -96,8 +96,8 @@
     br label %for_cond23
   
   for_body25:                                       ; preds = %for_cond23
-    %j29 = load i32, ptr %j, align 4
-    %incdec30 = add i32 %j29, 1
+    %incdec29 = load i32, ptr %j, align 4
+    %incdec30 = add i32 %incdec29, 1
     store i32 %incdec30, ptr %j, align 4
     br label %for_incr24
   
@@ -113,8 +113,8 @@
     br label %for_body34
   
   for_incr33:                                       ; No predecessors!
-    %j38 = load i32, ptr %j36, align 4
-    %incdec39 = add i32 %j38, 1
+    %incdec38 = load i32, ptr %j36, align 4
+    %incdec39 = add i32 %incdec38, 1
     store i32 %incdec39, ptr %j36, align 4
     br label %for_cond32
   
@@ -134,8 +134,8 @@
     br i1 %lttmp46, label %for_body43, label %for_after44
   
   for_incr42:                                       ; preds = %for_body43
-    %i47 = load i32, ptr %i, align 4
-    %incdec48 = add i32 %i47, 1
+    %incdec47 = load i32, ptr %i, align 4
+    %incdec48 = add i32 %incdec47, 1
     store i32 %incdec48, ptr %i, align 4
     br label %for_cond41
   

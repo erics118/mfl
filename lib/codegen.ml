@@ -422,20 +422,12 @@ and codegen_ternary cond then_e else_e =
   Llvm.build_phi [ (tv, then_bb'); (ev, else_bb') ] "ternary" builder
 
 and codegen_incdec e dir fix =
-  let name, ty =
-    match e with
-    | VarRef (Checked (_, t), n) -> (n, t)
-    | _ ->
-        (* we know it is a lvalue, ie a VarRef. this will have to change in the
-           future though, after adding pointers, arrays, etc *)
-        assert false [@coverage off]
-  in
+  let ty = expr_type e in
   let ll_ty = llvm_of_typ ty in
-  let ptr = Hashtbl.find locals name in
-  (* load the raw memory value — we do arithmetic on it directly, so we want the
-     memory type (e.g. i8 for bool), not the computation type (i1). emit_load is
-     intentionally not used here. *)
-  let old_val = Llvm.build_load ll_ty ptr name builder in
+  let ptr = lvalue_ptr e in
+  (* load the memory value to edit directly. emit_load would trunc bool i8 to an
+     i1, but arithmetic must happen on the i8 *)
+  let old_val = Llvm.build_load ll_ty ptr "incdec" builder in
   (* update the new value by adding or subtracting 1 *)
   let new_val =
     match (dir, ty) with
