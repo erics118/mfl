@@ -46,6 +46,13 @@ let test_identifiers_and_keywords _ =
   check [ TokDoKw ] "do";
   check [ TokForKw ] "for";
   check [ TokVoidKw ] "void";
+  check [ TokBreakKw ] "break";
+  check [ TokContinueKw ] "continue";
+  check [ TokCharKw ] "char";
+  check [ TokShortKw ] "short";
+  check [ TokLongKw ] "long";
+  check [ TokUnsignedKw ] "unsigned";
+  check [ TokSignedKw ] "signed";
   check [ TokIdent "x" ] "x";
   check [ TokIdent "CustomType" ] "CustomType";
   check [ TokIdent "abc1" ] "abc1";
@@ -100,8 +107,16 @@ let test_binary_ops _ =
 let test_unary_ops _ =
   check [ TokBang ] "!";
   check [ TokTilde ] "~";
+  check [ TokPlusPlus ] "++";
+  check [ TokMinusMinus ] "--";
   (* != takes priority over ! *)
-  check [ TokBangEq ] "!="
+  check [ TokBangEq ] "!=";
+  (* ++ and -- take priority over + and - *)
+  check [ TokPlusPlus; TokInt 1 ] "++ 1";
+  check [ TokMinusMinus; TokInt 1 ] "-- 1";
+  (* not parsed as ++ and -- *)
+  check [ TokPlus ] "+";
+  check [ TokMinus ] "-"
 
 let test_whitespace _ =
   check [ TokInt 1; TokPlus; TokInt 2 ] "1 + 2";
@@ -149,7 +164,9 @@ let test_sequences _ =
     "int f(int a, int b) { return a + b; }"
 
 let test_string_of_token _ =
+  (* special *)
   assert_equal "EOF" (string_of_token TokEof);
+  (* punctuation *)
   assert_equal ";" (string_of_token TokSemicolon);
   assert_equal "," (string_of_token TokComma);
   assert_equal "?" (string_of_token TokQuestion);
@@ -158,18 +175,54 @@ let test_string_of_token _ =
   assert_equal "}" (string_of_token TokRBrace);
   assert_equal "(" (string_of_token TokLParen);
   assert_equal ")" (string_of_token TokRParen);
+  (* literals *)
   assert_equal "42" (string_of_token (TokInt 42));
   assert_equal "true" (string_of_token (TokBool true));
+  assert_equal "false" (string_of_token (TokBool false));
+  (* identifiers *)
+  assert_equal "x" (string_of_token (TokIdent "x"));
+  (* keywords *)
   assert_equal "int" (string_of_token TokIntKw);
   assert_equal "bool" (string_of_token TokBoolKw);
+  assert_equal "void" (string_of_token TokVoidKw);
   assert_equal "return" (string_of_token TokReturnKw);
   assert_equal "if" (string_of_token TokIfKw);
   assert_equal "else" (string_of_token TokElseKw);
   assert_equal "while" (string_of_token TokWhileKw);
   assert_equal "for" (string_of_token TokForKw);
-  assert_equal "x" (string_of_token (TokIdent "x"));
+  assert_equal "break" (string_of_token TokBreakKw);
+  assert_equal "continue" (string_of_token TokContinueKw);
+  assert_equal "do" (string_of_token TokDoKw);
+  assert_equal "char" (string_of_token TokCharKw);
+  assert_equal "short" (string_of_token TokShortKw);
+  assert_equal "long" (string_of_token TokLongKw);
+  assert_equal "unsigned" (string_of_token TokUnsignedKw);
+  assert_equal "signed" (string_of_token TokSignedKw);
+  (* binary operators *)
   assert_equal "+" (string_of_token TokPlus);
+  assert_equal "-" (string_of_token TokMinus);
+  assert_equal "*" (string_of_token TokStar);
+  assert_equal "/" (string_of_token TokSlash);
+  assert_equal "%" (string_of_token TokPercent);
+  assert_equal "==" (string_of_token TokEqEq);
+  assert_equal "!=" (string_of_token TokBangEq);
+  assert_equal "<" (string_of_token TokLt);
+  assert_equal "<=" (string_of_token TokLtEq);
+  assert_equal ">" (string_of_token TokGt);
+  assert_equal ">=" (string_of_token TokGtEq);
+  assert_equal "&&" (string_of_token TokAmpAmp);
+  assert_equal "||" (string_of_token TokPipePipe);
+  assert_equal "&" (string_of_token TokAmp);
+  assert_equal "|" (string_of_token TokPipe);
+  assert_equal "^" (string_of_token TokCaret);
+  assert_equal "<<" (string_of_token TokLtLt);
+  assert_equal ">>" (string_of_token TokGtGt);
+  (* unary operators *)
   assert_equal "!" (string_of_token TokBang);
+  assert_equal "~" (string_of_token TokTilde);
+  assert_equal "++" (string_of_token TokPlusPlus);
+  assert_equal "--" (string_of_token TokMinusMinus);
+  (* assignment *)
   assert_equal "=" (string_of_token TokAssign)
 
 let test_comments _ =
