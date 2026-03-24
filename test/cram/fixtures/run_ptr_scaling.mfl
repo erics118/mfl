@@ -1,0 +1,16 @@
+int main() {
+    int arr1 = 10;
+    int arr2 = 20;
+    int arr3 = 30;
+    int* p = &arr1;
+    int* orig = p;
+    p++;
+    long diff = p - orig;
+    printint((int)diff);
+    p++;
+    diff = p - orig;
+    printint((int)diff);
+    p--;
+    diff = p - orig;
+    printint((int)diff);
+}

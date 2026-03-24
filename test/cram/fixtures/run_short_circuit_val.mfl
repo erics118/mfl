@@ -1,0 +1,16 @@
+int main() {
+    int x = 5;
+    int y = 3;
+    int a = x && y;
+    int b = x || y;
+    int c = 0 && y;
+    int d = 0 || y;
+    int e = x && 0;
+    int f = x || 0;
+    printint(a);
+    printint(b);
+    printint(c);
+    printint(d);
+    printint(e);
+    printint(f);
+}

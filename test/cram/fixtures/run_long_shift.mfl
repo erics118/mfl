@@ -1,0 +1,10 @@
+int main() {
+    long x = -8;
+    long s = 1;
+    printint((int)(x >> s));
+
+    long a = 1;
+    long b = 62;
+    long big = a << b;
+    printint((int)(big >> 32));
+}

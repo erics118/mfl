@@ -1,0 +1,10 @@
+int main() {
+    printint(-7 / 2);
+    printint(7 / -2);
+    printint(-7 / -2);
+    printint(-7 % 3);
+    printint(7 % -3);
+    printint(-7 % -3);
+    printint(100 / 10);
+    printint(100 % 10);
+}

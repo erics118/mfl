@@ -1,0 +1,22 @@
+int main() {
+    char a = 127;
+    a++;
+    printint((int)a);
+
+    unsigned char b = 200;
+    printint((int)b);
+
+    unsigned char c = 255;
+    c++;
+    printint((int)c);
+
+    char d = -1;
+    printint((int)d);
+
+    unsigned char e = 255;
+    printint((int)e);
+
+    char f = -128;
+    f--;
+    printint((int)f);
+}

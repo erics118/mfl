@@ -1,0 +1,14 @@
+int main() {
+    char sc = -1;
+    int si = sc;
+    printint(si);
+    unsigned char uc = 255;
+    int ui = uc;
+    printint(ui);
+    short ss = -1;
+    int ssi = ss;
+    printint(ssi);
+    unsigned short us = 65535;
+    int usi = us;
+    printint(usi);
+}

@@ -1,0 +1,17 @@
+int main() {
+    bool a = false;
+    a++;
+    printbool(a);
+
+    bool b = true;
+    b++;
+    printbool(b);
+
+    bool c = true;
+    c--;
+    printbool(c);
+
+    bool d = false;
+    d--;
+    printbool(d);
+}

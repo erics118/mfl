@@ -1,0 +1,18 @@
+int main() {
+    unsigned int a = 4294967295;
+    unsigned int b = a + 1;
+    printint((int)b);
+
+    unsigned int c = 0;
+    unsigned int d = c - 1;
+    printint((int)d);
+
+    unsigned int x = 2147483648;
+    unsigned int y = x * 2;
+    printint((int)y);
+
+    unsigned int p = 100;
+    unsigned int q = 3;
+    printint((int)(p / q));
+    printint((int)(p % q));
+}

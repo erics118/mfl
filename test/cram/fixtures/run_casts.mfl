@@ -1,0 +1,14 @@
+int main() {
+    printint((int)(char)300);
+    printint((int)(char)(-300));
+    printint((int)(short)100000);
+    printint((int)(unsigned char)(-1));
+    printint((int)(unsigned short)(-1));
+    printint((int)(bool)0);
+    printint((int)(bool)42);
+    printint((int)(bool)(-1));
+
+    long big = 1000000000;
+    big = big * 10;
+    printint((int)big);
+}

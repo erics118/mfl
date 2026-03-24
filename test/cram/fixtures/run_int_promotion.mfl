@@ -1,0 +1,14 @@
+int main() {
+    char a = 100;
+    char b = 100;
+    int sum = a + b;
+    printint(sum);
+    unsigned char ua = 200;
+    unsigned char ub = 200;
+    int usum = ua + ub;
+    printint(usum);
+    short sa = 30000;
+    short sb = 10000;
+    int ssum = sa + sb;
+    printint(ssum);
+}

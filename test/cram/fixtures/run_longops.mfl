@@ -1,0 +1,17 @@
+int main() {
+    long a = 2147483647;
+    long b = a + 1;
+    printint((int)b);
+
+    long x = 1000000000;
+    long y = x * x;
+    printint((int)y);
+
+    long neg = -999999999;
+    printint((int)(neg / 100));
+    printint((int)(neg % 1000));
+
+    long c = 2147483647;
+    long d = -2147483648;
+    printint((int)(c + d));
+}

@@ -1,0 +1,21 @@
+int main() {
+    printbool((bool)0);
+    printbool((bool)1);
+    printbool((bool)42);
+    printbool((bool)(-1));
+    printbool(1 == 1);
+    printbool(1 == 2);
+    printbool(1 != 2);
+    printbool(3 > 2);
+    printbool(2 > 3);
+
+    bool t = true;
+    bool f = false;
+    printbool(t && t);
+    printbool(t && f);
+    printbool(f && t);
+    printbool(f || t);
+    printbool(f || f);
+    printbool(!t);
+    printbool(!f);
+}

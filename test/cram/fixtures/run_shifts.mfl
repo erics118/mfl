@@ -1,0 +1,16 @@
+int main() {
+    int x = -8;
+    printint(x >> 1);
+    printint(x >> 2);
+    printint(-1 >> 31);
+    printint(1 << 10);
+    printint(1 << 30);
+
+    unsigned int u = 2147483648;
+    printint((int)(u >> 1));
+    printint((int)(u >> 31));
+
+    unsigned int a = 255;
+    printint((int)(a << 8));
+    printint((int)(a << 16));
+}

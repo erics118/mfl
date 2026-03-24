@@ -1,0 +1,14 @@
+int main() {
+    bool a = 42;
+    bool b = 0;
+    bool c = -1;
+    bool d = 1;
+    printbool(a);
+    printbool(b);
+    printbool(c);
+    printbool(d);
+    int ia = a;
+    int ib = b;
+    printint(ia);
+    printint(ib);
+}

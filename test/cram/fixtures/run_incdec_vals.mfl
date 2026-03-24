@@ -1,0 +1,18 @@
+int main() {
+    int x = 5;
+    int y = x++;
+    printint(y);
+    printint(x);
+    x = 5;
+    int z = ++x;
+    printint(z);
+    printint(x);
+    int a = 3;
+    int b = a--;
+    printint(b);
+    printint(a);
+    a = 3;
+    int c = --a;
+    printint(c);
+    printint(a);
+}
