@@ -168,8 +168,9 @@ let parse_type_name st =
   in
   parse_ptr_suffix base
 
-let is_type_token st =
-  match st.cur_tok with
+(* exhaustive match on token ensures new type keywords are not silently
+   missed *)
+let is_type_keyword = function
   | TokBoolKw
   | TokVoidKw
   | TokCharKw
@@ -178,7 +179,52 @@ let is_type_token st =
   | TokLongKw
   | TokUnsignedKw
   | TokSignedKw -> true
-  | _ -> false
+  | TokInt _
+  | TokBool _
+  | TokChar _
+  | TokIdent _
+  | TokReturnKw
+  | TokIfKw
+  | TokElseKw
+  | TokWhileKw
+  | TokForKw
+  | TokBreakKw
+  | TokContinueKw
+  | TokDoKw
+  | TokPlus
+  | TokMinus
+  | TokStar
+  | TokSlash
+  | TokPercent
+  | TokEqEq
+  | TokBangEq
+  | TokLt
+  | TokLtEq
+  | TokGt
+  | TokGtEq
+  | TokAmpAmp
+  | TokPipePipe
+  | TokAmp
+  | TokPipe
+  | TokCaret
+  | TokLtLt
+  | TokGtGt
+  | TokBang
+  | TokTilde
+  | TokPlusPlus
+  | TokMinusMinus
+  | TokAssign
+  | TokLParen
+  | TokRParen
+  | TokLBrace
+  | TokRBrace
+  | TokSemicolon
+  | TokComma
+  | TokQuestion
+  | TokColon
+  | TokEof -> false
+
+let is_type_token st = is_type_keyword st.cur_tok
 
 (* expressions *)
 let rec parse_paren_expr st =
@@ -325,19 +371,11 @@ let parse_return_stmt st =
 
 let looks_like_definition st =
   match st.cur_tok with
-  | TokIntKw
-  | TokBoolKw
-  | TokVoidKw
-  | TokCharKw
-  | TokShortKw
-  | TokLongKw
-  | TokUnsignedKw
-  | TokSignedKw -> true
   | TokIdent _ -> (
       match Lexer.peek_token st.lex with
       | TokIdent _ -> true
       | _ -> false)
-  | _ -> false
+  | tok -> is_type_keyword tok
 
 (* statements *)
 let rec parse_statement st =
