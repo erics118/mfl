@@ -217,6 +217,9 @@ and parse_primary st =
   | TokBool b ->
       advance st;
       BoolLiteral (Parsed pos, b)
+  | TokChar c ->
+      advance st;
+      CharLiteral (Parsed pos, c)
   | TokIdent _ -> parse_identifier_expr st pos
   | TokLParen -> parse_paren_expr st
   | TokMinus ->

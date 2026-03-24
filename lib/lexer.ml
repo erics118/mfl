@@ -36,6 +36,8 @@ let tok_pos st = Ast.{ line = st.tok_line; col = st.tok_col }
 
 let is_digit c = c >= '0' && c <= '9'
 let is_alpha c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c = '_'
+let is_alnum c = is_digit c || is_alpha c
+let is_hex c = is_digit c || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F')
 
 let advance_while pred st =
   while
@@ -51,7 +53,7 @@ let peek2 st =
   if pos < String.length st.input then Some st.input.[pos] else None
 
 let rec skip_whitespace_and_comments st =
-  (* ship whitespace *)
+  (* skip whitespace *)
   advance_while
     (function
       | ' ' | '\t' | '\r' | '\n' -> true
@@ -89,7 +91,7 @@ let read_number st =
   advance_while is_digit st;
   match peek st with
   | Some c when is_alpha c ->
-      advance_while (fun c -> is_alpha c || is_digit c) st;
+      advance_while is_alnum st;
       let bad_literal = String.sub st.input start (st.pos - start) in
       raise
         (Lex_error
@@ -99,9 +101,63 @@ let read_number st =
       let literal = String.sub st.input start (st.pos - start) in
       TokInt (int_of_string literal)
 
+let read_hex_escape_sequence st =
+  (* hex escape sequence *)
+  let start = st.pos in
+  advance_while is_hex st;
+  let digits = String.sub st.input start (st.pos - start) in
+  if String.length digits = 0 then
+    raise (Lex_error (tok_pos st, "empty hex escape sequence"));
+  let hex_val = int_of_string ("0x" ^ digits) in
+  if hex_val > 255 then
+    raise (Lex_error (tok_pos st, "hex escape out of range"));
+  hex_val
+
+let read_escape_sequence st =
+  advance st;
+  (* handle escape sequence *)
+  let peeked = peek st in
+  advance st;
+  match peeked with
+  | Some '0' -> 0
+  | Some 'a' -> 7
+  | Some 'b' -> 8
+  | Some 't' -> 9
+  | Some 'n' -> 10
+  | Some 'v' -> 11
+  | Some 'f' -> 12
+  | Some 'r' -> 13
+  | Some '\\' -> 92
+  | Some '\'' -> 39
+  | Some 'x' -> read_hex_escape_sequence st
+  | _ ->
+      let msg =
+        match peeked with
+        | Some c -> Printf.sprintf "unrecognized escape sequence '\\%c'" c
+        | None -> "unrecognized escape sequence at end of input"
+      in
+      raise (Lex_error (tok_pos st, msg))
+
+let read_char st =
+  advance st;
+  let value =
+    match peek st with
+    | Some '\\' -> read_escape_sequence st
+    | Some c when c <> '\'' && c <> '\n' && c <> '\r' && c <> '\000' ->
+        (* normal character value *)
+        advance st;
+        Char.code c
+    | _ -> raise (Lex_error (tok_pos st, "invalid character literal"))
+  in
+  match peek st with
+  | Some '\'' ->
+      advance st;
+      TokChar value
+  | _ -> raise (Lex_error (tok_pos st, "expected closing '\''"))
+
 let read_ident st =
   let start = st.pos in
-  advance_while (fun c -> is_alpha c || is_digit c) st;
+  advance_while is_alnum st;
   match String.sub st.input start (st.pos - start) with
   | "true" -> TokBool true
   | "false" -> TokBool false
@@ -235,6 +291,7 @@ let next_token st =
   | Some '^' ->
       advance st;
       TokCaret
+  | Some '\'' -> read_char st
   | Some c when is_digit c -> read_number st
   | Some c when is_alpha c -> read_ident st
   | Some c ->

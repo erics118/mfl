@@ -118,6 +118,33 @@ let test_unary_ops _ =
   check [ TokPlus ] "+";
   check [ TokMinus ] "-"
 
+let test_char _ =
+  check [ TokChar 0 ] "'\\0'";
+  check [ TokChar 7 ] "'\\a'";
+  check [ TokChar 8 ] "'\\b'";
+  check [ TokChar 9 ] "'\\t'";
+  check [ TokChar 10 ] "'\\n'";
+  check [ TokChar 11 ] "'\\v'";
+  check [ TokChar 12 ] "'\\f'";
+  check [ TokChar 13 ] "'\\r'";
+  check [ TokChar 32 ] "' '";
+  check [ TokChar 34 ] "'\"'";
+  check [ TokChar 39 ] "'\\''";
+  check [ TokChar 47 ] "'/'";
+  check [ TokChar 48 ] "'0'";
+  check [ TokChar 65 ] "'A'";
+  check [ TokChar 92 ] "'\\\\'";
+
+  (* hex escapes *)
+  check [ TokChar 0 ] "'\\x00'";
+  check [ TokChar 1 ] "'\\x01'";
+  check [ TokChar 254 ] "'\\xfe'";
+  check [ TokChar 255 ] "'\\xff'";
+
+  lex_fails "unrecognized escape sequence '\\e'" "'\\e'";
+  lex_fails "empty hex escape sequence" "'\\x'";
+  lex_fails "hex escape out of range" "'\\x100'"
+
 let test_whitespace _ =
   check [ TokInt 1; TokPlus; TokInt 2 ] "1 + 2";
   check [ TokInt 1; TokPlus; TokInt 2 ] "1+2";
@@ -266,6 +293,7 @@ let tests =
          "parens" >:: test_parens;
          "binary_ops" >:: test_binary_ops;
          "unary_ops" >:: test_unary_ops;
+         "char" >:: test_char;
          "whitespace" >:: test_whitespace;
          "sequences" >:: test_sequences;
          "string_of_token" >:: test_string_of_token;

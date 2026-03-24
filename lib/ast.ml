@@ -135,6 +135,7 @@ let typ_of : checked ann -> typ = function
 type 'a expr =
   | IntLiteral : 'a ann * int -> 'a expr
   | BoolLiteral : 'a ann * bool -> 'a expr
+  | CharLiteral : 'a ann * int -> 'a expr  (** stored as int for simplicity *)
   | VarRef : 'a ann * string -> 'a expr
   | BinaryOp : 'a ann * op * 'a expr * 'a expr -> 'a expr
   | UnaryOp : 'a ann * uop * 'a expr -> 'a expr

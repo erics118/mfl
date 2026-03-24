@@ -22,7 +22,7 @@ exception Type_error of pos * type_error
 let rec string_of_typ = function
   | Bool -> "bool"
   | Void -> "void"
-  | Char -> "char"do
+  | Char -> "char"
   | SChar -> "signed char"
   | UChar -> "unsigned char"
   | Short -> "short"
@@ -202,6 +202,7 @@ let resolve_var_type pos = function
 let expr_typ : checked expr -> typ = function
   | IntLiteral (ann, _)
   | BoolLiteral (ann, _)
+  | CharLiteral (ann, _)
   | VarRef (ann, _)
   | BinaryOp (ann, _, _, _)
   | UnaryOp (ann, _, _)
@@ -333,6 +334,7 @@ let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
   match expr with
   | IntLiteral (ann, n) -> typecheck_int_lit ann n
   | BoolLiteral (ann, b) -> typecheck_bool_lit ann b
+  | CharLiteral (ann, c) -> typecheck_char_lit ann c
   | BinaryOp (ann, op, lhs, rhs) -> typecheck_binary_op env ann op lhs rhs
   | VarRef (ann, x) -> typecheck_var_ref env ann x
   | UnaryOp (ann, op, e) -> typecheck_unary_op env ann op e
@@ -366,6 +368,9 @@ and typecheck_int_lit (ann : parsed ann) (n : int) : checked expr =
 
 and typecheck_bool_lit (ann : parsed ann) (b : bool) : checked expr =
   BoolLiteral (Checked (pos_of ann, Bool), b)
+
+and typecheck_char_lit (ann : parsed ann) (c : int) : checked expr =
+  CharLiteral (Checked (pos_of ann, Char), c)
 
 and typecheck_binary_op env ann op lhs rhs =
   let pos = pos_of ann in

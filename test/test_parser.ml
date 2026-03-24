@@ -223,6 +223,19 @@ let test_int_types _ =
   (* unsigned alone gets converted to unsigned int *)
   check "unsigned int x;" "unsigned x;"
 
+let test_char_literal _ =
+  roundtrip "'a';";
+  roundtrip "char x = 'a';";
+  roundtrip "int x = '\\n';";
+  roundtrip "'\\\\';";
+  roundtrip "'\\t';";
+  roundtrip "'\\0';";
+  check "'A';" "'\\x41';";
+  check "'\\xff';" "'\\xff';";
+  roundtrip "signed char x = 'a';";
+  roundtrip "unsigned char x = 'a';";
+  roundtrip "int x = 'a' + 1;"
+
 let test_pointer_types _ =
   roundtrip "int* p;";
   roundtrip "int** pp;";
@@ -409,6 +422,7 @@ let tests =
          "multiple_statements" >:: test_multiple_statements;
          "var_defs" >:: test_var_defs;
          "int_types" >:: test_int_types;
+         "char_literal" >:: test_char_literal;
          "pointer_types" >:: test_pointer_types;
          "break_continue" >:: test_break_continue;
          "returns" >:: test_returns;

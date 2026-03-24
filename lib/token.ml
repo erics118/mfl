@@ -5,6 +5,7 @@ type token =
   (* literals *)
   | TokInt of int  (** integer literal *)
   | TokBool of bool  (** boolean literal *)
+  | TokChar of int  (** character literal, stored as int *)
   (* identifiers *)
   | TokIdent of string  (** identifier *)
   (* keywords *)
@@ -68,6 +69,7 @@ let string_of_token = function
   (* literals *)
   | TokInt x -> string_of_int x
   | TokBool x -> string_of_bool x
+  | TokChar c -> Printf.sprintf "'%c'" (Char.chr c)
   (* identifiers *)
   | TokIdent x -> x
   (* keywords *)

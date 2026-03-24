@@ -8,10 +8,32 @@ let string_of_params l =
        (fun (vt, n) -> Printf.sprintf "%s %s" (string_of_var_type vt) n)
        l)
 
+let formatted_string_of_char c =
+  let s =
+    match c with
+    (* simple escape sequence *)
+    | 0 -> "\\0"
+    | 7 -> "\\a"
+    | 8 -> "\\b"
+    | 9 -> "\\t"
+    | 10 -> "\\n"
+    | 11 -> "\\v"
+    | 12 -> "\\f"
+    | 13 -> "\\r"
+    | 92 -> "\\\\"
+    | 39 -> "\\'"
+    (* normal chars *)
+    | n when n >= 32 && n <= 126 -> String.make 1 (Char.chr n)
+    (* hexadecimal escape sequence *)
+    | n -> Printf.sprintf "\\x%02x" n
+  in
+  Printf.sprintf "'%s'" s
+
 let rec pp_expr_aux : type a. ?parent_prec:int -> a expr -> string =
  fun ?(parent_prec = 0) -> function
   | IntLiteral (_, n) -> string_of_int n
   | BoolLiteral (_, b) -> string_of_bool b
+  | CharLiteral (_, c) -> formatted_string_of_char c
   | VarRef (_, name) -> name
   | Ternary (_, cond, then_e, else_e) ->
       let cond_str =

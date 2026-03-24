@@ -275,6 +275,7 @@ and codegen_expr (e : checked expr) : Llvm.llvalue =
   | BoolLiteral (Checked _, b) ->
       (* bool literals produce i1 for computation *)
       Llvm.const_int bool_type (if b then 1 else 0)
+  | CharLiteral (Checked _, c) -> Llvm.const_int char_type c
   | BinaryOp (Checked _, And, lhs, rhs) -> codegen_and_binop lhs rhs
   | BinaryOp (Checked _, Or, lhs, rhs) -> codegen_or_binop lhs rhs
   | BinaryOp (Checked _, op, lhs, rhs) ->
