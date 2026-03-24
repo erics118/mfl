@@ -33,7 +33,8 @@ type uop =
 type var_type =
   | VBool
   | VVoid
-  | VChar
+  | VChar  (** char, but is implemented as signed char *)
+  | VSChar  (** signed char *)
   | VUChar
   | VShort
   | VUShort
@@ -51,6 +52,7 @@ let rec string_of_var_type = function
   | VBool -> "bool"
   | VVoid -> "void"
   | VChar -> "char"
+  | VSChar -> "signed char"
   | VUChar -> "unsigned char"
   | VShort -> "short"
   | VUShort -> "unsigned short"
@@ -73,7 +75,8 @@ type pos = {
 type typ =
   | Void
   | Bool  (** i1 *)
-  | Char  (** i8, signed *)
+  | Char  (** i8, implementation-defined signedness *)
+  | SChar  (** i8, explicitly signed *)
   | UChar  (** i8, unsigned *)
   | Short  (** i16, signed *)
   | UShort  (** i16, unsigned *)
@@ -92,6 +95,7 @@ let rec typ_of_var_type = function
   | VBool -> Bool
   | VVoid -> Void
   | VChar -> Char
+  | VSChar -> SChar
   | VUChar -> UChar
   | VShort -> Short
   | VUShort -> UShort

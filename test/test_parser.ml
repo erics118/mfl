@@ -212,8 +212,8 @@ let test_int_types _ =
   check "unsigned short x;" "unsigned short int x;";
   check "unsigned long x;" "unsigned long int x;";
   check "unsigned long long x;" "unsigned long long int x;";
-  (* signed keyword is consumed and removed *)
-  check "char x;" "signed char x;";
+  (* signed char is distinct from plain char *)
+  check "signed char x;" "signed char x;";
   check "short x;" "signed short x;";
   check "int x;" "signed int x;";
   check "long x;" "signed long x;";

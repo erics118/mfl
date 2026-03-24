@@ -21,7 +21,7 @@ let pointer_type = Llvm.pointer_type context
 (** gets the size of a type in bytes *)
 let sizeof_typ = function
   | Bool -> 1
-  | Char | UChar -> 1
+  | Char | SChar | UChar -> 1
   | Short | UShort -> 2
   | Int | UInt -> 4
   | Long | ULong | LongLong | ULongLong -> 8
@@ -58,7 +58,7 @@ let zext_attr = Llvm.create_enum_attr context "zeroext" 0L
 let llvm_of_typ = function
   | Bool -> bool_mem_type
   | Void -> void_type
-  | Char | UChar -> char_type
+  | Char | SChar | UChar -> char_type
   | Short | UShort -> short_type
   | Int | UInt -> int_type
   | Long | ULong | LongLong | ULongLong -> long_type
@@ -78,7 +78,7 @@ let emit_store t v ptr =
 
 (* true for signed integer types *)
 let is_signed = function
-  | Char | Short | Int | Long | LongLong -> true
+  | Char | SChar | Short | Int | Long | LongLong -> true
   | UChar | UShort | UInt | ULong | ULongLong -> false
   | Bool | Ptr _ | Void -> false
 

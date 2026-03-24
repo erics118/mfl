@@ -22,7 +22,8 @@ exception Type_error of pos * type_error
 let rec string_of_typ = function
   | Bool -> "bool"
   | Void -> "void"
-  | Char -> "char"
+  | Char -> "char"do
+  | SChar -> "signed char"
   | UChar -> "unsigned char"
   | Short -> "short"
   | UShort -> "unsigned short"
@@ -38,6 +39,7 @@ let rec string_of_typ = function
 let is_integer_type = function
   | Bool
   | Char
+  | SChar
   | UChar
   | Short
   | UShort
@@ -62,7 +64,7 @@ let is_scalar_type = function
 (** width in bits of an integer type *)
 let integer_width = function
   | Bool -> 1
-  | Char | UChar -> 8
+  | Char | SChar | UChar -> 8
   | Short | UShort -> 16
   | Int | UInt -> 32
   | Long | ULong | LongLong | ULongLong -> 64
@@ -72,7 +74,7 @@ let integer_width = function
 (** rank of integers, in order of priority when casting implicitly *)
 let integer_rank = function
   | Bool -> 0
-  | Char | UChar -> 1
+  | Char | SChar | UChar -> 1
   | Short | UShort -> 2
   | Int | UInt -> 3
   | Long | ULong -> 4
@@ -81,12 +83,13 @@ let integer_rank = function
 
 (** true for signed integer types *)
 let is_signed_type = function
-  | Char | Short | Int | Long | LongLong -> true
+  | Char | SChar | Short | Int | Long | LongLong -> true
   | UChar | UShort | UInt | ULong | ULongLong | Bool | Ptr _ | Void -> false
 
 (** gets the unsigned version of a signed type *)
 let unsigned_counterpart = function
   | Char -> UChar
+  | SChar -> UChar
   | Short -> UShort
   | Int -> UInt
   | Long -> ULong

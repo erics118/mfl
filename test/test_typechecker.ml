@@ -50,6 +50,7 @@ let all_integer_types =
   [
     Bool;
     Char;
+    SChar;
     UChar;
     Short;
     UShort;
@@ -64,6 +65,7 @@ let all_integer_types =
 let name_of_typ = function
   | Bool -> "b"
   | Char -> "c"
+  | SChar -> "sc"
   | UChar -> "uc"
   | Short -> "s"
   | UShort -> "us"

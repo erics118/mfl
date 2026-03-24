@@ -80,14 +80,14 @@ let parse_long_suffix signedness st =
     (* ignore the "int" if there is one *)
     if st.cur_tok = TokIntKw then advance st;
     match signedness with
-    | `Signed -> VLongLong
+    | `None | `Signed -> VLongLong
     | `Unsigned -> VULongLong
   end
   else begin
     (* ignore the "int" if there is one *)
     if st.cur_tok = TokIntKw then advance st;
     match signedness with
-    | `Signed -> VLong
+    | `None | `Signed -> VLong
     | `Unsigned -> VULong
   end
 
@@ -98,20 +98,21 @@ let parse_int_base signedness st =
   | TokCharKw -> begin
       advance st;
       match signedness with
-      | `Signed -> VChar
+      | `None -> VChar
+      | `Signed -> VSChar
       | `Unsigned -> VUChar
     end
   | TokShortKw -> begin
       advance st;
       if st.cur_tok = TokIntKw then advance st;
       match signedness with
-      | `Signed -> VShort
+      | `None | `Signed -> VShort
       | `Unsigned -> VUShort
     end
   | TokIntKw -> begin
       advance st;
       match signedness with
-      | `Signed -> VInt
+      | `None | `Signed -> VInt
       | `Unsigned -> VUInt
     end
   | TokLongKw -> begin
@@ -120,7 +121,7 @@ let parse_int_base signedness st =
     end
   | _ -> begin
       match signedness with
-      | `Signed -> VInt
+      | `None | `Signed -> VInt
       | `Unsigned -> VUInt
     end
 
@@ -146,7 +147,7 @@ let parse_type_name st =
         VInt
     | TokLongKw ->
         advance st;
-        parse_long_suffix `Signed st
+        parse_long_suffix `None st
     | TokUnsignedKw ->
         advance st;
         parse_int_base `Unsigned st
