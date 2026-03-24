@@ -1,6 +1,0 @@
-{
-  "ocaml.sandbox": {
-    "kind": "custom",
-    "template": "direnv exec . $prog $args"
-  }
-}
