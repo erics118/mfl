@@ -34,13 +34,13 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [x] assignment as expression (`int z = (x = 3)`)
 - [x] function calls
 - [x] cast expressions: `(int)x`
-- [ ] address-of `&x` and dereference `*p`
-- [ ] subscript `a[i]`
+- [x] address-of `&x` and dereference `*p`
+- [x] subscript `a[i]`
 - [ ] member access `s.x`, `s->x`
-- [ ] char literals: `'a'`
+- [x] char literals: `'a'`
 - [ ] string literals: `"hello"`
 - [ ] adjacent string literal concatenation: `"foo" "bar"`
-- [ ] string escape sequences: `\n`, `\t`, `\0`, `\\`, `\"`, `\xNN`
+- [x] string escape sequences: `\n`, `\t`, `\0`, `\\`, `\"`, `\xNN`
 - [ ] hex/octal/float literals: `0xFF`, `0777`, `3.14`
 - [ ] integer suffixes: `42UL`, `1LL`
 
@@ -75,8 +75,8 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [ ] `static`, `const`, `extern`, `volatile` qualifiers
 
 **types**
-- [ ] array-to-pointer decay: `int a[10]; int *p = a`
-- [ ] integer promotion and implicit conversion rules
+- [x] array-to-pointer decay: `int a[10]; int *p = a`
+- [x] integer promotion and implicit conversion rules
 - [ ] `<stddef.h>` types: `size_t`, `ptrdiff_t`, `offsetof`
 - [ ] `<stdint.h>` types: `int32_t`, `uint64_t`, etc.
 
@@ -123,6 +123,7 @@ located under `examples/`
 - `factorial.mfl`: prints the factorial of 10
 - `fibonacci.mfl`: prints the first 10 Fibonacci numbers
 - `primes.mfl`: prints the primes under 100
+- `quicksort.mfl`: sorts an array of 10 integers using quicksort
 
 ## testing
 
