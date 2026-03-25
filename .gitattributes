@@ -1,0 +1,5 @@
+# cram test files
+test/cram/*.t linguist-language=text
+
+# make mfl appear as c
+*.mfl linguist-language=c
