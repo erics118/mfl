@@ -427,6 +427,15 @@ and parse_compound_stmt st rev_stmts =
 and parse_param st =
   let param_type = parse_type_name st in
   let name = consume_identifier st in
+  (* allow for int arr[] in function params, syntactic sugar for int* arr *)
+  let param_type =
+    match st.cur_tok with
+    | TokLBracket ->
+        advance st;
+        consume st TokRBracket;
+        VPtr param_type
+    | _ -> param_type
+  in
   (param_type, name)
 
 and parse_var_def_tail st pos var_type name =
