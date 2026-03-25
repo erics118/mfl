@@ -8,8 +8,8 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [x] `int`, `bool`, `void`
 - [x] `char`, `short`, `long`, `long long`, unsigned variants
 - [ ] `float`, `double`
-- [ ] pointer types: `int *p`
-- [ ] array types: `int a[10]`
+- [x] pointer types: `int *p`
+- [x] array types: `int a[10]`
 - [ ] `struct`, `union`
 - [ ] `enum`
 - [ ] `typedef`
