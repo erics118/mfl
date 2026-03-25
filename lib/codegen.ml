@@ -209,6 +209,7 @@ and codegen_uop op e =
       match e with
       | VarRef (Checked _, name) -> Hashtbl.find locals name
       | UnaryOp (Checked _, Deref, ptr_e) -> codegen_expr ptr_e
+      | Subscript _ -> lvalue_ptr e
       | _ -> assert false [@coverage off]
     end
   | Deref -> begin
