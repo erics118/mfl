@@ -44,8 +44,7 @@ type token =
   | TokCaret  (** [^] *)
   | TokLtLt  (** [<<] *)
   | TokGtGt  (** [>>] *)
-  (* unary-only operators — [-] excluded because it is ambiguous at the token
-     level and could be either unary or binary *)
+  (* unary-only operators *)
   | TokBang  (** [!] *)
   | TokTilde  (** [~] *)
   | TokPlusPlus  (** [++] *)

@@ -56,14 +56,14 @@ let bool_from_mem v name = Llvm.build_trunc v bool_type name builder
 let zext_attr = Llvm.create_enum_attr context "zeroext" 0L
 
 (* convert a typechecker typ to an llvm type *)
-let llvm_of_typ = function
+let rec llvm_of_typ = function
   | Bool -> bool_mem_type
   | Void -> void_type
   | Char | SChar | UChar -> char_type
   | Short | UShort -> short_type
   | Int | UInt -> int_type
   | Long | ULong | LongLong | ULongLong -> long_type
-  | Array (_t, _sz) -> failwith "todo2"
+  | Array (t, sz) -> Llvm.array_type (llvm_of_typ t) sz
   | Ptr _ -> pointer_type
 
 (** load a value of type [t] from [ptr], returning the computation-ready value.
@@ -88,6 +88,7 @@ let is_signed = function
 let expr_type : checked expr -> typ = function
   | IntLiteral (Checked (_, t), _)
   | BoolLiteral (Checked (_, t), _)
+  | CharLiteral (Checked (_, t), _)
   | VarRef (Checked (_, t), _)
   | BinaryOp (Checked (_, t), _, _, _)
   | UnaryOp (Checked (_, t), _, _)
@@ -99,7 +100,8 @@ let expr_type : checked expr -> typ = function
   | PostInc (Checked (_, t), _)
   | PostDec (Checked (_, t), _)
   | Cast (Checked (_, t), _, _)
-  | ImplicitCast (Checked (_, t), _, _) -> t
+  | ImplicitCast (Checked (_, t), _, _)
+  | Subscript (Checked (_, t), _, _) -> t
   | _ -> assert false [@coverage off]
 
 let codegen_int n = Llvm.const_int int_type n
@@ -282,12 +284,21 @@ and codegen_expr (e : checked expr) : Llvm.llvalue =
   | BinaryOp (Checked _, Or, lhs, rhs) -> codegen_or_binop lhs rhs
   | BinaryOp (Checked _, op, lhs, rhs) ->
       codegen_binop (expr_type lhs) op lhs rhs
-  | VarRef (Checked (_, t), name) -> (
+  | VarRef (Checked (_, t), name) -> begin
       (* load the value from the variable's alloca; type comes from the
          annotation *)
       match Hashtbl.find_opt locals name with
-      | Some ptr -> emit_load t ptr name
-      | None -> failwith ("undefined variable: " ^ name))
+      | Some ptr -> begin
+          (* arrays decay to a pointer to its first element *)
+          match t with
+          | Array (elem_t, _) ->
+              let zero = Llvm.const_int int_type 0 in
+              Llvm.build_gep (llvm_of_typ elem_t) ptr [| zero |] "arrdecay"
+                builder
+          | _ -> emit_load t ptr name
+        end
+      | None -> failwith ("undefined variable: " ^ name)
+    end
   | UnaryOp (Checked _, op, e) -> codegen_uop op e
   | Ternary (Checked _, cond, then_e, else_e) ->
       codegen_ternary cond then_e else_e
@@ -304,8 +315,35 @@ and codegen_expr (e : checked expr) : Llvm.llvalue =
   | PreDec (Checked _, e) -> codegen_incdec e `Dec `Pre
   | PostInc (Checked _, e) -> codegen_incdec e `Inc `Post
   | PostDec (Checked _, e) -> codegen_incdec e `Dec `Post
+  | Subscript (Checked (_, elem_t), a, i) -> codegen_subscript elem_t a i
   | Cast (Checked _, t, e) -> codegen_cast (typ_of_var_type t) e
   | ImplicitCast (Checked _, t, e) -> codegen_cast t e
+  | _ -> assert false [@coverage off]
+
+(** gets the pointer to an element via subscript *)
+and codegen_subscript elem_t a i =
+  let ptr = array_base_ptr a in
+  let iv = codegen_expr i in
+  (* sext index to i64 for gep *)
+  let iv64 =
+    if Llvm.integer_bitwidth (Llvm.type_of iv) < 64 then
+      Llvm.build_sext iv long_type "idxext" builder
+    else iv
+  in
+  let elem_ptr =
+    Llvm.build_gep (llvm_of_typ elem_t) ptr [| iv64 |] "subscript" builder
+  in
+  emit_load elem_t elem_ptr "subscriptval"
+
+(* gets the base pointer for subscript. we can arrays use alloca ptr directly *)
+and array_base_ptr (e : checked expr) : Llvm.llvalue =
+  match expr_type e with
+  | Array (_, _) -> (
+      (* use alloca ptr directly, bypassing emit_load *)
+      match e with
+      | VarRef (_, name) -> Hashtbl.find locals name
+      | _ -> assert false [@coverage off])
+  | Ptr _ -> codegen_expr e
   | _ -> assert false [@coverage off]
 
 (** gets the pointer to an lvalue *)
@@ -313,6 +351,16 @@ and lvalue_ptr (e : checked expr) : Llvm.llvalue =
   match e with
   | VarRef (_, name) -> Hashtbl.find locals name
   | UnaryOp (_, Deref, inner) -> codegen_expr inner
+  | Subscript (Checked (_, elem_t), a, i) ->
+      (* turn array into a pointer, then gep *)
+      let ptr = array_base_ptr a in
+      let iv = codegen_expr i in
+      let iv64 =
+        if Llvm.integer_bitwidth (Llvm.type_of iv) < 64 then
+          Llvm.build_sext iv long_type "idxext" builder
+        else iv
+      in
+      Llvm.build_gep (llvm_of_typ elem_t) ptr [| iv64 |] "subscript" builder
   | _ -> assert false [@coverage off]
 
 and codegen_if cond then_body else_body =

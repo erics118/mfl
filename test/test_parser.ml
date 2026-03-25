@@ -245,7 +245,21 @@ let test_pointer_types _ =
 
 let test_array _ =
   roundtrip "int a[10];";
-  ()
+  roundtrip "char a[5];";
+  roundtrip "bool a[2];";
+  roundtrip "long a[100];";
+  (* array of ptr *)
+  roundtrip "int* a[10];";
+  (* subscript *)
+  roundtrip "a[0];";
+  roundtrip "a[i];";
+  roundtrip "a[i + 1];";
+  roundtrip "a[i + 1] = 3;";
+  (* 2d array *)
+  roundtrip "a[0][1];";
+  (* error cases *)
+  fails "array size must be a constant integer" "int a[];";
+  fails "array size must be a constant integer" "int a[x];"
 
 let test_break_continue _ =
   roundtrip "break;";

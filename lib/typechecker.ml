@@ -225,6 +225,7 @@ let assert_lvalue (pos : pos) (e : checked expr) : unit =
   match e with
   | VarRef _ -> ()
   | UnaryOp (_, Deref, _) -> ()
+  | Subscript _ -> ()
   | _ -> raise (Type_error (pos, NotLvalue))
 
 let check_binary pos op lt rt =
@@ -354,7 +355,7 @@ let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
       typecheck_incdec env ann `Post `Inc e (fun a x -> PostInc (a, x))
   | PostDec (ann, e) ->
       typecheck_incdec env ann `Post `Dec e (fun a x -> PostDec (a, x))
-  | Subscript (_ann, _a, _i) -> failwith "todo"
+  | Subscript (ann, a, i) -> typecheck_subscript env ann a i
   | Cast (ann, var_type, e) ->
       let pos = pos_of ann in
       let to_t = resolve_var_type pos var_type in
@@ -406,7 +407,7 @@ and typecheck_binary_op env ann op lhs rhs =
     when (is_pointer_type (expr_typ lhs) && is_integer_type (expr_typ rhs))
          || (is_integer_type (expr_typ lhs) && is_pointer_type (expr_typ rhs))
     ->
-      (* ptr + int or int + ptr — void* arithmetic is rejected *)
+      (* ptr + int or int + ptr, reject void* *)
       if expr_typ lhs = Ptr Void || expr_typ rhs = Ptr Void then
         raise
           (Type_error (pos, BinaryTypeMismatch (op, expr_typ lhs, expr_typ rhs)));
@@ -415,7 +416,7 @@ and typecheck_binary_op env ann op lhs rhs =
       in
       BinaryOp (Checked (pos, t), op, lhs, rhs)
   | Sub when is_pointer_type (expr_typ lhs) && is_integer_type (expr_typ rhs) ->
-      (* ptr - int — void* arithmetic is rejected *)
+      (* ptr - int, reject void* *)
       if expr_typ lhs = Ptr Void then
         raise
           (Type_error (pos, BinaryTypeMismatch (op, expr_typ lhs, expr_typ rhs)));
@@ -699,6 +700,24 @@ and typecheck_assign env ann lhs rhs =
   let rhs_t = expr_typ rhs in
   if rhs_t <> lhs_t then raise (Type_error (pos, TypeMismatch (lhs_t, rhs_t)));
   Assign (Checked (pos, lhs_t), lhs, rhs)
+
+and typecheck_subscript env ann a i =
+  let pos = pos_of ann in
+  let a = typecheck_expr env a in
+  let i = typecheck_expr env i in
+  (* array/pointer being subscripted must decay to a pointer *)
+  let elem_t =
+    match expr_typ a with
+    | Array (t, _) -> t
+    | Ptr t when t <> Void -> t
+    | t -> raise (Type_error (pos, UnaryTypeMismatch (Deref, t)))
+  in
+  (* index must be an integer *)
+  if not (is_integer_type (expr_typ i)) then
+    raise (Type_error (pos, UnaryTypeMismatch (Deref, expr_typ i)));
+  (* promote index to an int *)
+  let i = promote_integer pos i in
+  Subscript (Checked (pos, elem_t), a, i)
 
 let typecheck_program (stmts : parsed stmt list) : checked stmt list =
   let funcs = Hashtbl.create 8 in
