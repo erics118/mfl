@@ -290,6 +290,9 @@ let can_assign_cast from_t to_t =
     | Ptr _, Ptr Void | Ptr Void, Ptr _ ->
         (* void* cast is always allowed *)
         true
+    | Array (t, _), Ptr t2 ->
+        (* array decays to pointer to its element type *)
+        t = t2
     | _ ->
         (* otherwise, check that both are integer types *)
         is_integer_type from_t && is_integer_type to_t
