@@ -45,6 +45,7 @@ type var_type =
   | VLongLong
   | VULongLong
   | VPtr of var_type
+  | VArray of var_type * int
   | VNamed of string  (** user-defined type names *)
 
 (** render a variable type as a string *)
@@ -63,6 +64,7 @@ let rec string_of_var_type = function
   | VLongLong -> "long long"
   | VULongLong -> "unsigned long long"
   | VPtr t -> string_of_var_type t ^ "*"
+  | VArray (t, sz) -> string_of_var_type t ^ "[" ^ string_of_int sz ^ "]"
   | VNamed name -> name
 
 (** source location *)
@@ -87,6 +89,7 @@ type typ =
   | LongLong  (** i64, signed *)
   | ULongLong  (** i64, unsigned *)
   | Ptr of typ (* pointer type *)
+  | Array of typ * int  (** array with size *)
 
 (** [typ_of_var_type vt] converts a built-in [var_type] to its [typ]. Only safe
     to call after typechecking, when all [VNamed] types have already been
@@ -106,6 +109,7 @@ let rec typ_of_var_type = function
   | VLongLong -> LongLong
   | VULongLong -> ULongLong
   | VPtr t -> Ptr (typ_of_var_type t)
+  | VArray (t, sz) -> Array (typ_of_var_type t, sz)
   | VNamed _ -> assert false [@coverage off]
 
 (** phantom types marking which compiler phase produced an expr *)
@@ -146,6 +150,7 @@ type 'a expr =
   | PreDec : 'a ann * 'a expr -> 'a expr
   | PostInc : 'a ann * 'a expr -> 'a expr
   | PostDec : 'a ann * 'a expr -> 'a expr
+  | Subscript : 'a ann * 'a expr * 'a expr -> 'a expr
   | Cast : 'a ann * var_type * 'a expr -> 'a expr  (** produced by the parser *)
   | ImplicitCast : checked ann * typ * checked expr -> checked expr
       (** only produced by the typechecker *)

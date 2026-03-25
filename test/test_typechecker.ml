@@ -76,6 +76,7 @@ let name_of_typ = function
   | LongLong -> "ll"
   | ULongLong -> "ull"
   | Ptr _ -> "p"
+  | Array (_, _) -> "arr"
   | Void -> "v"
 
 let all_integer_vars = List.map (fun t -> (name_of_typ t, t)) all_integer_types

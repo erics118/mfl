@@ -19,13 +19,14 @@ let long_type = Llvm.i64_type context
 let pointer_type = Llvm.pointer_type context
 
 (** gets the size of a type in bytes *)
-let sizeof_typ = function
+let rec sizeof_typ = function
   | Bool -> 1
   | Char | SChar | UChar -> 1
   | Short | UShort -> 2
   | Int | UInt -> 4
   | Long | ULong | LongLong | ULongLong -> 8
   | Ptr _ -> 8
+  | Array (t, sz) -> sizeof_typ t * sz
   | Void -> 0
 
 (* maps variable names to their alloca ptr within the current function *)
@@ -62,6 +63,7 @@ let llvm_of_typ = function
   | Short | UShort -> short_type
   | Int | UInt -> int_type
   | Long | ULong | LongLong | ULongLong -> long_type
+  | Array (_t, _sz) -> failwith "todo2"
   | Ptr _ -> pointer_type
 
 (** load a value of type [t] from [ptr], returning the computation-ready value.
@@ -80,7 +82,7 @@ let emit_store t v ptr =
 let is_signed = function
   | Char | SChar | Short | Int | Long | LongLong -> true
   | UChar | UShort | UInt | ULong | ULongLong -> false
-  | Bool | Ptr _ | Void -> false
+  | Bool | Ptr _ | Array (_, _) | Void -> false
 
 (* extract the resolved type from a checked expression annotation *)
 let expr_type : checked expr -> typ = function

@@ -34,6 +34,7 @@ let rec string_of_typ = function
   | LongLong -> "long long"
   | ULongLong -> "unsigned long long"
   | Ptr t -> string_of_typ t ^ "*"
+  | Array (t, sz) -> string_of_typ t ^ "[" ^ string_of_int sz ^ "]"
 
 (** true for any integer type, including Bool, excluding Void *)
 let is_integer_type = function
@@ -50,6 +51,7 @@ let is_integer_type = function
   | LongLong
   | ULongLong -> true
   | Ptr _ -> false
+  | Array (_, _) -> false
   | Void -> false
 
 let is_pointer_type = function
@@ -69,7 +71,7 @@ let integer_width = function
   | Int | UInt -> 32
   | Long | ULong | LongLong | ULongLong -> 64
   | Ptr _ -> 64
-  | Void -> 0
+  | Array (_, _) | Void -> 0
 
 (** rank of integers, in order of priority when casting implicitly *)
 let integer_rank = function
@@ -79,12 +81,14 @@ let integer_rank = function
   | Int | UInt -> 3
   | Long | ULong -> 4
   | LongLong | ULongLong -> 5
-  | Ptr _ | Void -> assert false
+  | Ptr _ | Array (_, _) | Void -> assert false
 
 (** true for signed integer types *)
 let is_signed_type = function
   | Char | SChar | Short | Int | Long | LongLong -> true
-  | UChar | UShort | UInt | ULong | ULongLong | Bool | Ptr _ | Void -> false
+  | UChar | UShort | UInt | ULong | ULongLong | Bool | Ptr _
+  | Array (_, _)
+  | Void -> false
 
 (** gets the unsigned version of a signed type *)
 let unsigned_counterpart = function
@@ -97,7 +101,7 @@ let unsigned_counterpart = function
   (* these types don't change *)
   | (UChar | UShort | UInt | ULong | ULongLong) as t -> t
   (* these types don't have an unsigned counterpart *)
-  | Bool | Ptr _ | Void -> invalid_arg "unsigned counterpart"
+  | Bool | Ptr _ | Array (_, _) | Void -> invalid_arg "unsigned counterpart"
 
 let string_of_type_error = function
   | UnknownType name -> Printf.sprintf "unknown type '%s'" name
@@ -214,6 +218,7 @@ let expr_typ : checked expr -> typ = function
   | PostInc (ann, _)
   | PostDec (ann, _)
   | Cast (ann, _, _)
+  | Subscript (ann, _, _)
   | ImplicitCast (ann, _, _) -> typ_of ann
 
 let assert_lvalue (pos : pos) (e : checked expr) : unit =
@@ -349,6 +354,7 @@ let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
       typecheck_incdec env ann `Post `Inc e (fun a x -> PostInc (a, x))
   | PostDec (ann, e) ->
       typecheck_incdec env ann `Post `Dec e (fun a x -> PostDec (a, x))
+  | Subscript (_ann, _a, _i) -> failwith "todo"
   | Cast (ann, var_type, e) ->
       let pos = pos_of ann in
       let to_t = resolve_var_type pos var_type in

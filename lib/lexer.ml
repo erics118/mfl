@@ -212,6 +212,12 @@ let next_token st =
   | Some ')' ->
       advance st;
       TokRParen
+  | Some '[' ->
+      advance st;
+      TokLBracket
+  | Some ']' ->
+      advance st;
+      TokRBracket
   | Some '=' when peek2 st = Some '=' ->
       advance st;
       advance st;

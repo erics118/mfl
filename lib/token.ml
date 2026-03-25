@@ -57,6 +57,8 @@ type token =
   | TokRParen  (** [ ) ] *)
   | TokLBrace  (** [{] *)
   | TokRBrace  (** [}] *)
+  | TokLBracket  (** {[ [ ] *)
+  | TokRBracket  (** [ ] ] *)
   | TokSemicolon  (** [;] *)
   | TokComma  (** [,] *)
   | TokQuestion  (** [?] for the ternary operator *)
@@ -120,6 +122,8 @@ let string_of_token = function
   | TokRParen -> ")"
   | TokLBrace -> "{"
   | TokRBrace -> "}"
+  | TokLBracket -> "["
+  | TokRBracket -> "]"
   | TokSemicolon -> ";"
   | TokComma -> ","
   | TokQuestion -> "?"

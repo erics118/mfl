@@ -243,6 +243,10 @@ let test_pointer_types _ =
   roundtrip "bool* p;";
   check "UserType * p;" "UserType* p;"
 
+let test_array _ =
+  roundtrip "int a[10];";
+  ()
+
 let test_break_continue _ =
   roundtrip "break;";
   roundtrip "continue;";
@@ -424,6 +428,7 @@ let tests =
          "int_types" >:: test_int_types;
          "char_literal" >:: test_char_literal;
          "pointer_types" >:: test_pointer_types;
+         "array" >:: test_array;
          "break_continue" >:: test_break_continue;
          "returns" >:: test_returns;
          "function_calls" >:: test_function_calls;

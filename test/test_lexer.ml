@@ -202,6 +202,8 @@ let test_string_of_token _ =
   assert_equal "}" (string_of_token TokRBrace);
   assert_equal "(" (string_of_token TokLParen);
   assert_equal ")" (string_of_token TokRParen);
+  assert_equal "[" (string_of_token TokLBracket);
+  assert_equal "]" (string_of_token TokRBracket);
   (* literals *)
   assert_equal "42" (string_of_token (TokInt 42));
   assert_equal "true" (string_of_token (TokBool true));
@@ -280,7 +282,6 @@ let test_errors _ =
   lex_fails "invalid numeric literal '1a'" "1a";
   lex_fails "invalid numeric literal '123abc'" "123abc";
   lex_fails "invalid numeric literal '123a4'" "123a4";
-  lex_fails "unexpected character '['" "[";
   lex_fails "unexpected character '@'" "@";
   lex_fails "unexpected character '#'" "#"
 

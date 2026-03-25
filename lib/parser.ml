@@ -218,6 +218,8 @@ let is_type_keyword = function
   | TokRParen
   | TokLBrace
   | TokRBrace
+  | TokLBracket
+  | TokRBracket
   | TokSemicolon
   | TokComma
   | TokQuestion
@@ -302,6 +304,12 @@ and parse_postfix st =
   let rec loop e =
     let pos = cur_pos st in
     match st.cur_tok with
+    | TokLBracket ->
+        (* subscript is postfix operator *)
+        advance st;
+        let i = parse_expr st in
+        consume st TokRBracket;
+        loop (Subscript (Parsed pos, e, i))
     | TokPlusPlus ->
         advance st;
         loop (PostInc (Parsed pos, e))
@@ -435,18 +443,37 @@ and parse_func_def_tail st pos ret_type name =
   let body = parse_compound_stmt st [] in
   FuncDef { pos; ret_type; name; params; body }
 
+and parse_array_def_tail st pos var_type name =
+  consume st TokLBracket;
+  let sz =
+    match st.cur_tok with
+    | TokInt n ->
+        advance st;
+        n
+    | _ ->
+        raise
+          (Parse_error (cur_pos st, "array size must be a constant integer"))
+  in
+  consume st TokRBracket;
+  consume st TokSemicolon;
+  VarDef { pos; var_type = VArray (var_type, sz); name; init = None }
+
 and parse_declaration st =
   let pos = cur_pos st in
   let var_ty = parse_type_name st in
   let name = consume_identifier st in
   match st.cur_tok with
-  (* if see =, then expect a init value *)
-  | TokAssign -> parse_var_def_tail st pos var_ty name
-  (* if see (, then expect a function definition *)
-  | TokLParen -> parse_func_def_tail st pos var_ty name
-  (* if see ;, then end the declaration *)
+  | TokAssign ->
+      (* if see =, then expect a init value *)
+      parse_var_def_tail st pos var_ty name
+  | TokLParen ->
+      (* if see (, then expect a function definition *)
+      parse_func_def_tail st pos var_ty name
+  | TokLBracket ->
+      (* if see [, then expect array definition *)
+      parse_array_def_tail st pos var_ty name
   | TokSemicolon ->
-      (* if *)
+      (* if see ;, then end the declaration *)
       consume st TokSemicolon;
       VarDef { pos; var_type = var_ty; name; init = None }
   | _ -> raise (Parse_error (cur_pos st, "expected '='"))
