@@ -139,23 +139,3 @@ and parse_expr (st : state) : parsed expr =
       let value = parse_expr st in
       Assign (Parsed pos, e, value)
   | _ -> e
-
-let parse_return_stmt st =
-  let pos = cur_pos st in
-  consume st TokReturnKw;
-  match st.cur_tok with
-  | TokSemicolon ->
-      consume st TokSemicolon;
-      ReturnStmt (pos, None)
-  | _ ->
-      let e = parse_expr st in
-      consume st TokSemicolon;
-      ReturnStmt (pos, Some e)
-
-let looks_like_definition st =
-  match st.cur_tok with
-  | TokIdent _ -> (
-      match Lexer.peek_token st.lex with
-      | TokIdent _ -> true
-      | _ -> false)
-  | tok -> is_type_keyword tok

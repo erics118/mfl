@@ -4,6 +4,14 @@ open Parser_state
 open Parser_expr
 open Parser_types
 
+let looks_like_definition st =
+  match st.cur_tok with
+  | TokIdent _ -> (
+      match Lexer.peek_token st.lex with
+      | TokIdent _ -> true
+      | _ -> false)
+  | tok -> is_type_keyword tok
+
 (* statements *)
 let rec parse_statement st =
   let pos = cur_pos st in
@@ -42,6 +50,18 @@ and parse_compound_stmt st rev_stmts =
   | _ ->
       let stmt = parse_statement st in
       parse_compound_stmt st (stmt :: rev_stmts)
+
+and parse_return_stmt st =
+  let pos = cur_pos st in
+  consume st TokReturnKw;
+  match st.cur_tok with
+  | TokSemicolon ->
+      consume st TokSemicolon;
+      ReturnStmt (pos, None)
+  | _ ->
+      let e = parse_expr st in
+      consume st TokSemicolon;
+      ReturnStmt (pos, Some e)
 
 and parse_param st =
   let param_type = parse_type_name st in
