@@ -2,7 +2,7 @@ typedef int myint;
 typedef int* intptr;
 typedef int numbers[4];
 
-myint sum(intptr values) {
+myint sum(numbers values) {
     myint total = 0;
     myint i = 0;
 

@@ -107,12 +107,16 @@ and typecheck_var_def env pos var_type name init =
   define_var env name var_t;
   VarDef { pos; var_type = var_type_of_typ var_t; name; init }
 
+and normalize_param_type = function
+  | Array (t, _) -> Ptr t
+  | t -> t
+
 and typecheck_func_def env pos ret_type name params body =
   let ret_t = resolve_var_type env pos ret_type in
   let params =
     List.map
       (fun (vt, pname) ->
-        (var_type_of_typ (resolve_var_type env pos vt), pname))
+        (var_type_of_typ (normalize_param_type (resolve_var_type env pos vt)), pname))
       params
   in
   (* add function to env first *)
