@@ -107,7 +107,8 @@ let is_type_keyword = function
   | TokIntKw
   | TokLongKw
   | TokUnsignedKw
-  | TokSignedKw -> true
+  | TokSignedKw
+  | TokTypedefKw -> true
   | TokInt _
   | TokBool _
   | TokChar _

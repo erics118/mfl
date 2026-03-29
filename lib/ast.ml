@@ -168,6 +168,11 @@ type 'a stmt =
       name : string;
       init : 'a expr option;
     }  (** [var_type name = init;] defines a variable with an initial value *)
+  | Typedef of {
+      pos : pos;
+      existing_type : var_type;
+      alias : string;
+    }  (** [typedef existing_type alias;] defines a type alias *)
   | FuncDef of {
       pos : pos;
       ret_type : var_type;

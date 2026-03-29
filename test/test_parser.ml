@@ -246,7 +246,9 @@ let test_pointer_types _ =
   roundtrip "int** pp;";
   roundtrip "int***** pp;";
   roundtrip "bool* p;";
-  check "UserType * p;" "UserType* p;"
+  roundtrip "MyInt* p;";
+  roundtrip "MyInt** pp;";
+  check "UserType* p;" "UserType* p;"
 
 let test_array _ =
   roundtrip "int a[10];";
@@ -426,6 +428,11 @@ let test_sizeof _ =
   check "sizeof (x) + 1;" "(sizeof x) + 1;";
   check "sizeof int + 1;" "(sizeof(int)) + 1;"
 
+let test_typedef _ =
+  roundtrip "typedef int myint;";
+  roundtrip "typedef int* intptr;";
+  roundtrip "typedef unsigned long usize;\nusize x;"
+
 let test_errors _ =
   fails "unexpected end of input" "";
   fails "unexpected end of input" "1 +";
@@ -439,6 +446,7 @@ let test_errors _ =
   fails "expected '='" "UserType x 1;";
   fails "expected ';'" "return 1";
   fails "unexpected end of input" "return";
+  fails "expected identifier" "typedef int;";
   fails "expected ':'" "a ? b;";
   fails "unexpected end of input" "a ? b :";
   fails "unknown token: ';'" "a ? ; : b;";
@@ -487,6 +495,7 @@ let tests =
          "type_helpers" >:: test_type_helpers;
          "cast" >:: test_cast;
          "sizeof" >:: test_sizeof;
+         "typedef" >:: test_typedef;
          "errors" >:: test_errors;
        ]
 

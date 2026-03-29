@@ -162,6 +162,7 @@ and codegen_stmt = function
   | ExprStmt (_, e) -> ignore (codegen_expr e)
   | EmptyStmt _ -> ()
   | CompoundStmt (_, stmts) -> List.iter codegen_stmt stmts
+  | Typedef _ -> ()
   | VarDef { var_type; name; init; _ } ->
       let ty = llvm_of_typ (Ast.typ_of_var_type var_type) in
       let ptr = Llvm.build_alloca ty name builder in

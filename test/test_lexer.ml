@@ -53,6 +53,7 @@ let test_identifiers_and_keywords _ =
   check [ TokLongKw ] "long";
   check [ TokUnsignedKw ] "unsigned";
   check [ TokSignedKw ] "signed";
+  check [ TokTypedefKw ] "typedef";
   check [ TokSizeofKw ] "sizeof";
   check [ TokIdent "x" ] "x";
   check [ TokIdent "CustomType" ] "CustomType";
@@ -228,6 +229,7 @@ let test_string_of_token _ =
   assert_equal "long" (string_of_token TokLongKw);
   assert_equal "unsigned" (string_of_token TokUnsignedKw);
   assert_equal "signed" (string_of_token TokSignedKw);
+  assert_equal "typedef" (string_of_token TokTypedefKw);
   (* binary operators *)
   assert_equal "+" (string_of_token TokPlus);
   assert_equal "-" (string_of_token TokMinus);

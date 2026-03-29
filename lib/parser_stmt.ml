@@ -6,9 +6,10 @@ open Parser_types
 
 let looks_like_definition st =
   match st.cur_tok with
+  | TokTypedefKw -> true
   | TokIdent _ -> (
       match Lexer.peek_token st.lex with
-      | TokIdent _ -> true
+      | TokIdent _ | TokStar -> true
       | _ -> false)
   | tok -> is_type_keyword tok
 
@@ -32,6 +33,7 @@ let rec parse_statement st =
   | TokWhileKw -> parse_while st
   | TokForKw -> parse_for st
   | TokDoKw -> parse_do_while st
+  | TokTypedefKw -> parse_typedef st
   | _ when looks_like_definition st -> parse_declaration st
   | TokSemicolon ->
       consume st TokSemicolon;
@@ -76,6 +78,14 @@ and parse_param st =
     | _ -> param_type
   in
   (param_type, name)
+
+and parse_typedef st =
+  let pos = cur_pos st in
+  consume st TokTypedefKw;
+  let existing_type = parse_type_name st in
+  let alias = consume_identifier st in
+  consume st TokSemicolon;
+  Typedef { pos; existing_type; alias }
 
 and parse_var_def_tail st pos var_type name =
   consume st TokAssign;

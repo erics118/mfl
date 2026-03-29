@@ -16,6 +16,7 @@ let rec stmt_can_fall_through = function
   | ExprStmt _
   | EmptyStmt _
   | VarDef _
+  | Typedef _
   | FuncDef _
   | BreakStmt _
   | ContinueStmt _
@@ -50,6 +51,10 @@ let rec typecheck_stmt (env : env) (stmt : parsed stmt) : checked stmt =
       let env = push_scope env in
       (* we can just check each statement *)
       CompoundStmt (pos, List.map (typecheck_stmt env) stmts)
+  | Typedef { pos; existing_type; alias } ->
+      let _ = resolve_var_type env pos existing_type in
+      define_typedef env alias existing_type;
+      Typedef { pos; existing_type; alias }
   | VarDef { pos; var_type; name; init } ->
       typecheck_var_def env pos var_type name init
   | FuncDef { pos; ret_type; name; params; body } ->
@@ -82,7 +87,7 @@ and typecheck_return env pos e =
       ReturnStmt (pos, Some e)
 
 and typecheck_var_def env pos var_type name init =
-  let var_t = resolve_var_type pos var_type in
+  let var_t = resolve_var_type env pos var_type in
   (* if init exists, we check its type to ensure it is valid *)
   let init =
     match init with
@@ -101,24 +106,25 @@ and typecheck_var_def env pos var_type name init =
   VarDef { pos; var_type; name; init }
 
 and typecheck_func_def env pos ret_type name params body =
-  let ret_t = resolve_var_type pos ret_type in
+  let ret_t = resolve_var_type env pos ret_type in
   (* add function to env first *)
   Hashtbl.replace env.funcs name
     {
-      params = List.map (fun (vt, _) -> resolve_var_type pos vt) params;
+      params = List.map (fun (vt, _) -> resolve_var_type env pos vt) params;
       ret = ret_t;
     };
   let fn_env =
     {
       vars = [ Hashtbl.create 8 ];
       funcs = env.funcs;
+      typedefs = [ Hashtbl.create 8 ] @ env.typedefs;
       return_typ = Some ret_t;
       in_loop = false;
     }
   in
   (* then we add the variables to the env *)
   List.iter
-    (fun (vt, pname) -> define_var fn_env pname (resolve_var_type pos vt))
+    (fun (vt, pname) -> define_var fn_env pname (resolve_var_type env pos vt))
     params;
   let body = List.map (typecheck_stmt fn_env) body in
   if ret_t <> Void && name <> "main" && stmts_can_fall_through body then

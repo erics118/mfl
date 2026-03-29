@@ -15,6 +15,7 @@ let default_env =
   {
     vars = [ Hashtbl.create 4 ];
     funcs = make_tbl [ ("noop", { params = []; ret = Void }) ];
+    typedefs = [ make_tbl [] ];
     return_typ = None;
     in_loop = false;
   }
@@ -696,6 +697,48 @@ let test_var_type_resolution _ =
     (VarDef
        { pos = dummy_pos; var_type = VNamed "Foo"; name = "x"; init = None })
 
+let test_typedefs _ =
+  let env = { default_env with typedefs = [ make_tbl [ ("myint", VInt) ] ] } in
+  check_typ ~env Int (cast (VNamed "myint") (i 7));
+  begin match
+    typecheck_stmt default_env
+      (Typedef { pos = dummy_pos; existing_type = VInt; alias = "myint" })
+  with
+  | Typedef { existing_type = VInt; alias = "myint"; _ } -> ()
+  | _ -> assert_failure "expected checked typedef"
+  end;
+  ignore
+    (typecheck_stmt default_env
+       (VarDef
+          {
+            pos = dummy_pos;
+            var_type = VNamed "myint";
+            name = "x";
+            init = None;
+          }))
+
+let test_typedef_scope _ =
+  ignore
+    (typecheck_stmt default_env
+       (CompoundStmt
+          ( dummy_pos,
+            [
+              Typedef { pos = dummy_pos; existing_type = VInt; alias = "myint" };
+            ] )));
+  check_stmt_err "unknown type 'myint'"
+    (VarDef
+       { pos = dummy_pos; var_type = VNamed "myint"; name = "x"; init = None })
+
+let test_typedef_cycle _ =
+  let env =
+    {
+      default_env with
+      typedefs = [ make_tbl [ ("a", VNamed "b"); ("b", VNamed "a") ] ];
+    }
+  in
+  check_stmt_err ~env "unknown type 'a'"
+    (VarDef { pos = dummy_pos; var_type = VNamed "a"; name = "x"; init = None })
+
 let test_break_continue_errors _ =
   (* break and continue outside a loop are errors *)
   check_stmt_err "break statement outside of a loop" (BreakStmt dummy_pos);
@@ -775,6 +818,9 @@ let tests =
          "ternary" >:: test_ternary;
          "ternary_errors" >:: test_ternary_errors;
          "var_type_resolution" >:: test_var_type_resolution;
+         "typedefs" >:: test_typedefs;
+         "typedef_scope" >:: test_typedef_scope;
+         "typedef_cycle" >:: test_typedef_cycle;
          "cast" >:: test_cast;
          "cast_errors" >:: test_cast_errors;
          "int_promotion" >:: test_int_promotion;

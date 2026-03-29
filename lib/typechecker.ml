@@ -7,10 +7,17 @@ include Typechecker_types
 
 let typecheck_program (stmts : parsed stmt list) : checked stmt list =
   let funcs = Hashtbl.create 8 in
+  let typedefs = [ Hashtbl.create 8 ] in
   (* "stdlib" functions *)
   Hashtbl.replace funcs "printint" { params = [ Int ]; ret = Void };
   Hashtbl.replace funcs "printbool" { params = [ Bool ]; ret = Void };
   let env =
-    { vars = [ Hashtbl.create 8 ]; funcs; return_typ = None; in_loop = false }
+    {
+      vars = [ Hashtbl.create 8 ];
+      funcs;
+      typedefs;
+      return_typ = None;
+      in_loop = false;
+    }
   in
   List.map (typecheck_stmt env) stmts

@@ -177,6 +177,8 @@ and pp_stmt_aux : type a. ?top_level:bool -> ?indent:int -> a stmt -> string =
         | None -> decl_str ^ ";"
         | Some init -> Printf.sprintf "%s = %s;" decl_str (pp_expr_aux init)
       end
+    | Typedef { existing_type; alias; _ } ->
+        Printf.sprintf "typedef %s %s;" (string_of_var_type existing_type) alias
     | FuncDef { ret_type; name; params; body; _ } ->
         Printf.sprintf "%s %s(%s) %s"
           (string_of_var_type ret_type)

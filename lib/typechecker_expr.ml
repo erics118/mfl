@@ -6,9 +6,17 @@ open Typechecker_env
 (* converts a var_type to a typ, raising a user-facing error for unknown
    user-defined type names (VNamed). used during typechecking before VNamed
    types are guaranteed to be valid. *)
-let resolve_var_type pos = function
-  | VNamed name -> raise (Type_error (pos, UnknownType name))
-  | vt -> Ast.typ_of_var_type vt
+let resolve_var_type env pos var_type =
+  let rec go seen = function
+    | VNamed name -> begin
+        if List.mem name seen then raise (Type_error (pos, UnknownType name));
+        match lookup_typedef env name with
+        | Some vt -> go (name :: seen) vt
+        | None -> raise (Type_error (pos, UnknownType name))
+      end
+    | vt -> Ast.typ_of_var_type vt
+  in
+  go [] var_type
 
 let assert_lvalue (pos : pos) (e : checked expr) : unit =
   match e with
@@ -150,7 +158,7 @@ let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
   | Subscript (ann, a, i) -> typecheck_subscript env ann a i
   | Cast (ann, var_type, e) ->
       let pos = pos_of ann in
-      let to_t = resolve_var_type pos var_type in
+      let to_t = resolve_var_type env pos var_type in
       let e = typecheck_expr env e in
       let from_t = expr_typ e in
       if not (can_explicit_cast from_t to_t) then
@@ -165,7 +173,7 @@ let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
   | SizeofType (ann, t) ->
       let pos = pos_of ann in
       (* we just need to ensure it is a valid type *)
-      let _t = resolve_var_type pos t in
+      let _t = resolve_var_type env pos t in
       SizeofType (Checked (pos, Long), t)
 
 and typecheck_int_lit (ann : parsed ann) (n : int) : checked expr =
