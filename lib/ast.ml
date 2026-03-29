@@ -240,29 +240,6 @@ let string_of_op = function
   | LShift -> "<<"
   | RShift -> ">>"
 
-(** [op_of_string_opt str] parses a binary operator lexeme into [Some(op)] or
-    [None] if invalid *)
-let op_of_string_opt = function
-  | "+" -> Some Add
-  | "-" -> Some Sub
-  | "*" -> Some Mul
-  | "/" -> Some Div
-  | "%" -> Some Mod
-  | "<" -> Some Less
-  | ">" -> Some Greater
-  | "==" -> Some Equal
-  | "!=" -> Some Neq
-  | "<=" -> Some Leq
-  | ">=" -> Some Geq
-  | "&&" -> Some And
-  | "||" -> Some Or
-  | "&" -> Some BitAnd
-  | "|" -> Some BitOr
-  | "^" -> Some BitXor
-  | "<<" -> Some LShift
-  | ">>" -> Some RShift
-  | _ -> None [@coverage off]
-
 (** [string_of_uop uop] renders a unary operator into its lexeme *)
 let string_of_uop = function
   | Neg -> "-"

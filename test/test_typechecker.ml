@@ -106,6 +106,75 @@ let assert_implicit_cast_to expected = function
       assert_equal ~printer:string_of_typ expected t
   | _ -> assert_failure "expected ImplicitCast"
 
+let test_type_helpers _ =
+  assert_equal "char" (string_of_typ Char);
+  assert_equal "signed char" (string_of_typ SChar);
+  assert_equal "unsigned char" (string_of_typ UChar);
+  assert_equal "short" (string_of_typ Short);
+  assert_equal "unsigned short" (string_of_typ UShort);
+  assert_equal "unsigned int" (string_of_typ UInt);
+  assert_equal "unsigned long" (string_of_typ ULong);
+  assert_equal "long long" (string_of_typ LongLong);
+  assert_equal "unsigned long long" (string_of_typ ULongLong);
+  assert_equal "int*" (string_of_typ (Ptr Int));
+  assert_equal "char[4]" (string_of_typ (Array (Char, 4)));
+  assert_bool "bool is an integer type" (is_integer_type Bool);
+  assert_bool "int ptr is not an integer type" (not (is_integer_type (Ptr Int)));
+  assert_bool "arr int[4] is not an integer type"
+    (not (is_integer_type (Array (Int, 4))));
+  assert_bool "int ptr is a pointer type" (is_pointer_type (Ptr Int));
+  assert_bool "int is not a pointer type" (not (is_pointer_type Int));
+  assert_bool "pointer is scalar" (is_scalar_type (Ptr Int));
+  assert_bool "void is not scalar" (not (is_scalar_type Void));
+  assert_equal ~printer:string_of_int 64 (integer_width (Ptr Int));
+  assert_equal ~printer:string_of_int 0 (integer_width Void);
+  assert_bool "char is signed" (is_signed_type Char);
+  assert_bool "ulong is unsigned" (not (is_signed_type ULong));
+  assert_equal ~printer:string_of_typ UInt (unsigned_counterpart Int);
+  assert_equal ~printer:string_of_typ ULongLong (unsigned_counterpart ULongLong)
+
+let test_type_error_strings _ =
+  assert_equal "return statement outside of a function"
+    (string_of_type_error ReturnOutsideFunction);
+  assert_equal "break statement outside of a loop"
+    (string_of_type_error BreakOutsideLoop);
+  assert_equal "continue statement outside of a loop"
+    (string_of_type_error ContinueOutsideLoop);
+  assert_equal "expression is not an lvalue" (string_of_type_error NotLvalue);
+  assert_equal "operator 'postfix --': invalid operand type 'int'"
+    (string_of_type_error (IncDecTypeMismatch (`Post, `Dec, Int)));
+  assert_equal "cannot cast from 'int' to 'void'"
+    (string_of_type_error (InvalidCast (Int, Void)))
+
+let test_stmt_fallthrough_helpers _ =
+  assert_bool "return does not fall through"
+    (not (stmt_can_fall_through (ReturnStmt (dummy_pos, None))));
+  assert_bool "empty stmt falls through"
+    (stmt_can_fall_through (EmptyStmt dummy_pos));
+  assert_bool "if without else falls through"
+    (stmt_can_fall_through
+       (If
+          {
+            pos = dummy_pos;
+            cond = b true;
+            then_body = ReturnStmt (dummy_pos, Some (i 1));
+            else_body = None;
+          }));
+  assert_bool "both return branches do not fall through"
+    (not
+       (stmt_can_fall_through
+          (If
+             {
+               pos = dummy_pos;
+               cond = b true;
+               then_body = ReturnStmt (dummy_pos, Some (i 1));
+               else_body = Some (ReturnStmt (dummy_pos, Some (i 2)));
+             })));
+  assert_bool "stmt list stops at first non-fallthrough"
+    (not
+       (stmts_can_fall_through
+          [ ReturnStmt (dummy_pos, Some (i 1)); EmptyStmt dummy_pos ]))
+
 let test_literals _ =
   check_typ Int (i 0);
   check_typ Int (i 123);
@@ -609,6 +678,7 @@ let test_var_type_resolution _ =
   in
   check VBool;
   check VChar;
+  check VSChar;
   check VUChar;
   check VShort;
   check VUShort;
@@ -660,9 +730,26 @@ let test_missing_return _ =
               ];
           }))
 
+let test_typecheck_program _ =
+  let program =
+    [
+      VarDef { pos = dummy_pos; var_type = VInt; name = "x"; init = Some (i 1) };
+      ExprStmt (dummy_pos, FuncCall (p, "printint", [ !"x" ]));
+    ]
+  in
+  match typecheck_program program with
+  | [
+   VarDef { name = "x"; init = Some init; _ };
+   ExprStmt (_, FuncCall (Checked (_, Void), "printint", [ VarRef (_, "x") ]));
+  ] -> assert_equal ~printer:string_of_typ Int (expr_typ init)
+  | _ -> assert_failure "expected typed program using stdlib printint"
+
 let tests =
   "typechecker"
   >::: [
+         "type_helpers" >:: test_type_helpers;
+         "type_error_strings" >:: test_type_error_strings;
+         "stmt_fallthrough_helpers" >:: test_stmt_fallthrough_helpers;
          "literals" >:: test_literals;
          "arithmetic" >:: test_arithmetic;
          "bitwise" >:: test_bitwise;
@@ -701,6 +788,7 @@ let tests =
          "break_continue" >:: test_break_continue;
          "break_continue_errors" >:: test_break_continue_errors;
          "missing_return" >:: test_missing_return;
+         "typecheck_program" >:: test_typecheck_program;
          "incdec" >:: test_incdec;
          "incdec_errors" >:: test_incdec_errors;
        ]

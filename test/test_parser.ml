@@ -1,6 +1,11 @@
 open OUnit2
 open Mfl
 
+let make_state input =
+  let st = Parser.create (Lexer.create input) in
+  Parser.advance st;
+  st
+
 let check expected input =
   assert_equal ~printer:Fun.id expected (Parser.parse input |> Pretty.pp_stmt)
 
@@ -368,6 +373,23 @@ let test_for _ =
   roundtrip "for (int i = 0;; ++i) {}";
   ()
 
+let test_type_helpers _ =
+  let st = make_state "long int x;" in
+  Parser.consume st TokLongKw;
+  assert_equal Ast.VLong (Parser.parse_long_suffix `None st);
+  let st = make_state "long long int x;" in
+  Parser.consume st TokLongKw;
+  assert_equal Ast.VLongLong (Parser.parse_long_suffix `None st);
+  let st = make_state "char x;" in
+  assert_equal Ast.VChar (Parser.parse_int_base `None st);
+  let st = make_state "char x;" in
+  assert_equal Ast.VUChar (Parser.parse_int_base `Unsigned st);
+  let st = make_state "x;" in
+  assert_equal Ast.VInt (Parser.parse_int_base `Signed st);
+  assert_bool "bool token is a type keyword" (Parser.is_type_keyword TokBoolKw);
+  assert_bool "if token is not a type keyword"
+    (not (Parser.is_type_keyword TokIfKw))
+
 (* cast: (type)expr *)
 let test_cast _ =
   (* all type keywords work as cast targets *)
@@ -453,6 +475,7 @@ let tests =
          "while" >:: test_while;
          "do_while" >:: test_do_while;
          "for" >:: test_for;
+         "type_helpers" >:: test_type_helpers;
          "cast" >:: test_cast;
          "errors" >:: test_errors;
        ]
