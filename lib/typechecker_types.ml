@@ -100,4 +100,6 @@ let expr_typ : checked expr -> typ = function
   | PostDec (ann, _)
   | Cast (ann, _, _)
   | Subscript (ann, _, _)
-  | ImplicitCast (ann, _, _) -> typ_of ann
+  | ImplicitCast (ann, _, _)
+  | SizeofExpr (ann, _)
+  | SizeofType (ann, _) -> typ_of ann

@@ -99,6 +99,8 @@ let expr_type : checked expr -> typ = function
   | PostDec (Checked (_, t), _)
   | Cast (Checked (_, t), _, _)
   | ImplicitCast (Checked (_, t), _, _)
+  | SizeofExpr (Checked (_, t), _)
+  | SizeofType (Checked (_, t), _)
   | Subscript (Checked (_, t), _, _) -> t
   | _ -> assert false [@coverage off]
 

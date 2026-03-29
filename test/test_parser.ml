@@ -417,6 +417,15 @@ let test_cast _ =
   (* postfix binds tighter than cast and deref*)
   check "(int)*p++;" "(int)(*(p++));"
 
+let test_sizeof _ =
+  check "sizeof (x);" "sizeof x;";
+  roundtrip "sizeof (x);";
+  check "sizeof int;" "sizeof (int);";
+  check "sizeof long;" "sizeof (long);";
+  check "sizeof int*;" "sizeof (int*);";
+  check "sizeof (x) + 1;" "(sizeof x) + 1;";
+  check "sizeof int + 1;" "(sizeof(int)) + 1;"
+
 let test_errors _ =
   fails "unexpected end of input" "";
   fails "unexpected end of input" "1 +";
@@ -477,6 +486,7 @@ let tests =
          "for" >:: test_for;
          "type_helpers" >:: test_type_helpers;
          "cast" >:: test_cast;
+         "sizeof" >:: test_sizeof;
          "errors" >:: test_errors;
        ]
 

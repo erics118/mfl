@@ -53,6 +53,7 @@ let test_identifiers_and_keywords _ =
   check [ TokLongKw ] "long";
   check [ TokUnsignedKw ] "unsigned";
   check [ TokSignedKw ] "signed";
+  check [ TokSizeofKw ] "sizeof";
   check [ TokIdent "x" ] "x";
   check [ TokIdent "CustomType" ] "CustomType";
   check [ TokIdent "abc1" ] "abc1";

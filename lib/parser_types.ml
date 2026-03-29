@@ -120,6 +120,7 @@ let is_type_keyword = function
   | TokBreakKw
   | TokContinueKw
   | TokDoKw
+  | TokSizeofKw
   | TokPlus
   | TokMinus
   | TokStar

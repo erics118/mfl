@@ -126,4 +126,5 @@ let read_ident st =
   | "unsigned" -> TokUnsignedKw
   | "signed" -> TokSignedKw
   | "void" -> TokVoidKw
+  | "sizeof" -> TokSizeofKw
   | s -> TokIdent s

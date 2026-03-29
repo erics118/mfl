@@ -153,6 +153,8 @@ type 'a expr =
   | Subscript : 'a ann * 'a expr * 'a expr -> 'a expr
   | Cast : 'a ann * var_type * 'a expr -> 'a expr  (** produced by the parser *)
   | ImplicitCast : checked ann * typ * checked expr -> checked expr
+  | SizeofExpr : 'a ann * 'a expr -> 'a expr
+  | SizeofType : 'a ann * var_type -> 'a expr
       (** only produced by the typechecker *)
 
 (** statements *)

@@ -25,6 +25,7 @@ type token =
   | TokLongKw  (** [long] keyword *)
   | TokUnsignedKw  (** [unsigned] keyword *)
   | TokSignedKw  (** [signed] keyword *)
+  | TokSizeofKw  (** [sizeof] keyword *)
   (* binary operators *)
   | TokPlus  (** [+] *)
   | TokMinus  (** [-] *)
@@ -90,6 +91,7 @@ let string_of_token = function
   | TokLongKw -> "long"
   | TokUnsignedKw -> "unsigned"
   | TokSignedKw -> "signed"
+  | TokSizeofKw -> "sizeof"
   (* binary operators *)
   | TokPlus -> "+"
   | TokMinus -> "-"

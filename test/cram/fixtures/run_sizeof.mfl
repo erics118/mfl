@@ -1,0 +1,18 @@
+int main() {
+    int x;
+    char c;
+    bool b;
+    int* p;
+    int arr[3];
+
+    printint(sizeof x);
+    printint(sizeof c);
+    printint(sizeof b);
+    printint(sizeof p);
+    printint(sizeof arr);
+    printint(sizeof(int));
+    printint(sizeof(char));
+    printint(sizeof(bool));
+    printint(sizeof(int*));
+    return 0;
+}

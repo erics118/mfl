@@ -157,6 +157,16 @@ let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
         raise (Type_error (pos, InvalidCast (from_t, to_t)));
       Cast (Checked (pos, to_t), var_type, e)
   | ImplicitCast (_ann, _ty, _e) -> assert false
+  | SizeofExpr (ann, e) ->
+      let pos = pos_of ann in
+      let e = typecheck_expr env e in
+      (* sizeof returns a long *)
+      SizeofExpr (Checked (pos, Long), e)
+  | SizeofType (ann, t) ->
+      let pos = pos_of ann in
+      (* we just need to ensure it is a valid type *)
+      let _t = resolve_var_type pos t in
+      SizeofType (Checked (pos, Long), t)
 
 and typecheck_int_lit (ann : parsed ann) (n : int) : checked expr =
   (* decimal literals outside of the 32 bit range are turned into longs *)
