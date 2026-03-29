@@ -123,9 +123,6 @@ type _ ann =
   | Parsed : pos -> parsed ann
   | Checked : pos * typ -> checked ann
 
-(** placeholder position used by the parser until position tracking is added *)
-let dummy_pos = { line = 0; col = 0 }
-
 (** extract the source position from any annotation *)
 let pos_of : type a. a ann -> pos = function
   | Parsed p -> p

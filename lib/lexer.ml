@@ -1,7 +1,6 @@
 (** lexer state *)
 
 open Token
-
 include Lexer_state
 include Lexer_reader
 

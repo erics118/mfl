@@ -3,6 +3,7 @@ open Mfl
 open Ast
 open Typechecker
 
+let dummy_pos : pos = { line = 0; col = 0 }
 let p = Parsed dummy_pos
 
 let make_tbl pairs =
