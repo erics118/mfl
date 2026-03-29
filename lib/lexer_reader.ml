@@ -256,15 +256,7 @@ let next_token st =
 (** [peek_token st] returns the next token without consuming it
     @raise Lex_error on invalid input *)
 let peek_token st =
-  let saved_pos = st.pos in
-  let saved_line = st.line in
-  let saved_col = st.col in
-  let saved_tok_line = st.tok_line in
-  let saved_tok_col = st.tok_col in
+  let saved = snapshot st in
   let tok = next_token st in
-  st.pos <- saved_pos;
-  st.line <- saved_line;
-  st.col <- saved_col;
-  st.tok_line <- saved_tok_line;
-  st.tok_col <- saved_tok_col;
+  restore st saved;
   tok

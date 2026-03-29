@@ -56,8 +56,8 @@ type token =
   | TokRParen  (** [ ) ] *)
   | TokLBrace  (** [{] *)
   | TokRBrace  (** [}] *)
-  | TokLBracket  (** {[ [ ] *)
-  | TokRBracket  (** [ ] ] *)
+  | TokLBracket
+  | TokRBracket
   | TokSemicolon  (** [;] *)
   | TokComma  (** [,] *)
   | TokQuestion  (** [?] for the ternary operator *)

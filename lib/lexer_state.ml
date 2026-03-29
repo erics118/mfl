@@ -47,3 +47,27 @@ let advance_while pred st =
 let peek2 st =
   let pos = st.pos + 1 in
   if pos < String.length st.input then Some st.input.[pos] else None
+
+type snapshot = {
+  snap_pos : int;
+  snap_line : int;
+  snap_col : int;
+  snap_tok_line : int;
+  snap_tok_col : int;
+}
+
+let snapshot (st : state) =
+  {
+    snap_pos = st.pos;
+    snap_line = st.line;
+    snap_col = st.col;
+    snap_tok_line = st.tok_line;
+    snap_tok_col = st.tok_col;
+  }
+
+let restore (st : state) (snap : snapshot) =
+  st.pos <- snap.snap_pos;
+  st.line <- snap.snap_line;
+  st.col <- snap.snap_col;
+  st.tok_line <- snap.snap_tok_line;
+  st.tok_col <- snap.snap_tok_col
