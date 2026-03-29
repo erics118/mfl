@@ -212,12 +212,12 @@ and codegen_expr (e : checked expr) : Llvm.llvalue =
   | PostInc (Checked _, e) -> codegen_incdec e `Inc `Post
   | PostDec (Checked _, e) -> codegen_incdec e `Dec `Post
   | Subscript (Checked (_, elem_t), a, i) -> codegen_subscript elem_t a i
-  | Cast (Checked _, t, e) -> codegen_cast (typ_of_var_type t) e
+  | Cast (Checked _, t, e) -> codegen_cast (typ_of_source_type t) e
   | ImplicitCast (Checked _, t, e) -> codegen_cast t e
   | SizeofExpr (Checked _, e) ->
       Llvm.const_int long_type (sizeof_typ (expr_type e))
   | SizeofType (Checked _, t) ->
-      Llvm.const_int long_type (sizeof_typ (typ_of_var_type t))
+      Llvm.const_int long_type (sizeof_typ (typ_of_source_type t))
   | _ -> assert false [@coverage off]
 
 (** gets the pointer to an element via subscript *)

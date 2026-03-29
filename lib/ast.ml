@@ -30,7 +30,9 @@ type uop =
   | Deref  (** pointer dereference *)
 
 (** variable and return types *)
-type var_type =
+
+(** [source_type] is a type used in the program. includes typedefs *)
+type source_type =
   | VBool
   | VVoid
   | VChar  (** char, but is implemented as signed char *)
@@ -44,12 +46,12 @@ type var_type =
   | VULong
   | VLongLong
   | VULongLong
-  | VPtr of var_type
-  | VArray of var_type * int
+  | VPtr of source_type
+  | VArray of source_type * int
   | VNamed of string  (** user-defined type names *)
 
 (** render a variable type as a string *)
-let rec string_of_var_type = function
+let rec string_of_source_type = function
   | VBool -> "bool"
   | VVoid -> "void"
   | VChar -> "char"
@@ -63,8 +65,8 @@ let rec string_of_var_type = function
   | VULong -> "unsigned long"
   | VLongLong -> "long long"
   | VULongLong -> "unsigned long long"
-  | VPtr t -> string_of_var_type t ^ "*"
-  | VArray (t, sz) -> string_of_var_type t ^ "[" ^ string_of_int sz ^ "]"
+  | VPtr t -> string_of_source_type t ^ "*"
+  | VArray (t, sz) -> string_of_source_type t ^ "[" ^ string_of_int sz ^ "]"
   | VNamed name -> name
 
 (** source location *)
@@ -73,7 +75,7 @@ type pos = {
   col : int;
 }
 
-(** types resolved by the typechecker *)
+(** [typ] is the type resolved by the typechecker. does not include typedefs *)
 type typ =
   | Void
   | Bool  (** i1 *)
@@ -91,10 +93,10 @@ type typ =
   | Ptr of typ (* pointer type *)
   | Array of typ * int  (** array with size *)
 
-(** [typ_of_var_type vt] converts a built-in [var_type] to its [typ]. Only safe
-    to call after typechecking, when all [VNamed] types have already been
+(** [typ_of_source_type vt] converts a built-in [source_type] to its [typ]. Only
+    safe to call after typechecking, when all [VNamed] types have already been
     validated. Raises [Assert_failure] if called with [VNamed]. *)
-let rec typ_of_var_type = function
+let rec typ_of_source_type = function
   | VBool -> Bool
   | VVoid -> Void
   | VChar -> Char
@@ -108,13 +110,13 @@ let rec typ_of_var_type = function
   | VULong -> ULong
   | VLongLong -> LongLong
   | VULongLong -> ULongLong
-  | VPtr t -> Ptr (typ_of_var_type t)
-  | VArray (t, sz) -> Array (typ_of_var_type t, sz)
+  | VPtr t -> Ptr (typ_of_source_type t)
+  | VArray (t, sz) -> Array (typ_of_source_type t, sz)
   | VNamed _ -> assert false [@coverage off]
 
-(** [var_type_of_typ t] converts a resolved [typ] back to a built-in
-    [var_type]. *)
-let rec var_type_of_typ = function
+(** [source_type_of_typ t] converts a resolved [typ] back to a built-in
+    [source_type]. *)
+let rec source_type_of_typ = function
   | Bool -> VBool
   | Void -> VVoid
   | Char -> VChar
@@ -128,8 +130,8 @@ let rec var_type_of_typ = function
   | ULong -> VULong
   | LongLong -> VLongLong
   | ULongLong -> VULongLong
-  | Ptr t -> VPtr (var_type_of_typ t)
-  | Array (t, sz) -> VArray (var_type_of_typ t, sz)
+  | Ptr t -> VPtr (source_type_of_typ t)
+  | Array (t, sz) -> VArray (source_type_of_typ t, sz)
 
 (** phantom types marking which compiler phase produced an expr *)
 type parsed
@@ -167,10 +169,11 @@ type 'a expr =
   | PostInc : 'a ann * 'a expr -> 'a expr
   | PostDec : 'a ann * 'a expr -> 'a expr
   | Subscript : 'a ann * 'a expr * 'a expr -> 'a expr
-  | Cast : 'a ann * var_type * 'a expr -> 'a expr  (** produced by the parser *)
+  | Cast : 'a ann * source_type * 'a expr -> 'a expr
+      (** produced by the parser *)
   | ImplicitCast : checked ann * typ * checked expr -> checked expr
   | SizeofExpr : 'a ann * 'a expr -> 'a expr
-  | SizeofType : 'a ann * var_type -> 'a expr
+  | SizeofType : 'a ann * source_type -> 'a expr
       (** only produced by the typechecker *)
 
 (** statements *)
@@ -183,20 +186,21 @@ type 'a stmt =
       (** sequence of statements surrounded by braces *)
   | VarDef of {
       pos : pos;
-      var_type : var_type;
+      source_type : source_type;
       name : string;
       init : 'a expr option;
-    }  (** [var_type name = init;] defines a variable with an initial value *)
+    }
+      (** [source_type name = init;] defines a variable with an initial value *)
   | Typedef of {
       pos : pos;
-      existing_type : var_type;
+      existing_type : source_type;
       alias : string;
     }  (** [typedef existing_type alias;] defines a type alias *)
   | FuncDef of {
       pos : pos;
-      ret_type : var_type;
+      ret_type : source_type;
       name : string;
-      params : (var_type * string) list;
+      params : (source_type * string) list;
       body : 'a stmt list;
     }  (** [ret_type name(params) { body }] defines a function *)
   | If of {

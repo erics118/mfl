@@ -676,7 +676,7 @@ let test_var_type_resolution _ =
   let check vt =
     ignore
       (typecheck_stmt (default_env ())
-         (VarDef { pos = dummy_pos; var_type = vt; name = "x"; init = None }))
+         (VarDef { pos = dummy_pos; source_type = vt; name = "x"; init = None }))
   in
   check VBool;
   check VChar;
@@ -695,7 +695,7 @@ let test_var_type_resolution _ =
   (* VNamed with an unknown name must raise UnknownType *)
   check_stmt_err "unknown type 'Foo'"
     (VarDef
-       { pos = dummy_pos; var_type = VNamed "Foo"; name = "x"; init = None })
+       { pos = dummy_pos; source_type = VNamed "Foo"; name = "x"; init = None })
 
 let test_typedefs _ =
   let env =
@@ -716,7 +716,7 @@ let test_typedefs _ =
        (VarDef
           {
             pos = dummy_pos;
-            var_type = VNamed "myint";
+            source_type = VNamed "myint";
             name = "x";
             init = None;
           }));
@@ -729,9 +729,15 @@ let test_typedefs _ =
       (let env = default_env () in
        { env with typedefs = [ make_tbl [ ("arr", VArray (VInt, 10)) ] ] })
       (VarDef
-         { pos = dummy_pos; var_type = VNamed "arr"; name = "xs"; init = None })
+         {
+           pos = dummy_pos;
+           source_type = VNamed "arr";
+           name = "xs";
+           init = None;
+         })
   with
-  | VarDef { name = "xs"; var_type = VArray (VInt, 10); init = None; _ } -> ()
+  | VarDef { name = "xs"; source_type = VArray (VInt, 10); init = None; _ } ->
+      ()
   | _ -> assert_failure "expected array typedef var def"
 
 let test_typedef_scope _ =
@@ -745,7 +751,12 @@ let test_typedef_scope _ =
             ] )));
   check_stmt_err "unknown type 'myint'"
     (VarDef
-       { pos = dummy_pos; var_type = VNamed "myint"; name = "x"; init = None })
+       {
+         pos = dummy_pos;
+         source_type = VNamed "myint";
+         name = "x";
+         init = None;
+       })
 
 let test_typedef_cycle _ =
   let env =
@@ -756,7 +767,27 @@ let test_typedef_cycle _ =
     }
   in
   check_stmt_err ~env "unknown type 'a'"
-    (VarDef { pos = dummy_pos; var_type = VNamed "a"; name = "x"; init = None })
+    (VarDef
+       { pos = dummy_pos; source_type = VNamed "a"; name = "x"; init = None })
+
+let test_array_param_decay _ =
+  let env =
+    let env = default_env () in
+    { env with typedefs = [ make_tbl [ ("numbers", VArray (VInt, 4)) ] ] }
+  in
+  match
+    typecheck_stmt env
+      (FuncDef
+         {
+           pos = dummy_pos;
+           ret_type = VInt;
+           name = "sum";
+           params = [ (VNamed "numbers", "values") ];
+           body = [ ReturnStmt (dummy_pos, Some (i 0)) ];
+         })
+  with
+  | FuncDef { params = [ (VPtr VInt, "values") ]; _ } -> ()
+  | _ -> assert_failure "expected array parameter to decay to int*"
 
 let test_break_continue_errors _ =
   (* break and continue outside a loop are errors *)
@@ -796,7 +827,8 @@ let test_missing_return _ =
 let test_typecheck_program _ =
   let program =
     [
-      VarDef { pos = dummy_pos; var_type = VInt; name = "x"; init = Some (i 1) };
+      VarDef
+        { pos = dummy_pos; source_type = VInt; name = "x"; init = Some (i 1) };
       ExprStmt (dummy_pos, FuncCall (p, "printint", [ !"x" ]));
     ]
   in
@@ -840,6 +872,7 @@ let tests =
          "typedefs" >:: test_typedefs;
          "typedef_scope" >:: test_typedef_scope;
          "typedef_cycle" >:: test_typedef_cycle;
+         "array_param_decay" >:: test_array_param_decay;
          "cast" >:: test_cast;
          "cast_errors" >:: test_cast_errors;
          "int_promotion" >:: test_int_promotion;

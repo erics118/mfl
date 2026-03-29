@@ -5,15 +5,16 @@ open Ast
 let string_of_params l =
   String.concat ", "
     (List.map
-       (fun (vt, n) -> Printf.sprintf "%s %s" (string_of_var_type vt) n)
+       (fun (vt, n) -> Printf.sprintf "%s %s" (string_of_source_type vt) n)
        l)
 
-let string_of_decl var_type name =
-  match var_type with
+let string_of_decl source_type name =
+  match source_type with
   (* array declarators put [n] after the name, not the type, so we need to
      specifically handle them *)
-  | VArray (t, sz) -> Printf.sprintf "%s %s[%d]" (string_of_var_type t) name sz
-  | _ -> Printf.sprintf "%s %s" (string_of_var_type var_type) name
+  | VArray (t, sz) ->
+      Printf.sprintf "%s %s[%d]" (string_of_source_type t) name sz
+  | _ -> Printf.sprintf "%s %s" (string_of_source_type source_type) name
 
 let formatted_string_of_char c =
   let s =
@@ -114,12 +115,12 @@ let rec pp_expr_aux : type a. ?parent_prec:int -> a expr -> string =
         | BinaryOp _ | Ternary _ | Assign _ -> "(" ^ pp_expr_aux e ^ ")"
         | _ -> pp_expr_aux e
       in
-      Printf.sprintf "(%s)%s" (string_of_var_type ty) e_str
+      Printf.sprintf "(%s)%s" (string_of_source_type ty) e_str
   | ImplicitCast (_, _, e) ->
       (* implicit casts don't need to be shown *)
       pp_expr_aux e
   | SizeofExpr (_, e) -> "sizeof (" ^ pp_expr_aux e ^ ")"
-  | SizeofType (_, t) -> "sizeof " ^ string_of_var_type t
+  | SizeofType (_, t) -> "sizeof " ^ string_of_source_type t
 
 (* print an 'a expr option, handling spacing, for use within a for loop *)
 let pp_expr_aux_opt = function
@@ -171,8 +172,8 @@ and pp_stmt_aux : type a. ?top_level:bool -> ?indent:int -> a stmt -> string =
           String.concat "\n"
             (List.map (pp_stmt_aux ~top_level:false ~indent) stmts)
         else pp_block_aux ~indent stmts
-    | VarDef { var_type; name; init; _ } -> begin
-        let decl_str = string_of_decl var_type name in
+    | VarDef { source_type; name; init; _ } -> begin
+        let decl_str = string_of_decl source_type name in
         match init with
         | None -> decl_str ^ ";"
         | Some init -> Printf.sprintf "%s = %s;" decl_str (pp_expr_aux init)
@@ -181,7 +182,7 @@ and pp_stmt_aux : type a. ?top_level:bool -> ?indent:int -> a stmt -> string =
         Printf.sprintf "typedef %s;" (string_of_decl existing_type alias)
     | FuncDef { ret_type; name; params; body; _ } ->
         Printf.sprintf "%s %s(%s) %s"
-          (string_of_var_type ret_type)
+          (string_of_source_type ret_type)
           name (string_of_params params)
           (pp_block_aux ~indent body)
     | If _ -> pp_body stmt

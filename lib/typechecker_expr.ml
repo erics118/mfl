@@ -3,10 +3,10 @@ open Typechecker_types
 open Typechecker_error
 open Typechecker_env
 
-(* converts a var_type to a typ, raising a user-facing error for unknown
+(* converts a source_type to a typ, raising a user-facing error for unknown
    user-defined type names (VNamed). used during typechecking before VNamed
    types are guaranteed to be valid. *)
-let resolve_var_type env pos var_type =
+let resolve_source_type env pos source_type =
   let rec go seen = function
     | VNamed name -> begin
         if List.mem name seen then raise (Type_error (pos, UnknownType name));
@@ -14,9 +14,9 @@ let resolve_var_type env pos var_type =
         | Some vt -> go (name :: seen) vt
         | None -> raise (Type_error (pos, UnknownType name))
       end
-    | vt -> Ast.typ_of_var_type vt
+    | vt -> Ast.typ_of_source_type vt
   in
-  go [] var_type
+  go [] source_type
 
 let assert_lvalue (pos : pos) (e : checked expr) : unit =
   match e with
@@ -156,14 +156,14 @@ let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
   | PostDec (ann, e) ->
       typecheck_incdec env ann `Post `Dec e (fun a x -> PostDec (a, x))
   | Subscript (ann, a, i) -> typecheck_subscript env ann a i
-  | Cast (ann, var_type, e) ->
+  | Cast (ann, source_type, e) ->
       let pos = pos_of ann in
-      let to_t = resolve_var_type env pos var_type in
+      let to_t = resolve_source_type env pos source_type in
       let e = typecheck_expr env e in
       let from_t = expr_typ e in
       if not (can_explicit_cast from_t to_t) then
         raise (Type_error (pos, InvalidCast (from_t, to_t)));
-      Cast (Checked (pos, to_t), var_type_of_typ to_t, e)
+      Cast (Checked (pos, to_t), source_type_of_typ to_t, e)
   | ImplicitCast (_ann, _ty, _e) -> assert false
   | SizeofExpr (ann, e) ->
       let pos = pos_of ann in
@@ -173,8 +173,8 @@ let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
   | SizeofType (ann, t) ->
       let pos = pos_of ann in
       (* we just need to ensure it is a valid type *)
-      let t = resolve_var_type env pos t in
-      SizeofType (Checked (pos, Long), var_type_of_typ t)
+      let t = resolve_source_type env pos t in
+      SizeofType (Checked (pos, Long), source_type_of_typ t)
 
 and typecheck_int_lit (ann : parsed ann) (n : int) : checked expr =
   (* decimal literals outside of the 32 bit range are turned into longs *)

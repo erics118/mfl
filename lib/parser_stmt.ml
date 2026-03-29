@@ -79,7 +79,7 @@ and parse_param st =
   in
   (param_type, name)
 
-and parse_array_suffix st var_type =
+and parse_array_suffix st source_type =
   consume st TokLBracket;
   let sz =
     match st.cur_tok with
@@ -91,7 +91,7 @@ and parse_array_suffix st var_type =
           (Parse_error (cur_pos st, "array size must be a constant integer"))
   in
   consume st TokRBracket;
-  VArray (var_type, sz)
+  VArray (source_type, sz)
 
 and parse_typedef st =
   let pos = cur_pos st in
@@ -106,11 +106,11 @@ and parse_typedef st =
   consume st TokSemicolon;
   Typedef { pos; existing_type; alias }
 
-and parse_var_def_tail st pos var_type name =
+and parse_var_def_tail st pos source_type name =
   consume st TokAssign;
   let init = parse_expr st in
   consume st TokSemicolon;
-  VarDef { pos; var_type; name; init = Some init }
+  VarDef { pos; source_type; name; init = Some init }
 
 and parse_func_def_tail st pos ret_type name =
   consume st TokLParen;
@@ -120,10 +120,10 @@ and parse_func_def_tail st pos ret_type name =
   let body = parse_compound_stmt st [] in
   FuncDef { pos; ret_type; name; params; body }
 
-and parse_array_def_tail st pos var_type name =
-  let var_type = parse_array_suffix st var_type in
+and parse_array_def_tail st pos source_type name =
+  let source_type = parse_array_suffix st source_type in
   consume st TokSemicolon;
-  VarDef { pos; var_type; name; init = None }
+  VarDef { pos; source_type; name; init = None }
 
 and parse_declaration st =
   let pos = cur_pos st in
@@ -142,7 +142,7 @@ and parse_declaration st =
   | TokSemicolon ->
       (* if see ;, then end the declaration *)
       consume st TokSemicolon;
-      VarDef { pos; var_type = var_ty; name; init = None }
+      VarDef { pos; source_type = var_ty; name; init = None }
   | _ -> raise (Parse_error (cur_pos st, "expected '='"))
 
 and parse_if st =

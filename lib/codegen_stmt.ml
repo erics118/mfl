@@ -110,17 +110,17 @@ and codegen_func_def ret_type name params body =
   let param_types =
     Array.of_list
       (List.map
-         (fun (vt, _) -> llvm_of_sig_typ (Ast.typ_of_var_type vt))
+         (fun (vt, _) -> llvm_of_sig_typ (Ast.typ_of_source_type vt))
          params)
   in
-  let ret_t = Ast.typ_of_var_type ret_type in
+  let ret_t = Ast.typ_of_source_type ret_type in
   let ty = Llvm.function_type (llvm_of_sig_typ ret_t) param_types in
   let fn = Llvm.define_function name ty the_module in
   (* add zeroext to bool return and bool parameters *)
   if ret_t = Bool then Llvm.add_function_attr fn zext_attr Llvm.AttrIndex.Return;
   List.iteri
     (fun i (vt, _) ->
-      if Ast.typ_of_var_type vt = Bool then
+      if Ast.typ_of_source_type vt = Bool then
         Llvm.add_function_attr fn zext_attr (Llvm.AttrIndex.Param i))
     params;
   (* clear scope for each function. no global variables atm *)
@@ -132,7 +132,7 @@ and codegen_func_def ret_type name params body =
       let param = Llvm.param fn i in
       Llvm.set_value_name pname param;
       Llvm.position_at_end (Llvm.entry_block fn) builder;
-      let t = Ast.typ_of_var_type ptype in
+      let t = Ast.typ_of_source_type ptype in
       let ptr = Llvm.build_alloca (llvm_of_typ t) pname builder in
       emit_store t param ptr;
       Hashtbl.replace locals pname ptr)
@@ -163,15 +163,15 @@ and codegen_stmt = function
   | EmptyStmt _ -> ()
   | CompoundStmt (_, stmts) -> List.iter codegen_stmt stmts
   | Typedef _ -> ()
-  | VarDef { var_type; name; init; _ } ->
-      let ty = llvm_of_typ (Ast.typ_of_var_type var_type) in
+  | VarDef { source_type; name; init; _ } ->
+      let ty = llvm_of_typ (Ast.typ_of_source_type source_type) in
       let ptr = Llvm.build_alloca ty name builder in
       (* set variable to init if it exists *)
       begin match init with
       | None -> ()
       | Some init ->
           let v = codegen_expr init in
-          emit_store (Ast.typ_of_var_type var_type) v ptr
+          emit_store (Ast.typ_of_source_type source_type) v ptr
       end;
       Hashtbl.replace locals name ptr
   | If { cond; then_body; else_body; _ } -> codegen_if cond then_body else_body

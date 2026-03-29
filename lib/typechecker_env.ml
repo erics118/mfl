@@ -9,7 +9,7 @@ type env = {
   (* head is innermost scope. push when entering a new block, discard on exit *)
   vars : (string, typ) Hashtbl.t list;
   funcs : (string, func_sig) Hashtbl.t;
-  typedefs : (string, var_type) Hashtbl.t list;
+  typedefs : (string, source_type) Hashtbl.t list;
   return_typ : typ option;
   in_loop : bool;
 }
