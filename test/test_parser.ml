@@ -431,6 +431,8 @@ let test_sizeof _ =
 let test_typedef _ =
   roundtrip "typedef int myint;";
   roundtrip "typedef int* intptr;";
+  roundtrip "typedef int arr[10];";
+  roundtrip "typedef int* ptrs[4];";
   roundtrip "typedef unsigned long usize;\nusize x;"
 
 let test_errors _ =

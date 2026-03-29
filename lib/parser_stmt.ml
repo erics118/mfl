@@ -79,11 +79,30 @@ and parse_param st =
   in
   (param_type, name)
 
+and parse_array_suffix st var_type =
+  consume st TokLBracket;
+  let sz =
+    match st.cur_tok with
+    | TokInt n ->
+        advance st;
+        n
+    | _ ->
+        raise
+          (Parse_error (cur_pos st, "array size must be a constant integer"))
+  in
+  consume st TokRBracket;
+  VArray (var_type, sz)
+
 and parse_typedef st =
   let pos = cur_pos st in
   consume st TokTypedefKw;
   let existing_type = parse_type_name st in
   let alias = consume_identifier st in
+  let existing_type =
+    match st.cur_tok with
+    | TokLBracket -> parse_array_suffix st existing_type
+    | _ -> existing_type
+  in
   consume st TokSemicolon;
   Typedef { pos; existing_type; alias }
 
@@ -102,19 +121,9 @@ and parse_func_def_tail st pos ret_type name =
   FuncDef { pos; ret_type; name; params; body }
 
 and parse_array_def_tail st pos var_type name =
-  consume st TokLBracket;
-  let sz =
-    match st.cur_tok with
-    | TokInt n ->
-        advance st;
-        n
-    | _ ->
-        raise
-          (Parse_error (cur_pos st, "array size must be a constant integer"))
-  in
-  consume st TokRBracket;
+  let var_type = parse_array_suffix st var_type in
   consume st TokSemicolon;
-  VarDef { pos; var_type = VArray (var_type, sz); name; init = None }
+  VarDef { pos; var_type; name; init = None }
 
 and parse_declaration st =
   let pos = cur_pos st in

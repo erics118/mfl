@@ -8,6 +8,13 @@ let string_of_params l =
        (fun (vt, n) -> Printf.sprintf "%s %s" (string_of_var_type vt) n)
        l)
 
+let string_of_decl var_type name =
+  match var_type with
+  (* array declarators put [n] after the name, not the type, so we need to
+     specifically handle them *)
+  | VArray (t, sz) -> Printf.sprintf "%s %s[%d]" (string_of_var_type t) name sz
+  | _ -> Printf.sprintf "%s %s" (string_of_var_type var_type) name
+
 let formatted_string_of_char c =
   let s =
     match c with
@@ -165,20 +172,13 @@ and pp_stmt_aux : type a. ?top_level:bool -> ?indent:int -> a stmt -> string =
             (List.map (pp_stmt_aux ~top_level:false ~indent) stmts)
         else pp_block_aux ~indent stmts
     | VarDef { var_type; name; init; _ } -> begin
-        (* array declarators put [n] after the name, not the type, so we need to
-           specifically handle them *)
-        let decl_str =
-          match var_type with
-          | VArray (t, sz) ->
-              Printf.sprintf "%s %s[%d]" (string_of_var_type t) name sz
-          | _ -> Printf.sprintf "%s %s" (string_of_var_type var_type) name
-        in
+        let decl_str = string_of_decl var_type name in
         match init with
         | None -> decl_str ^ ";"
         | Some init -> Printf.sprintf "%s = %s;" decl_str (pp_expr_aux init)
       end
     | Typedef { existing_type; alias; _ } ->
-        Printf.sprintf "typedef %s %s;" (string_of_var_type existing_type) alias
+        Printf.sprintf "typedef %s;" (string_of_decl existing_type alias)
     | FuncDef { ret_type; name; params; body; _ } ->
         Printf.sprintf "%s %s(%s) %s"
           (string_of_var_type ret_type)

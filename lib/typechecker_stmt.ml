@@ -52,7 +52,9 @@ let rec typecheck_stmt (env : env) (stmt : parsed stmt) : checked stmt =
       (* we can just check each statement *)
       CompoundStmt (pos, List.map (typecheck_stmt env) stmts)
   | Typedef { pos; existing_type; alias } ->
-      let _ = resolve_var_type env pos existing_type in
+      let existing_type =
+        var_type_of_typ (resolve_var_type env pos existing_type)
+      in
       define_typedef env alias existing_type;
       Typedef { pos; existing_type; alias }
   | VarDef { pos; var_type; name; init } ->
@@ -103,14 +105,20 @@ and typecheck_var_def env pos var_type name init =
       end
   in
   define_var env name var_t;
-  VarDef { pos; var_type; name; init }
+  VarDef { pos; var_type = var_type_of_typ var_t; name; init }
 
 and typecheck_func_def env pos ret_type name params body =
   let ret_t = resolve_var_type env pos ret_type in
+  let params =
+    List.map
+      (fun (vt, pname) ->
+        (var_type_of_typ (resolve_var_type env pos vt), pname))
+      params
+  in
   (* add function to env first *)
   Hashtbl.replace env.funcs name
     {
-      params = List.map (fun (vt, _) -> resolve_var_type env pos vt) params;
+      params = List.map (fun (vt, _) -> typ_of_var_type vt) params;
       ret = ret_t;
     };
   let fn_env =
@@ -124,12 +132,12 @@ and typecheck_func_def env pos ret_type name params body =
   in
   (* then we add the variables to the env *)
   List.iter
-    (fun (vt, pname) -> define_var fn_env pname (resolve_var_type env pos vt))
+    (fun (vt, pname) -> define_var fn_env pname (typ_of_var_type vt))
     params;
   let body = List.map (typecheck_stmt fn_env) body in
   if ret_t <> Void && name <> "main" && stmts_can_fall_through body then
     raise (Type_error (pos, MissingReturn name));
-  FuncDef { pos; ret_type; name; params; body }
+  FuncDef { pos; ret_type = var_type_of_typ ret_t; name; params; body }
 
 and typecheck_if env pos cond then_body else_body =
   let cond = typecheck_expr env cond in

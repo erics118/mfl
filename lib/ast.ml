@@ -112,6 +112,25 @@ let rec typ_of_var_type = function
   | VArray (t, sz) -> Array (typ_of_var_type t, sz)
   | VNamed _ -> assert false [@coverage off]
 
+(** [var_type_of_typ t] converts a resolved [typ] back to a built-in
+    [var_type]. *)
+let rec var_type_of_typ = function
+  | Bool -> VBool
+  | Void -> VVoid
+  | Char -> VChar
+  | SChar -> VSChar
+  | UChar -> VUChar
+  | Short -> VShort
+  | UShort -> VUShort
+  | Int -> VInt
+  | UInt -> VUInt
+  | Long -> VLong
+  | ULong -> VULong
+  | LongLong -> VLongLong
+  | ULongLong -> VULongLong
+  | Ptr t -> VPtr (var_type_of_typ t)
+  | Array (t, sz) -> VArray (var_type_of_typ t, sz)
+
 (** phantom types marking which compiler phase produced an expr *)
 type parsed
 

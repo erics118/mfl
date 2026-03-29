@@ -11,7 +11,7 @@ let make_tbl pairs =
   List.iter (fun (k, v) -> Hashtbl.add tbl k v) pairs;
   tbl
 
-let default_env =
+let default_env () =
   {
     vars = [ Hashtbl.create 4 ];
     funcs = make_tbl [ ("noop", { params = []; ret = Void }) ];
@@ -40,11 +40,11 @@ let post_dec e = PostDec (p, e)
 
 (* noop function call, used to get a void type *)
 let noop = "noop" $ []
-let env_with vars = { default_env with vars = [ make_tbl vars ] }
+let env_with vars = { (default_env ()) with vars = [ make_tbl vars ] }
 
 let env_with_funcs funcs =
   {
-    default_env with
+    (default_env ()) with
     funcs = make_tbl (funcs @ [ ("noop", { params = []; ret = Void }) ]);
   }
 
@@ -86,18 +86,18 @@ let all_integer_vars = List.map (fun t -> (name_of_typ t, t)) all_integer_types
 let expected_promoted_type t =
   if integer_rank t < integer_rank Int then Int else t
 
-let check_typ ?(env = default_env) expected e =
+let check_typ ?(env = default_env ()) expected e =
   match typecheck_expr env e with
   | result -> assert_equal ~printer:string_of_typ expected (expr_typ result)
   | exception Type_error (_, err) -> assert_failure (string_of_type_error err)
 
-let check_err ?(env = default_env) expected_err e =
+let check_err ?(env = default_env ()) expected_err e =
   match typecheck_expr env e with
   | _ -> assert_failure "expected Type_error"
   | exception Type_error (_, err) ->
       assert_equal ~printer:Fun.id expected_err (string_of_type_error err)
 
-let check_stmt_err ?(env = default_env) expected_err s =
+let check_stmt_err ?(env = default_env ()) expected_err s =
   match typecheck_stmt env s with
   | _ -> assert_failure "expected Type_error"
   | exception Type_error (_, err) ->
@@ -643,7 +643,7 @@ let test_pointer_errors _ =
 
 let test_stmt_conditions _ =
   (* any scalar can be used as a condition in control flow stmts *)
-  let ok s = ignore (typecheck_stmt default_env s) in
+  let ok s = ignore (typecheck_stmt (default_env ()) s) in
   let e = EmptyStmt dummy_pos in
   ok (If { pos = dummy_pos; cond = i 1; then_body = e; else_body = None });
   ok (WhileLoop { pos = dummy_pos; cond = i 1; body = e });
@@ -664,7 +664,7 @@ let test_stmt_conditions _ =
 
 let test_break_continue _ =
   (* break and continue are valid inside loops *)
-  let loop_env = { default_env with in_loop = true } in
+  let loop_env = { (default_env ()) with in_loop = true } in
   (match typecheck_stmt loop_env (BreakStmt dummy_pos) with
   | BreakStmt _ -> ()
   | _ -> assert_failure "expected BreakStmt");
@@ -675,7 +675,7 @@ let test_break_continue _ =
 let test_var_type_resolution _ =
   let check vt =
     ignore
-      (typecheck_stmt default_env
+      (typecheck_stmt (default_env ())
          (VarDef { pos = dummy_pos; var_type = vt; name = "x"; init = None }))
   in
   check VBool;
@@ -698,28 +698,46 @@ let test_var_type_resolution _ =
        { pos = dummy_pos; var_type = VNamed "Foo"; name = "x"; init = None })
 
 let test_typedefs _ =
-  let env = { default_env with typedefs = [ make_tbl [ ("myint", VInt) ] ] } in
+  let env =
+    let env = default_env () in
+    { env with typedefs = [ make_tbl [ ("myint", VInt) ] ] }
+  in
   check_typ ~env Int (cast (VNamed "myint") (i 7));
+  let env = default_env () in
   begin match
-    typecheck_stmt default_env
+    typecheck_stmt env
       (Typedef { pos = dummy_pos; existing_type = VInt; alias = "myint" })
   with
   | Typedef { existing_type = VInt; alias = "myint"; _ } -> ()
   | _ -> assert_failure "expected checked typedef"
   end;
   ignore
-    (typecheck_stmt default_env
+    (typecheck_stmt env
        (VarDef
           {
             pos = dummy_pos;
             var_type = VNamed "myint";
             name = "x";
             init = None;
-          }))
+          }));
+  ignore
+    (typecheck_stmt env
+       (Typedef
+          { pos = dummy_pos; existing_type = VArray (VInt, 10); alias = "arr" }));
+  match
+    typecheck_stmt
+      (let env = default_env () in
+       { env with typedefs = [ make_tbl [ ("arr", VArray (VInt, 10)) ] ] })
+      (VarDef
+         { pos = dummy_pos; var_type = VNamed "arr"; name = "xs"; init = None })
+  with
+  | VarDef { name = "xs"; var_type = VArray (VInt, 10); init = None; _ } -> ()
+  | _ -> assert_failure "expected array typedef var def"
 
 let test_typedef_scope _ =
+  let env = default_env () in
   ignore
-    (typecheck_stmt default_env
+    (typecheck_stmt env
        (CompoundStmt
           ( dummy_pos,
             [
@@ -731,8 +749,9 @@ let test_typedef_scope _ =
 
 let test_typedef_cycle _ =
   let env =
+    let env = default_env () in
     {
-      default_env with
+      env with
       typedefs = [ make_tbl [ ("a", VNamed "b"); ("b", VNamed "a") ] ];
     }
   in
@@ -755,7 +774,7 @@ let test_missing_return _ =
          body = [ EmptyStmt dummy_pos ];
        });
   ignore
-    (typecheck_stmt default_env
+    (typecheck_stmt (default_env ())
        (FuncDef
           {
             pos = dummy_pos;
