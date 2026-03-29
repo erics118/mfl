@@ -50,6 +50,11 @@ let op_of_tok = function
   | TokGtGt -> Some RShift
   | _ -> None
 
+let cur_precedence st =
+  match op_of_tok st.cur_tok with
+  | Some op -> precedence op
+  | None -> -1
+
 (* Parse a comma-separated list of items terminated by ')' *)
 let parse_rparen_list st parse_item =
   match st.cur_tok with

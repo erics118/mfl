@@ -3,6 +3,13 @@ open Typechecker_types
 open Typechecker_error
 open Typechecker_env
 
+(* converts a var_type to a typ, raising a user-facing error for unknown
+   user-defined type names (VNamed). used during typechecking before VNamed
+   types are guaranteed to be valid. *)
+let resolve_var_type pos = function
+  | VNamed name -> raise (Type_error (pos, UnknownType name))
+  | vt -> Ast.typ_of_var_type vt
+
 let assert_lvalue (pos : pos) (e : checked expr) : unit =
   match e with
   | VarRef _ -> ()

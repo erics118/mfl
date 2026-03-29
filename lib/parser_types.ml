@@ -156,8 +156,3 @@ let is_type_keyword = function
   | TokEof -> false
 
 let is_type_token st = is_type_keyword st.cur_tok
-
-let cur_precedence st =
-  match op_of_tok st.cur_tok with
-  | Some op -> precedence op
-  | None -> -1
