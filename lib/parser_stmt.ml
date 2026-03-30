@@ -6,7 +6,7 @@ open Parser_types
 
 let looks_like_definition st =
   match st.cur_tok with
-  | TokTypedefKw -> true
+  | TokTypedefKw | TokStructKw -> true
   | TokIdent _ -> (
       match Lexer.peek_token st.lex with
       | TokIdent _ | TokStar -> true
@@ -34,6 +34,7 @@ let rec parse_statement st =
   | TokForKw -> parse_for st
   | TokDoKw -> parse_do_while st
   | TokTypedefKw -> parse_typedef st
+  | TokStructKw -> parse_struct_or_var st
   | _ when looks_like_definition st -> parse_declaration st
   | TokSemicolon ->
       consume st TokSemicolon;
@@ -93,18 +94,125 @@ and parse_array_suffix st source_type =
   consume st TokRBracket;
   VArray (source_type, sz)
 
+(* parse the body of a struct: { field; field; ... } returning the field list *)
+and parse_struct_body st =
+  consume st TokLBrace;
+  let rec go acc =
+    match st.cur_tok with
+    | TokRBrace ->
+        consume st TokRBrace;
+        List.rev acc
+    | TokEof -> raise (Parse_error (cur_pos st, "expected '}'"))
+    | _ ->
+        let field_type = parse_type_name st in
+        let field_name = consume_identifier st in
+        let field_type =
+          match st.cur_tok with
+          | TokLBracket -> parse_array_suffix st field_type
+          | _ -> field_type
+        in
+        consume st TokSemicolon;
+        go ((field_type, field_name) :: acc)
+  in
+  go []
+
+(* handle all struct-prefixed statements: struct Tag { ... }; -> StructDef
+   struct Tag { ... } var; -> StructDef with var_name struct Tag var; -> VarDef
+   struct Tag var = init; -> VarDef with init struct Tag *var; -> VarDef
+   (pointer) struct Tag func(params){...} -> FuncDef struct Tag arr[n]; ->
+   VarDef (array) struct Tag; -> forward decl, emitted as EmptyStmt *)
+and parse_struct_or_var st =
+  let pos = cur_pos st in
+  consume st TokStructKw;
+  let tag = consume_identifier st in
+  match st.cur_tok with
+  | TokLBrace -> (
+      (* struct Tag { ... } [var_name]; *)
+      let fields = parse_struct_body st in
+      match st.cur_tok with
+      | TokSemicolon ->
+          consume st TokSemicolon;
+          StructDef { pos; tag; fields; var_name = None }
+      | TokIdent _ ->
+          let var_name = consume_identifier st in
+          consume st TokSemicolon;
+          StructDef { pos; tag; fields; var_name = Some var_name }
+      | _ -> raise (Parse_error (cur_pos st, "expected ';' or variable name")))
+  | TokSemicolon ->
+      (* struct Tag; - forward declaration, no-op *)
+      consume st TokSemicolon;
+      EmptyStmt pos
+  | _ -> (
+      (* struct Tag [*...] name [= init | (params){body} | [n]]; *)
+      let base_type = VStruct tag in
+      let base_type =
+        let rec loop ty =
+          match st.cur_tok with
+          | TokStar ->
+              advance st;
+              loop (VPtr ty)
+          | _ -> ty
+        in
+        loop base_type
+      in
+      let name = consume_identifier st in
+      match st.cur_tok with
+      | TokSemicolon ->
+          consume st TokSemicolon;
+          VarDef { pos; source_type = base_type; name; init = None }
+      | TokLBracket ->
+          let source_type = parse_array_suffix st base_type in
+          consume st TokSemicolon;
+          VarDef { pos; source_type; name; init = None }
+      | TokAssign -> parse_var_def_tail st pos base_type name
+      | TokLParen -> parse_func_def_tail st pos base_type name
+      | _ -> raise (Parse_error (cur_pos st, "expected ';', '=', '(', or '['")))
+
 and parse_typedef st =
   let pos = cur_pos st in
   consume st TokTypedefKw;
-  let existing_type = parse_type_name st in
-  let alias = consume_identifier st in
-  let existing_type =
-    match st.cur_tok with
-    | TokLBracket -> parse_array_suffix st existing_type
-    | _ -> existing_type
-  in
-  consume st TokSemicolon;
-  Typedef { pos; existing_type; alias }
+  match st.cur_tok with
+  | TokStructKw ->
+      (* typedef struct [Tag] { ... } Alias; or typedef struct Tag Alias; *)
+      advance st;
+      let tag_opt, body_opt =
+        match st.cur_tok with
+        | TokLBrace ->
+            (* typedef struct { ... } Alias; *)
+            (None, Some (parse_struct_body st))
+        | TokIdent tag_name ->
+            advance st;
+            if st.cur_tok = TokLBrace then
+              (* typedef struct Tag { ... } Alias; *)
+              (Some tag_name, Some (parse_struct_body st))
+            else
+              (* typedef struct Tag Alias; - reference existing struct *)
+              (Some tag_name, None)
+        | _ -> raise (Parse_error (cur_pos st, "expected struct tag or '{'"))
+      in
+      let alias = consume_identifier st in
+      consume st TokSemicolon;
+      let tag, struct_def =
+        match (tag_opt, body_opt) with
+        | None, Some fields ->
+            (* anonymous struct: generate a synthetic tag *)
+            let anon = "__anon_" ^ alias in
+            (anon, Some (anon, fields))
+        | Some tag, Some fields -> (tag, Some (tag, fields))
+        | Some tag, None -> (tag, None)
+        | None, None -> assert false
+      in
+      Typedef { pos; struct_def; existing_type = VStruct tag; alias }
+  | _ ->
+      let existing_type = parse_type_name st in
+      let alias = consume_identifier st in
+      let existing_type =
+        match st.cur_tok with
+        | TokLBracket -> parse_array_suffix st existing_type
+        | _ -> existing_type
+      in
+      consume st TokSemicolon;
+      Typedef { pos; struct_def = None; existing_type; alias }
 
 and parse_var_def_tail st pos source_type name =
   consume st TokAssign;

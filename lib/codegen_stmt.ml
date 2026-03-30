@@ -146,7 +146,21 @@ and codegen_func_def ret_type name params body =
       (* add return 0; to main if missing *)
       ignore (Llvm.build_ret (Llvm.const_null (Llvm.return_type ty)) builder)
 
+and codegen_struct_def tag fields =
+  (* create named LLVM struct type and register it in struct_defs *)
+  let llty = Llvm.named_struct_type context ("struct." ^ tag) in
+  let field_types =
+    Array.of_list (List.map (fun (_, ft) -> llvm_of_typ ft) fields)
+  in
+  Llvm.struct_set_body llty field_types false;
+  Hashtbl.replace struct_defs tag (llty, fields)
+
 and codegen_stmt = function
+  | StructDef { tag; fields; _ } ->
+      let resolved =
+        List.map (fun (vt, fname) -> (fname, Ast.typ_of_source_type vt)) fields
+      in
+      codegen_struct_def tag resolved
   | FuncDef { ret_type; name; params; body; _ } ->
       codegen_func_def ret_type name params body
   | ReturnStmt (_, Some e) ->
@@ -162,7 +176,15 @@ and codegen_stmt = function
   | ExprStmt (_, e) -> ignore (codegen_expr e)
   | EmptyStmt _ -> ()
   | CompoundStmt (_, stmts) -> List.iter codegen_stmt stmts
-  | Typedef _ -> ()
+  | Typedef { struct_def; _ } ->
+      (* register inline struct definition if present *)
+      (match struct_def with
+      | None -> ()
+      | Some (tag, fields) ->
+          let resolved =
+            List.map (fun (vt, fname) -> (fname, Ast.typ_of_source_type vt)) fields
+          in
+          codegen_struct_def tag resolved)
   | VarDef { source_type; name; init; _ } ->
       let ty = llvm_of_typ (Ast.typ_of_source_type source_type) in
       let ptr = Llvm.build_alloca ty name builder in

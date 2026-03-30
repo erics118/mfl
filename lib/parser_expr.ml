@@ -62,6 +62,17 @@ and parse_postfix st =
         let i = parse_expr st in
         consume st TokRBracket;
         loop (Subscript (Parsed pos, e, i))
+    | TokDot ->
+        (* member access, e.field *)
+        advance st;
+        let field = consume_identifier st in
+        loop (MemberAccess (Parsed pos, e, field))
+    | TokArrow ->
+        (* pointer member access, e->field, desugar to ( *e).field *)
+        advance st;
+        let field = consume_identifier st in
+        let derefed = UnaryOp (Parsed pos, Deref, e) in
+        loop (MemberAccess (Parsed pos, derefed, field))
     | TokPlusPlus ->
         advance st;
         loop (PostInc (Parsed pos, e))

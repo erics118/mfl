@@ -92,12 +92,19 @@ let next_token st =
       advance st;
       advance st;
       TokMinusMinus
+  | Some '-' when peek2 st = Some '>' ->
+      advance st;
+      advance st;
+      TokArrow
   | Some '+' ->
       advance st;
       TokPlus
   | Some '-' ->
       advance st;
       TokMinus
+  | Some '.' ->
+      advance st;
+      TokDot
   | Some '*' ->
       advance st;
       TokStar

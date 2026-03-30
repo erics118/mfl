@@ -27,6 +27,7 @@ type token =
   | TokSignedKw  (** [signed] keyword *)
   | TokSizeofKw  (** [sizeof] keyword *)
   | TokTypedefKw  (** [typedef] keyword *)
+  | TokStructKw  (** [struct] keyword *)
   (* binary operators *)
   | TokPlus  (** [+] *)
   | TokMinus  (** [-] *)
@@ -64,6 +65,8 @@ type token =
   | TokComma  (** [,] *)
   | TokQuestion  (** [?] for the ternary operator *)
   | TokColon  (** [:] for the ternary operator*)
+  | TokDot  (** [.] member access *)
+  | TokArrow  (** [->] pointer member access *)
   (* special *)
   | TokEof  (** end of input *)
 
@@ -94,6 +97,7 @@ let string_of_token = function
   | TokSignedKw -> "signed"
   | TokSizeofKw -> "sizeof"
   | TokTypedefKw -> "typedef"
+  | TokStructKw -> "struct"
   (* binary operators *)
   | TokPlus -> "+"
   | TokMinus -> "-"
@@ -131,5 +135,7 @@ let string_of_token = function
   | TokComma -> ","
   | TokQuestion -> "?"
   | TokColon -> ":"
+  | TokDot -> "."
+  | TokArrow -> "->"
   (* special *)
   | TokEof -> "EOF"

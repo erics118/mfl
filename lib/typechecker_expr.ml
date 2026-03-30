@@ -14,6 +14,11 @@ let resolve_source_type env pos source_type =
         | Some vt -> go (name :: seen) vt
         | None -> raise (Type_error (pos, UnknownType name))
       end
+    | VStruct tag ->
+        (* don't require struct to be defined here; pointers to incomplete
+           structs are allowed. definition is checked at var decl and access *)
+        Struct tag
+    | VPtr (VStruct tag) -> Ptr (Struct tag)
     | vt -> Ast.typ_of_source_type vt
   in
   go [] source_type
@@ -23,6 +28,7 @@ let assert_lvalue (pos : pos) (e : checked expr) : unit =
   | VarRef _ -> ()
   | UnaryOp (_, Deref, _) -> ()
   | Subscript _ -> ()
+  | MemberAccess _ -> ()
   | _ -> raise (Type_error (pos, NotLvalue))
 
 let check_binary pos op lt rt =
@@ -72,6 +78,9 @@ let can_explicit_cast from_t to_t =
   if from_t = to_t then true
   else
     match (from_t, to_t) with
+    | Struct _, _ | _, Struct _ ->
+        (* structs cannot be cast to or from other types *)
+        false
     | Ptr _, Ptr _ | Ptr _, _ | _, Ptr _ ->
         (* if from or to or both is a pointer, ensure both are scalar *)
         is_scalar_type from_t && is_scalar_type to_t
@@ -164,6 +173,25 @@ let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
       if not (can_explicit_cast from_t to_t) then
         raise (Type_error (pos, InvalidCast (from_t, to_t)));
       Cast (Checked (pos, to_t), source_type_of_typ to_t, e)
+  | MemberAccess (ann, lhs, field) ->
+      let pos = pos_of ann in
+      let lhs = typecheck_expr env lhs in
+      let tag =
+        match expr_typ lhs with
+        | Struct tag -> tag
+        | t -> raise (Type_error (pos, NotAStruct t))
+      in
+      let fields =
+        match lookup_struct env tag with
+        | Some fs -> fs
+        | None -> raise (Type_error (pos, UnknownType ("struct " ^ tag)))
+      in
+      let field_t =
+        match List.assoc_opt field fields with
+        | Some t -> t
+        | None -> raise (Type_error (pos, NoSuchField (tag, field)))
+      in
+      MemberAccess (Checked (pos, field_t), lhs, field)
   | ImplicitCast (_ann, _ty, _e) -> assert false
   | SizeofExpr (ann, e) ->
       let pos = pos_of ann in

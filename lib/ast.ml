@@ -49,6 +49,7 @@ type source_type =
   | VPtr of source_type
   | VArray of source_type * int
   | VNamed of string  (** user-defined type names *)
+  | VStruct of string  (** struct type by tag name *)
 
 (** render a variable type as a string *)
 let rec string_of_source_type = function
@@ -68,6 +69,7 @@ let rec string_of_source_type = function
   | VPtr t -> string_of_source_type t ^ "*"
   | VArray (t, sz) -> string_of_source_type t ^ "[" ^ string_of_int sz ^ "]"
   | VNamed name -> name
+  | VStruct tag -> "struct " ^ tag
 
 (** source location *)
 type pos = {
@@ -92,6 +94,7 @@ type typ =
   | ULongLong  (** i64, unsigned *)
   | Ptr of typ (* pointer type *)
   | Array of typ * int  (** array with size *)
+  | Struct of string  (** struct type identified by tag *)
 
 (** [typ_of_source_type vt] converts a built-in [source_type] to its [typ]. Only
     safe to call after typechecking, when all [VNamed] types have already been
@@ -113,6 +116,7 @@ let rec typ_of_source_type = function
   | VPtr t -> Ptr (typ_of_source_type t)
   | VArray (t, sz) -> Array (typ_of_source_type t, sz)
   | VNamed _ -> assert false [@coverage off]
+  | VStruct tag -> Struct tag
 
 (** [source_type_of_typ t] converts a resolved [typ] back to a built-in
     [source_type]. *)
@@ -132,6 +136,7 @@ let rec source_type_of_typ = function
   | ULongLong -> VULongLong
   | Ptr t -> VPtr (source_type_of_typ t)
   | Array (t, sz) -> VArray (source_type_of_typ t, sz)
+  | Struct tag -> VStruct tag
 
 (** phantom types marking which compiler phase produced an expr *)
 type parsed
@@ -172,9 +177,12 @@ type 'a expr =
   | Cast : 'a ann * source_type * 'a expr -> 'a expr
       (** produced by the parser *)
   | ImplicitCast : checked ann * typ * checked expr -> checked expr
+      (** only produced by the typechecker *)
   | SizeofExpr : 'a ann * 'a expr -> 'a expr
   | SizeofType : 'a ann * source_type -> 'a expr
-      (** only produced by the typechecker *)
+  | MemberAccess : 'a ann * 'a expr * string -> 'a expr
+      (** [e.field] struct member access; [->] is desugared to [ ( *e ).field ]
+      *)
 
 (** statements *)
 type 'a stmt =
@@ -193,9 +201,19 @@ type 'a stmt =
       (** [source_type name = init;] defines a variable with an initial value *)
   | Typedef of {
       pos : pos;
+      struct_def : (string * (source_type * string) list) option;
+          (** if [Some (tag, fields)], an inline struct is defined along with
+              the typedef *)
       existing_type : source_type;
       alias : string;
     }  (** [typedef existing_type alias;] defines a type alias *)
+  | StructDef of {
+      pos : pos;
+      tag : string;
+      fields : (source_type * string) list;
+      var_name : string option;
+          (** if [Some var_name], also declares a variable of the struct type *)
+    }  (** [struct tag { fields };] or [struct tag { fields } var;] *)
   | FuncDef of {
       pos : pos;
       ret_type : source_type;

@@ -218,7 +218,49 @@ and codegen_expr (e : checked expr) : Llvm.llvalue =
       Llvm.const_int long_type (sizeof_typ (expr_type e))
   | SizeofType (Checked _, t) ->
       Llvm.const_int long_type (sizeof_typ (typ_of_source_type t))
+  | MemberAccess (Checked (_, t), lhs, field) -> begin
+      let tag =
+        match expr_type lhs with
+        | Struct tag -> tag
+        | _ -> assert false [@coverage off]
+      in
+      let struct_ptr = lvalue_ptr lhs in
+      let field_ptr = member_field_ptr struct_ptr tag field in
+      (* array fields decay to a pointer to the first element *)
+      match t with
+      | Array (elem_t, _) ->
+          let zero = Llvm.const_int int_type 0 in
+          Llvm.build_gep (llvm_of_typ elem_t) field_ptr [| zero |] "arrdecay"
+            builder
+      | _ -> emit_load t field_ptr "field"
+    end
   | _ -> assert false [@coverage off]
+
+(* find index and type of a named field in a field list *)
+and find_field fields field_name =
+  let rec go idx = function
+    | [] -> None
+    | (fname, ft) :: _ when fname = field_name -> Some (idx, ft)
+    | _ :: rest -> go (idx + 1) rest
+  in
+  go 0 fields
+
+(** gets the LLVM struct type and field index for a given tag and field name *)
+and struct_field_info tag field_name =
+  match Hashtbl.find_opt struct_defs tag with
+  | None -> failwith ("struct not defined: " ^ tag)
+  | Some (llty, fields) -> begin
+      match find_field fields field_name with
+      | None -> failwith ("no field '" ^ field_name ^ "' in struct " ^ tag)
+      | Some (idx, ft) -> (llty, idx, ft)
+    end
+
+(** gets the pointer to a struct field via member access *)
+and member_field_ptr struct_ptr tag field_name =
+  let llty, idx, _ = struct_field_info tag field_name in
+  let zero = Llvm.const_int int_type 0 in
+  let fidx = Llvm.const_int int_type idx in
+  Llvm.build_gep llty struct_ptr [| zero; fidx |] "fieldptr" builder
 
 (** gets the pointer to an element via subscript *)
 and codegen_subscript elem_t a i =
@@ -261,6 +303,15 @@ and lvalue_ptr (e : checked expr) : Llvm.llvalue =
         else iv
       in
       Llvm.build_gep (llvm_of_typ elem_t) ptr [| iv64 |] "subscript" builder
+  | MemberAccess (Checked (_, _), lhs, field) -> begin
+      let tag =
+        match expr_type lhs with
+        | Struct tag -> tag
+        | _ -> assert false [@coverage off]
+      in
+      let struct_ptr = lvalue_ptr lhs in
+      member_field_ptr struct_ptr tag field
+    end
   | _ -> assert false [@coverage off]
 
 and codegen_ternary cond then_e else_e =

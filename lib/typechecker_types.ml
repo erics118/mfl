@@ -16,6 +16,7 @@ let rec string_of_typ = function
   | ULongLong -> "unsigned long long"
   | Ptr t -> string_of_typ t ^ "*"
   | Array (t, sz) -> string_of_typ t ^ "[" ^ string_of_int sz ^ "]"
+  | Struct t -> "struct " ^ t
 
 (** true for any integer type, including Bool, excluding Void *)
 let is_integer_type = function
@@ -33,6 +34,7 @@ let is_integer_type = function
   | ULongLong -> true
   | Ptr _ -> false
   | Array (_, _) -> false
+  | Struct _ -> false
   | Void -> false
 
 let is_pointer_type = function
@@ -52,7 +54,7 @@ let integer_width = function
   | Int | UInt -> 32
   | Long | ULong | LongLong | ULongLong -> 64
   | Ptr _ -> 64
-  | Array (_, _) | Void -> 0
+  | Array (_, _) | Struct _ | Void -> 0
 
 (** rank of integers, in order of priority when casting implicitly *)
 let integer_rank = function
@@ -62,14 +64,14 @@ let integer_rank = function
   | Int | UInt -> 3
   | Long | ULong -> 4
   | LongLong | ULongLong -> 5
-  | Ptr _ | Array (_, _) | Void -> assert false
+  | Ptr _ | Array (_, _) | Struct _ | Void -> assert false
 
 (** true for signed integer types *)
 let is_signed_type = function
   | Char | SChar | Short | Int | Long | LongLong -> true
   | UChar | UShort | UInt | ULong | ULongLong | Bool | Ptr _
   | Array (_, _)
-  | Void -> false
+  | Struct _ | Void -> false
 
 (** gets the unsigned version of a signed type *)
 let unsigned_counterpart = function
@@ -82,7 +84,8 @@ let unsigned_counterpart = function
   (* these types don't change *)
   | (UChar | UShort | UInt | ULong | ULongLong) as t -> t
   (* these types don't have an unsigned counterpart *)
-  | Bool | Ptr _ | Array (_, _) | Void -> invalid_arg "unsigned counterpart"
+  | Bool | Ptr _ | Array (_, _) | Struct _ | Void ->
+      invalid_arg "unsigned counterpart"
 
 let expr_typ : checked expr -> typ = function
   | IntLiteral (ann, _)
@@ -102,4 +105,5 @@ let expr_typ : checked expr -> typ = function
   | Subscript (ann, _, _)
   | ImplicitCast (ann, _, _)
   | SizeofExpr (ann, _)
-  | SizeofType (ann, _) -> typ_of ann
+  | SizeofType (ann, _)
+  | MemberAccess (ann, _, _) -> typ_of ann

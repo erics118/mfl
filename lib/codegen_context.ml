@@ -16,6 +16,10 @@ let int_type = Llvm.i32_type context
 let long_type = Llvm.i64_type context
 let pointer_type = Llvm.pointer_type context
 
+(* maps struct tag to (llvm struct type, resolved field list) *)
+let struct_defs : (string, Llvm.lltype * (string * typ) list) Hashtbl.t =
+  Hashtbl.create 8
+
 (** gets the size of a type in bytes *)
 let rec sizeof_typ = function
   | Bool -> 1
@@ -26,6 +30,13 @@ let rec sizeof_typ = function
   | Ptr _ -> 8
   | Array (t, sz) -> sizeof_typ t * sz
   | Void -> 0
+  | Struct tag -> begin
+      (* sum of field sizes; does not account for alignment padding *)
+      match Hashtbl.find_opt struct_defs tag with
+      | None -> 0
+      | Some (_, fields) ->
+          List.fold_left (fun acc (_, ft) -> acc + sizeof_typ ft) 0 fields
+    end
 
 (* maps variable names to their alloca ptr within the current function *)
 let locals : (string, Llvm.llvalue) Hashtbl.t = Hashtbl.create 16
@@ -63,6 +74,11 @@ let rec llvm_of_typ = function
   | Long | ULong | LongLong | ULongLong -> long_type
   | Array (t, sz) -> Llvm.array_type (llvm_of_typ t) sz
   | Ptr _ -> pointer_type
+  | Struct tag -> begin
+      match Hashtbl.find_opt struct_defs tag with
+      | Some (llty, _) -> llty
+      | None -> failwith ("struct not defined: " ^ tag)
+    end
 
 (** load a value of type [t] from [ptr], returning the computation-ready value.
     handles any type-specific conversions, ie bool i8->i1 *)
@@ -80,7 +96,7 @@ let emit_store t v ptr =
 let is_signed = function
   | Char | SChar | Short | Int | Long | LongLong -> true
   | UChar | UShort | UInt | ULong | ULongLong -> false
-  | Bool | Ptr _ | Array (_, _) | Void -> false
+  | Bool | Ptr _ | Array (_, _) | Struct _ | Void -> false
 
 (* extract the resolved type from a checked expression annotation *)
 let expr_type : checked expr -> typ = function
@@ -101,7 +117,8 @@ let expr_type : checked expr -> typ = function
   | ImplicitCast (Checked (_, t), _, _)
   | SizeofExpr (Checked (_, t), _)
   | SizeofType (Checked (_, t), _)
-  | Subscript (Checked (_, t), _, _) -> t
+  | Subscript (Checked (_, t), _, _)
+  | MemberAccess (Checked (_, t), _, _) -> t
   | _ -> assert false [@coverage off]
 
 let codegen_int n = Llvm.const_int int_type n

@@ -121,6 +121,16 @@ let rec pp_expr_aux : type a. ?parent_prec:int -> a expr -> string =
       pp_expr_aux e
   | SizeofExpr (_, e) -> "sizeof (" ^ pp_expr_aux e ^ ")"
   | SizeofType (_, t) -> "sizeof " ^ string_of_source_type t
+  | MemberAccess (_, UnaryOp (_, Deref, e), field) ->
+      (* desugared arrow: print as -> *)
+      let s = pp_expr_aux e in
+      let s =
+        match e with
+        | BinaryOp _ | Assign _ | Ternary _ -> "(" ^ s ^ ")"
+        | _ -> s
+      in
+      s ^ "->" ^ field
+  | MemberAccess (_, e, field) -> pp_expr_aux e ^ "." ^ field
 
 (* print an 'a expr option, handling spacing, for use within a for loop *)
 let pp_expr_aux_opt = function
@@ -193,6 +203,21 @@ and pp_stmt_aux : type a. ?top_level:bool -> ?indent:int -> a stmt -> string =
           (pp_expr_aux_opt cond) (pp_expr_aux_opt incr) (pp_body body)
     | DoWhileLoop { body; cond; _ } ->
         Printf.sprintf "do %s while (%s);" (pp_body body) (pp_expr_aux cond)
+    | StructDef { tag; fields; var_name; _ } ->
+        let fields_str =
+          String.concat "\n"
+            (List.map
+               (fun (vt, fname) ->
+                 pad (indent + 1) ^ string_of_decl vt fname ^ ";")
+               fields)
+        in
+        let body_str = "{\n" ^ fields_str ^ "\n" ^ pad indent ^ "}" in
+        let tail =
+          match var_name with
+          | None -> ";"
+          | Some name -> " " ^ name ^ ";"
+        in
+        Printf.sprintf "struct %s %s%s" tag body_str tail
   in
   p ^ rest
 

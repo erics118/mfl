@@ -17,6 +17,7 @@ let rec stmt_can_fall_through = function
   | EmptyStmt _
   | VarDef _
   | Typedef _
+  | StructDef _
   | FuncDef _
   | BreakStmt _
   | ContinueStmt _
@@ -51,12 +52,24 @@ let rec typecheck_stmt (env : env) (stmt : parsed stmt) : checked stmt =
       let env = push_scope env in
       (* we can just check each statement *)
       CompoundStmt (pos, List.map (typecheck_stmt env) stmts)
-  | Typedef { pos; existing_type; alias } ->
+  | Typedef { pos; struct_def; existing_type; alias } ->
+      (* if there's an inline struct def, register it first *)
+      (match struct_def with
+      | None -> ()
+      | Some (tag, fields) ->
+          let resolved =
+            List.map
+              (fun (vt, fname) -> (fname, resolve_source_type env pos vt))
+              fields
+          in
+          define_struct env tag resolved);
       let existing_type =
         source_type_of_typ (resolve_source_type env pos existing_type)
       in
       define_typedef env alias existing_type;
-      Typedef { pos; existing_type; alias }
+      Typedef { pos; struct_def; existing_type; alias }
+  | StructDef { pos; tag; fields; var_name } ->
+      typecheck_struct_def env pos tag fields var_name
   | VarDef { pos; source_type; name; init } ->
       typecheck_var_def env pos source_type name init
   | FuncDef { pos; ret_type; name; params; body } ->
@@ -107,6 +120,18 @@ and typecheck_var_def env pos source_type name init =
   define_var env name var_t;
   VarDef { pos; source_type = source_type_of_typ var_t; name; init }
 
+and typecheck_struct_def env pos tag fields var_name =
+  (* resolve each field type and register the struct *)
+  let resolved =
+    List.map (fun (vt, fname) -> (fname, resolve_source_type env pos vt)) fields
+  in
+  define_struct env tag resolved;
+  (* if var_name is given, also define a variable of this struct type *)
+  (match var_name with
+  | None -> ()
+  | Some name -> define_var env name (Struct tag));
+  StructDef { pos; tag; fields; var_name }
+
 and normalize_param_type = function
   | Array (t, _) -> Ptr t
   | t -> t
@@ -132,6 +157,7 @@ and typecheck_func_def env pos ret_type name params body =
       vars = [ Hashtbl.create 8 ];
       funcs = env.funcs;
       typedefs = [ Hashtbl.create 8 ] @ env.typedefs;
+      structs = env.structs;
       return_typ = Some ret_t;
       in_loop = false;
     }

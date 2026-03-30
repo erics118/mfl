@@ -128,4 +128,5 @@ let read_ident st =
   | "void" -> TokVoidKw
   | "sizeof" -> TokSizeofKw
   | "typedef" -> TokTypedefKw
+  | "struct" -> TokStructKw
   | s -> TokIdent s

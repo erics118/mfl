@@ -83,6 +83,18 @@ let parse_type_name st =
     | TokSignedKw ->
         advance st;
         parse_int_base `Signed st
+    | TokStructKw ->
+        advance st;
+        (* struct Tag - reference to a named struct type, no body parsing
+           here *)
+        let tag =
+          match st.cur_tok with
+          | TokIdent name ->
+              advance st;
+              name
+          | _ -> raise (Parse_error (cur_pos st, "expected struct tag name"))
+        in
+        VStruct tag
     | TokIdent type_name ->
         advance st;
         VNamed type_name
@@ -108,7 +120,8 @@ let is_type_keyword = function
   | TokLongKw
   | TokUnsignedKw
   | TokSignedKw
-  | TokTypedefKw -> true
+  | TokTypedefKw
+  | TokStructKw -> true
   | TokInt _
   | TokBool _
   | TokChar _
@@ -155,6 +168,8 @@ let is_type_keyword = function
   | TokComma
   | TokQuestion
   | TokColon
+  | TokDot
+  | TokArrow
   | TokEof -> false
 
 let is_type_token st = is_type_keyword st.cur_tok

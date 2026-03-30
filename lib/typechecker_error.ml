@@ -17,6 +17,8 @@ type type_error =
   | NotLvalue
   | IncDecTypeMismatch of [ `Pre | `Post ] * [ `Inc | `Dec ] * typ
   | InvalidCast of typ * typ
+  | NotAStruct of typ  (** member access on a non-struct type *)
+  | NoSuchField of string * string  (** struct tag, field name *)
 
 exception Type_error of pos * type_error
 
@@ -59,3 +61,7 @@ let string_of_type_error = function
   | InvalidCast (from_t, to_t) ->
       Printf.sprintf "cannot cast from '%s' to '%s'" (string_of_typ from_t)
         (string_of_typ to_t)
+  | NotAStruct t ->
+      Printf.sprintf "member access on non-struct type '%s'" (string_of_typ t)
+  | NoSuchField (tag, field) ->
+      Printf.sprintf "struct '%s' has no field '%s'" tag field

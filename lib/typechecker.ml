@@ -8,6 +8,7 @@ include Typechecker_types
 let typecheck_program (stmts : parsed stmt list) : checked stmt list =
   let funcs = Hashtbl.create 8 in
   let typedefs = [ Hashtbl.create 8 ] in
+  let structs = Hashtbl.create 8 in
   (* "stdlib" functions *)
   Hashtbl.replace funcs "printint" { params = [ Int ]; ret = Void };
   Hashtbl.replace funcs "printbool" { params = [ Bool ]; ret = Void };
@@ -16,6 +17,7 @@ let typecheck_program (stmts : parsed stmt list) : checked stmt list =
       vars = [ Hashtbl.create 8 ];
       funcs;
       typedefs;
+      structs;
       return_typ = None;
       in_loop = false;
     }
