@@ -176,15 +176,18 @@ and codegen_stmt = function
   | ExprStmt (_, e) -> ignore (codegen_expr e)
   | EmptyStmt _ -> ()
   | CompoundStmt (_, stmts) -> List.iter codegen_stmt stmts
-  | Typedef { struct_def; _ } ->
+  | Typedef { struct_def; _ } -> begin
       (* register inline struct definition if present *)
-      (match struct_def with
+      match struct_def with
       | None -> ()
       | Some (tag, fields) ->
           let resolved =
-            List.map (fun (vt, fname) -> (fname, Ast.typ_of_source_type vt)) fields
+            List.map
+              (fun (vt, fname) -> (fname, Ast.typ_of_source_type vt))
+              fields
           in
-          codegen_struct_def tag resolved)
+          codegen_struct_def tag resolved
+    end
   | VarDef { source_type; name; init; _ } ->
       let ty = llvm_of_typ (Ast.typ_of_source_type source_type) in
       let ptr = Llvm.build_alloca ty name builder in

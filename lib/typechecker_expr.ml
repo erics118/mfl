@@ -243,6 +243,16 @@ and typecheck_binary_op env ann op lhs rhs =
       let lhs = implicit_cast pos Bool lhs in
       let rhs = implicit_cast pos Bool rhs in
       BinaryOp (Checked (pos, Bool), op, lhs, rhs)
+  | (Equal | Neq)
+    when is_pointer_type (expr_typ lhs) && is_null_ptr_constant rhs ->
+      (* ptr == 0 or ptr != 0: cast 0 to the pointer type *)
+      BinaryOp
+        (Checked (pos, Bool), op, lhs, implicit_cast pos (expr_typ lhs) rhs)
+  | (Equal | Neq)
+    when is_null_ptr_constant lhs && is_pointer_type (expr_typ rhs) ->
+      (* 0 == ptr or 0 != ptr: cast 0 to pointer type *)
+      BinaryOp
+        (Checked (pos, Bool), op, implicit_cast pos (expr_typ rhs) lhs, rhs)
   | (Less | Leq | Greater | Geq | Equal | Neq)
     when is_pointer_type (expr_typ lhs) && is_pointer_type (expr_typ rhs) ->
       (* comparisons between pointers *)

@@ -430,6 +430,26 @@ let test_sizeof _ =
   check "sizeof (x) + 1;" "(sizeof x) + 1;";
   check "sizeof int + 1;" "(sizeof(int)) + 1;"
 
+let test_member_access _ =
+  roundtrip "p.x;";
+  roundtrip "p.x.y;";
+  roundtrip "p->x;";
+  (* -> desugars but reprints as -> *)
+  check "p->x;" "p->x;";
+  (* field access binds tighter than binary ops *)
+  roundtrip "p.x + 1;";
+  (* field access on a call result *)
+  roundtrip "foo().x;";
+  (* chained arrow *)
+  roundtrip "p->next->val;"
+
+let test_struct_types _ =
+  roundtrip "struct Node n;";
+  roundtrip "struct Node* p;";
+  roundtrip "struct Node** pp;";
+  roundtrip "struct Point {\n    int x;\n    int y;\n} p;";
+  roundtrip "typedef struct Node* NodePtr;"
+
 let test_typedef _ =
   roundtrip "typedef int myint;";
   roundtrip "typedef int* intptr;";
@@ -499,6 +519,8 @@ let tests =
          "type_helpers" >:: test_type_helpers;
          "cast" >:: test_cast;
          "sizeof" >:: test_sizeof;
+         "member_access" >:: test_member_access;
+         "struct_types" >:: test_struct_types;
          "typedef" >:: test_typedef;
          "errors" >:: test_errors;
        ]

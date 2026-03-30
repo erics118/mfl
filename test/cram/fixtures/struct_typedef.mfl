@@ -1,0 +1,13 @@
+typedef struct {
+    int a;
+    int b;
+} Pair;
+
+int main() {
+    Pair p;
+    p.a = 7;
+    p.b = 8;
+    printint(p.a);
+    printint(p.b);
+    return 0;
+}

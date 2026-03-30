@@ -1,0 +1,17 @@
+struct Point {
+    int x;
+    int y;
+};
+
+int main() {
+    struct Point p;
+    p.x = 3;
+    p.y = 4;
+    struct Point *ptr;
+    ptr = &p;
+    printint(ptr->x);
+    printint(ptr->y);
+    ptr->x = 100;
+    printint(p.x);
+    return 0;
+}

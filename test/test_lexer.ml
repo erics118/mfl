@@ -55,6 +55,7 @@ let test_identifiers_and_keywords _ =
   check [ TokSignedKw ] "signed";
   check [ TokTypedefKw ] "typedef";
   check [ TokSizeofKw ] "sizeof";
+  check [ TokStructKw ] "struct";
   check [ TokIdent "x" ] "x";
   check [ TokIdent "CustomType" ] "CustomType";
   check [ TokIdent "abc1" ] "abc1";
@@ -105,6 +106,15 @@ let test_binary_ops _ =
   (* <= and >= still work *)
   check [ TokLtEq ] "<=";
   check [ TokGtEq ] ">="
+
+let test_member_access_ops _ =
+  check [ TokDot ] ".";
+  check [ TokArrow ] "->";
+  (* -> takes priority over - and > separately *)
+  check [ TokArrow; TokIdent "x" ] "->x";
+  check [ TokMinus; TokGt ] "- >";
+  (* . does not consume subsequent chars *)
+  check [ TokDot; TokIdent "x" ] ".x"
 
 let test_unary_ops _ =
   check [ TokBang ] "!";
@@ -230,6 +240,9 @@ let test_string_of_token _ =
   assert_equal "unsigned" (string_of_token TokUnsignedKw);
   assert_equal "signed" (string_of_token TokSignedKw);
   assert_equal "typedef" (string_of_token TokTypedefKw);
+  assert_equal "struct" (string_of_token TokStructKw);
+  assert_equal "." (string_of_token TokDot);
+  assert_equal "->" (string_of_token TokArrow);
   (* binary operators *)
   assert_equal "+" (string_of_token TokPlus);
   assert_equal "-" (string_of_token TokMinus);
@@ -296,6 +309,7 @@ let tests =
          "identifiers_and_keywords" >:: test_identifiers_and_keywords;
          "parens" >:: test_parens;
          "binary_ops" >:: test_binary_ops;
+         "member_access_ops" >:: test_member_access_ops;
          "unary_ops" >:: test_unary_ops;
          "char" >:: test_char;
          "whitespace" >:: test_whitespace;

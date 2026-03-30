@@ -1,0 +1,15 @@
+struct Small {
+    int x;
+    int y;
+};
+
+struct Big {
+    int a;
+    long b;
+};
+
+int main() {
+    printint(sizeof(struct Small));
+    printint(sizeof(struct Big));
+    return 0;
+}
