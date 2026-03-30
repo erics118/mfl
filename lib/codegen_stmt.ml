@@ -219,6 +219,8 @@ let codegen_program (stmts : checked stmt list) : unit =
     Llvm.declare_function "printbool" printbool_ty the_module
   in
   Llvm.add_function_attr printbool_fn zext_attr (Llvm.AttrIndex.Param 0);
+  let malloc_ty = Llvm.function_type pointer_type [| long_type |] in
+  ignore (Llvm.declare_function "malloc" malloc_ty the_module);
   List.iter codegen_stmt stmts
 
 let emit_ir () = Llvm.string_of_llmodule the_module [@coverage off]

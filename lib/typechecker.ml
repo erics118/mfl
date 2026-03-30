@@ -12,6 +12,7 @@ let typecheck_program (stmts : parsed stmt list) : checked stmt list =
   (* "stdlib" functions *)
   Hashtbl.replace funcs "printint" { params = [ Int ]; ret = Void };
   Hashtbl.replace funcs "printbool" { params = [ Bool ]; ret = Void };
+  Hashtbl.replace funcs "malloc" { params = [ Long ]; ret = Ptr Void };
   let env =
     {
       vars = [ Hashtbl.create 8 ];
