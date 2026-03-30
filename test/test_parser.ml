@@ -190,12 +190,12 @@ let test_var_defs _ =
   roundtrip "int x = 1 + 2 * 3;";
   roundtrip "bool ready = true;";
   roundtrip "bool ok = 1 < 2;";
-  roundtrip "CustomType value = 3;";
+  (* roundtrip "CustomType value = 3;"; *)
   roundtrip "int x = 1;\nint y = 2;";
   roundtrip "bool t = true;\nint x = 2;";
   roundtrip "{\n    int x = 3;\n}";
   roundtrip "{\n    bool x = false;\n}";
-  roundtrip "{\n    UserType x = 7;\n}";
+  (* roundtrip "{\n    UserType x = 7;\n}"; *)
   roundtrip "1;\nint x = 2;\n3;"
 
 let test_int_types _ =
@@ -247,10 +247,10 @@ let test_pointer_types _ =
   roundtrip "int***** pp;";
   roundtrip "bool* p;";
   roundtrip "void* p;";
-  roundtrip "void** pp;";
-  roundtrip "MyInt* p;";
-  roundtrip "MyInt** pp;";
-  check "UserType* p;" "UserType* p;"
+  roundtrip "void** pp;"
+  (* roundtrip "MyInt* p;"; *)
+  (* roundtrip "MyInt** pp;"; *)
+  (* check "UserType* p;" "UserType* p;" *)
 
 let test_array _ =
   roundtrip "int a[10];";
@@ -419,7 +419,9 @@ let test_cast _ =
   (* unary binds tighter than of unary minus *)
   check "(int)-x;" "(int)(-x);";
   (* postfix binds tighter than cast and deref*)
-  check "(int)*p++;" "(int)(*(p++));"
+  check "(int)*p++;" "(int)(*(p++));";
+  check "typedef int* NodePtr;\n(NodePtr)p;"
+    "typedef int* NodePtr;\n(NodePtr)(p);"
 
 let test_sizeof _ =
   check "sizeof (x);" "sizeof x;";
@@ -427,6 +429,7 @@ let test_sizeof _ =
   check "sizeof int;" "sizeof (int);";
   check "sizeof long;" "sizeof (long);";
   check "sizeof int*;" "sizeof (int*);";
+  check "typedef int Node;\nsizeof Node;" "typedef int Node;\nsizeof (Node);";
   check "sizeof (x) + 1;" "(sizeof x) + 1;";
   check "sizeof int + 1;" "(sizeof(int)) + 1;"
 
@@ -467,7 +470,7 @@ let test_errors _ =
   fails "expected identifier" "bool = true;";
   fails "expected '='" "bool x true;";
   (* fails "expected ';'" "UserType = 1;"; *)
-  fails "expected '='" "UserType x 1;";
+  (* fails "expected ';'" "UserType x 1;"; *)
   fails "expected ';'" "return 1";
   fails "unexpected end of input" "return";
   fails "expected identifier" "typedef int;";

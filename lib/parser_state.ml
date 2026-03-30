@@ -4,12 +4,17 @@ open Ast
 type state = {
   mutable cur_tok : token;
   lex : Lexer.state;
+  (* so parser can distinguish between a type and a variable, used in sizeof,
+     casts, etc *)
+  mutable typedefs : (string, unit) Hashtbl.t list;
 }
 
 (** raised on parse errors *)
 exception Parse_error of pos * string
 
-let create lex_st = { cur_tok = TokEof; lex = lex_st }
+let create lex_st =
+  { cur_tok = TokEof; lex = lex_st; typedefs = [ Hashtbl.create 8 ] }
+
 let advance st = st.cur_tok <- Lexer.next_token st.lex
 
 (* position of the current token *)
@@ -28,6 +33,21 @@ let consume_identifier st =
       advance st;
       name
   | _ -> raise (Parse_error (cur_pos st, "expected identifier"))
+
+let push_scope st = st.typedefs <- Hashtbl.create 8 :: st.typedefs
+
+let pop_scope st =
+  match st.typedefs with
+  | _ :: rest -> st.typedefs <- rest
+  | [] -> failwith "empty typedef scope stack"
+
+let define_typedef st name =
+  match st.typedefs with
+  | scope :: _ -> Hashtbl.replace scope name ()
+  | [] -> failwith "empty typedef scope stack"
+
+let is_typedef_name st name =
+  List.exists (fun scope -> Hashtbl.mem scope name) st.typedefs
 
 let op_of_tok = function
   | TokPlus -> Some Add

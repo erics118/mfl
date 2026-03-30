@@ -96,8 +96,11 @@ let parse_type_name st =
         in
         VStruct tag
     | TokIdent type_name ->
-        advance st;
-        VNamed type_name
+        if is_typedef_name st type_name then begin
+          advance st;
+          VNamed type_name
+        end
+        else raise (Parse_error (cur_pos st, "expected type"))
     | _ -> raise (Parse_error (cur_pos st, "expected type")) [@coverage off]
   in
   let rec parse_ptr_suffix ty =
@@ -172,4 +175,7 @@ let is_type_keyword = function
   | TokArrow
   | TokEof -> false
 
-let is_type_token st = is_type_keyword st.cur_tok
+let is_type_token st =
+  match st.cur_tok with
+  | TokIdent name -> is_typedef_name st name
+  | tok -> is_type_keyword tok

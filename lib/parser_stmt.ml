@@ -7,11 +7,12 @@ open Parser_types
 let looks_like_definition st =
   match st.cur_tok with
   | TokTypedefKw | TokStructKw -> true
-  | TokIdent _ -> (
+  | tok when is_type_keyword tok -> true
+  | TokIdent name when is_typedef_name st name -> (
       match Lexer.peek_token st.lex with
       | TokIdent _ | TokStar -> true
       | _ -> false)
-  | tok -> is_type_keyword tok
+  | _ -> false
 
 (* statements *)
 let rec parse_statement st =
@@ -19,7 +20,7 @@ let rec parse_statement st =
   match st.cur_tok with
   | TokLBrace ->
       consume st TokLBrace;
-      CompoundStmt (pos, parse_compound_stmt st [])
+      CompoundStmt (pos, parse_scoped_compound_stmt st)
   | TokReturnKw -> parse_return_stmt st
   | TokBreakKw ->
       advance st;
@@ -53,6 +54,18 @@ and parse_compound_stmt st rev_stmts =
   | _ ->
       let stmt = parse_statement st in
       parse_compound_stmt st (stmt :: rev_stmts)
+
+and parse_scoped_compound_stmt st =
+  push_scope st;
+  let stmts =
+    match parse_compound_stmt st [] with
+    | stmts -> stmts
+    | exception exn ->
+        pop_scope st;
+        raise exn
+  in
+  pop_scope st;
+  stmts
 
 and parse_return_stmt st =
   let pos = cur_pos st in
@@ -215,6 +228,7 @@ and parse_typedef st =
         let rec wrap n t = if n = 0 then t else wrap (n - 1) (VPtr t) in
         wrap num_stars (VStruct tag)
       in
+      define_typedef st alias;
       Typedef { pos; struct_def; existing_type; alias }
   | _ ->
       let existing_type = parse_type_name st in
@@ -225,6 +239,7 @@ and parse_typedef st =
         | _ -> existing_type
       in
       consume st TokSemicolon;
+      define_typedef st alias;
       Typedef { pos; struct_def = None; existing_type; alias }
 
 and parse_var_def_tail st pos source_type name =
@@ -238,7 +253,7 @@ and parse_func_def_tail st pos ret_type name =
   let params = parse_rparen_list st parse_param in
   consume st TokRParen;
   consume st TokLBrace;
-  let body = parse_compound_stmt st [] in
+  let body = parse_scoped_compound_stmt st in
   FuncDef { pos; ret_type; name; params; body }
 
 and parse_array_def_tail st pos source_type name =
