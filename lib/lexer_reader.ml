@@ -110,6 +110,7 @@ let read_ident st =
   match String.sub st.input start (st.pos - start) with
   | "true" -> TokBool true
   | "false" -> TokBool false
+  | "NULL" -> TokInt 0
   | "int" -> TokIntKw
   | "bool" -> TokBoolKw
   | "return" -> TokReturnKw

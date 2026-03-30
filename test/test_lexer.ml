@@ -60,6 +60,7 @@ let test_identifiers_and_keywords _ =
   check [ TokIdent "CustomType" ] "CustomType";
   check [ TokIdent "abc1" ] "abc1";
   check [ TokIdent "_a" ] "_a";
+  check [ TokInt 0 ] "NULL";
   check
     [ TokIntKw; TokIdent "x"; TokAssign; TokInt 3; TokSemicolon ]
     "int x = 3;";
