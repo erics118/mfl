@@ -190,6 +190,15 @@ and parse_typedef st =
               (Some tag_name, None)
         | _ -> raise (Parse_error (cur_pos st, "expected struct tag or '{'"))
       in
+      (* count number of ptr stars before the alias *)
+      let num_stars =
+        let n = ref 0 in
+        while st.cur_tok = TokStar do
+          advance st;
+          incr n
+        done;
+        !n
+      in
       let alias = consume_identifier st in
       consume st TokSemicolon;
       let tag, struct_def =
@@ -202,7 +211,11 @@ and parse_typedef st =
         | Some tag, None -> (tag, None)
         | None, None -> assert false
       in
-      Typedef { pos; struct_def; existing_type = VStruct tag; alias }
+      let existing_type =
+        let rec wrap n t = if n = 0 then t else wrap (n - 1) (VPtr t) in
+        wrap num_stars (VStruct tag)
+      in
+      Typedef { pos; struct_def; existing_type; alias }
   | _ ->
       let existing_type = parse_type_name st in
       let alias = consume_identifier st in
