@@ -630,6 +630,24 @@ let test_void_ptr _ =
   check_err ~env "operator '-': type mismatch between 'void*' and 'void*'"
     (bi Sub !"vp" !"vp")
 
+let test_null_ptr_constant _ =
+  let env = env_with [ ("p", Ptr Int); ("vp", Ptr Void) ] in
+  (* integer 0 is a null pointer constant: assigns to any pointer type *)
+  check_typ ~env (Ptr Int) ("p" := i 0);
+  check_typ ~env (Ptr Void) ("vp" := i 0);
+  (* null pointer comparisons: both orderings *)
+  check_typ ~env Bool (bi Equal !"p" (i 0));
+  check_typ ~env Bool (bi Neq !"p" (i 0));
+  check_typ ~env Bool (bi Equal (i 0) !"p");
+  check_typ ~env Bool (bi Neq (i 0) !"vp");
+  (* non-zero integer literals are not null pointer constants *)
+  check_err ~env "expected type 'int*' but got 'int'" ("p" := i 1);
+  check_err ~env "expected type 'int*' but got 'int'" ("p" := i 42);
+  check_err ~env "operator '==': type mismatch between 'int*' and 'int'"
+    (bi Equal !"p" (i 1));
+  check_err ~env "operator '!=': type mismatch between 'int*' and 'int'"
+    (bi Neq !"p" (i 42))
+
 let test_pointer_errors _ =
   let env =
     env_with [ ("x", Int); ("p", Ptr Int); ("vp", Ptr Void); ("q", Ptr Int) ]
@@ -898,6 +916,7 @@ let tests =
          "sign_zero_ext" >:: test_sign_zero_ext;
          "implicit_casts" >:: test_implicit_casts;
          "pointers" >:: test_pointers;
+         "null_ptr_constant" >:: test_null_ptr_constant;
          "pointer_errors" >:: test_pointer_errors;
          "pointer_arithmetic" >:: test_pointer_arithmetic;
          "pointer_arithmetic_errors" >:: test_pointer_arithmetic_errors;

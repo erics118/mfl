@@ -246,6 +246,8 @@ let test_pointer_types _ =
   roundtrip "int** pp;";
   roundtrip "int***** pp;";
   roundtrip "bool* p;";
+  roundtrip "void* p;";
+  roundtrip "void** pp;";
   roundtrip "MyInt* p;";
   roundtrip "MyInt** pp;";
   check "UserType* p;" "UserType* p;"

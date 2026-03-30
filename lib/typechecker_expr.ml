@@ -103,10 +103,20 @@ let can_assign_cast from_t to_t =
         (* otherwise, check that both are integer types *)
         is_integer_type from_t && is_integer_type to_t
 
+(** the integer constant 0 can be implicitly converted to any pointer type *)
+let is_null_ptr_constant = function
+  | IntLiteral (_, 0) -> true
+  | _ -> false
+
 (** apply "conversion as if by assignment" *)
 let cast_expr pos to_t (e : checked expr) : checked expr =
   let from_t = expr_typ e in
-  if can_assign_cast from_t to_t then implicit_cast pos to_t e
+  if can_assign_cast from_t to_t then
+    (* assign cast *)
+    implicit_cast pos to_t e
+  else if is_pointer_type to_t && is_null_ptr_constant e then
+    (* 0, ie NULL, can convert to any pointer type *)
+    implicit_cast pos to_t e
   else raise (Type_error (pos, TypeMismatch (to_t, from_t)))
 
 (** integer promotions used by unary and binary integer operators *)
