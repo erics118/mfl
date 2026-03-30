@@ -16,7 +16,7 @@ let rec string_of_typ = function
   | ULongLong -> "unsigned long long"
   | Ptr t -> string_of_typ t ^ "*"
   | Array (t, sz) -> string_of_typ t ^ "[" ^ string_of_int sz ^ "]"
-  | Struct t -> "struct " ^ t
+  | Struct t -> "struct " ^ display_struct_tag t
 
 (** true for any integer type, including Bool, excluding Void *)
 let is_integer_type = function

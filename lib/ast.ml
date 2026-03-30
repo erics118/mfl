@@ -51,6 +51,13 @@ type source_type =
   | VNamed of string  (** user-defined type names *)
   | VStruct of string  (** struct type by tag name *)
 
+let display_struct_tag tag =
+  let prefix = "__anon_" in
+  let plen = String.length prefix in
+  if String.length tag > plen && String.sub tag 0 plen = prefix then
+    String.sub tag plen (String.length tag - plen)
+  else tag
+
 (** render a variable type as a string *)
 let rec string_of_source_type = function
   | VBool -> "bool"
@@ -69,7 +76,7 @@ let rec string_of_source_type = function
   | VPtr t -> string_of_source_type t ^ "*"
   | VArray (t, sz) -> string_of_source_type t ^ "[" ^ string_of_int sz ^ "]"
   | VNamed name -> name
-  | VStruct tag -> "struct " ^ tag
+  | VStruct tag -> "struct " ^ display_struct_tag tag
 
 (** source location *)
 type pos = {

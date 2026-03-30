@@ -122,6 +122,7 @@ let test_type_helpers _ =
   assert_equal "unsigned long long" (string_of_typ ULongLong);
   assert_equal "int*" (string_of_typ (Ptr Int));
   assert_equal "char[4]" (string_of_typ (Array (Char, 4)));
+  assert_equal "struct Foo" (string_of_typ (Struct "__anon_Foo"));
   assert_bool "bool is an integer type" (is_integer_type Bool);
   assert_bool "int ptr is not an integer type" (not (is_integer_type (Ptr Int)));
   assert_bool "arr int[4] is not an integer type"
@@ -148,7 +149,9 @@ let test_type_error_strings _ =
   assert_equal "operator 'postfix --': invalid operand type 'int'"
     (string_of_type_error (IncDecTypeMismatch (`Post, `Dec, Int)));
   assert_equal "cannot cast from 'int' to 'void'"
-    (string_of_type_error (InvalidCast (Int, Void)))
+    (string_of_type_error (InvalidCast (Int, Void)));
+  assert_equal "struct 'Foo' has no field 'y'"
+    (string_of_type_error (NoSuchField ("__anon_Foo", "y")))
 
 let test_stmt_fallthrough_helpers _ =
   assert_bool "return does not fall through"

@@ -18,7 +18,8 @@ let resolve_source_type env pos source_type =
         (* don't require struct to be defined here; pointers to incomplete
            structs are allowed. definition is checked at var decl and access *)
         Struct tag
-    | VPtr (VStruct tag) -> Ptr (Struct tag)
+    | VPtr t -> Ptr (go seen t)
+    | VArray (t, sz) -> Array (go seen t, sz)
     | vt -> Ast.typ_of_source_type vt
   in
   go [] source_type

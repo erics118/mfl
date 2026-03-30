@@ -147,8 +147,10 @@ and codegen_func_def ret_type name params body =
       ignore (Llvm.build_ret (Llvm.const_null (Llvm.return_type ty)) builder)
 
 and codegen_struct_def tag fields =
-  (* create named LLVM struct type and register it in struct_defs *)
-  let llty = Llvm.named_struct_type context ("struct." ^ tag) in
+  (* keep the synthetic tag internal *)
+  let llty =
+    Llvm.named_struct_type context ("struct." ^ Ast.display_struct_tag tag)
+  in
   let field_types =
     Array.of_list (List.map (fun (_, ft) -> llvm_of_typ ft) fields)
   in

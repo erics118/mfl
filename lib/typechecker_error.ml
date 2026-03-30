@@ -64,4 +64,5 @@ let string_of_type_error = function
   | NotAStruct t ->
       Printf.sprintf "member access on non-struct type '%s'" (string_of_typ t)
   | NoSuchField (tag, field) ->
-      Printf.sprintf "struct '%s' has no field '%s'" tag field
+      Printf.sprintf "struct '%s' has no field '%s'" (display_struct_tag tag)
+        field

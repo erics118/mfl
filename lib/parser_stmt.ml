@@ -186,7 +186,7 @@ and parse_typedef st =
               (* typedef struct Tag { ... } Alias; *)
               (Some tag_name, Some (parse_struct_body st))
             else
-              (* typedef struct Tag Alias; - reference existing struct *)
+              (* typedef struct Tag Alias; references existing struct *)
               (Some tag_name, None)
         | _ -> raise (Parse_error (cur_pos st, "expected struct tag or '{'"))
       in
