@@ -16,6 +16,7 @@ let default_env () =
     vars = [ Hashtbl.create 4 ];
     funcs = make_tbl [ ("noop", { params = []; ret = Void }) ];
     typedefs = [ make_tbl [] ];
+    structs = make_tbl [];
     return_typ = None;
     in_loop = false;
   }
@@ -80,6 +81,7 @@ let name_of_typ = function
   | Ptr _ -> "p"
   | Array (_, _) -> "arr"
   | Void -> "v"
+  | Struct _ -> "s"
 
 let all_integer_vars = List.map (fun t -> (name_of_typ t, t)) all_integer_types
 
@@ -706,7 +708,13 @@ let test_typedefs _ =
   let env = default_env () in
   begin match
     typecheck_stmt env
-      (Typedef { pos = dummy_pos; existing_type = VInt; alias = "myint" })
+      (Typedef
+         {
+           pos = dummy_pos;
+           struct_def = None;
+           existing_type = VInt;
+           alias = "myint";
+         })
   with
   | Typedef { existing_type = VInt; alias = "myint"; _ } -> ()
   | _ -> assert_failure "expected checked typedef"
@@ -723,7 +731,12 @@ let test_typedefs _ =
   ignore
     (typecheck_stmt env
        (Typedef
-          { pos = dummy_pos; existing_type = VArray (VInt, 10); alias = "arr" }));
+          {
+            pos = dummy_pos;
+            struct_def = None;
+            existing_type = VArray (VInt, 10);
+            alias = "arr";
+          }));
   match
     typecheck_stmt
       (let env = default_env () in
@@ -747,7 +760,13 @@ let test_typedef_scope _ =
        (CompoundStmt
           ( dummy_pos,
             [
-              Typedef { pos = dummy_pos; existing_type = VInt; alias = "myint" };
+              Typedef
+                {
+                  pos = dummy_pos;
+                  struct_def = None;
+                  existing_type = VInt;
+                  alias = "myint";
+                };
             ] )));
   check_stmt_err "unknown type 'myint'"
     (VarDef
