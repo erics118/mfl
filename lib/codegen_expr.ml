@@ -117,11 +117,7 @@ and codegen_uop op e =
     end
 
 and codegen_func_call ret_t name args =
-  let fn =
-    match Llvm.lookup_function name the_module with
-    | Some f -> f
-    | None -> failwith ("undefined function: " ^ name)
-  in
+  let fn = ensure_builtin_decl name in
   let fn_ty = Llvm_ext.global_value_type fn in
   let arg_vals = Array.of_list (List.map codegen_expr args) in
   (* if the return type is void, the call instruction can't have a name *)

@@ -2,9 +2,9 @@
   ; ModuleID = 'mfl'
   source_filename = "mfl"
   
-  declare void @printint(i32)
-  
   declare void @printbool(i1 zeroext)
+  
+  declare void @printint(i32)
   
   define i32 @main() {
   entry:

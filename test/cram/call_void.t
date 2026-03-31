@@ -4,8 +4,6 @@
   
   declare void @printint(i32)
   
-  declare void @printbool(i1 zeroext)
-  
   define i32 @main() {
   entry:
     call void @printint(i32 6)

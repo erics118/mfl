@@ -2,10 +2,6 @@
   ; ModuleID = 'mfl'
   source_filename = "mfl"
   
-  declare void @printint(i32)
-  
-  declare void @printbool(i1 zeroext)
-  
   define i32 @ternary(i1 zeroext %cond, i32 %x, i32 %y) {
   entry:
     %cond1 = alloca i8, align 1

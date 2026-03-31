@@ -4,8 +4,6 @@
   
   declare void @printint(i32)
   
-  declare void @printbool(i1 zeroext)
-  
   define void @greet(i32 %x) {
   entry:
     %x1 = alloca i32, align 4

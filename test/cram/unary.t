@@ -2,10 +2,6 @@
   ; ModuleID = 'mfl'
   source_filename = "mfl"
   
-  declare void @printint(i32)
-  
-  declare void @printbool(i1 zeroext)
-  
   define i32 @unary(i32 %x, i1 zeroext %b) {
   entry:
     %x1 = alloca i32, align 4
