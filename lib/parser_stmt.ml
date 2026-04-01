@@ -8,7 +8,7 @@ let looks_like_definition st =
   match st.cur_tok with
   | TokTypedefKw | TokStructKw -> true
   | tok when is_type_keyword tok -> true
-  | TokIdent name when is_typedef_name st name -> (
+  | TokIdent _ -> (
       match Lexer.peek_token st.lex with
       | TokIdent _ | TokStar -> true
       | _ -> false)

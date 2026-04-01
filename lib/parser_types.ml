@@ -96,11 +96,8 @@ let parse_type_name st =
         in
         VStruct tag
     | TokIdent type_name ->
-        if is_typedef_name st type_name then begin
-          advance st;
-          VNamed type_name
-        end
-        else raise (Parse_error (cur_pos st, "expected type"))
+        advance st;
+        VNamed type_name
     | _ -> raise (Parse_error (cur_pos st, "expected type")) [@coverage off]
   in
   let rec parse_ptr_suffix ty =
