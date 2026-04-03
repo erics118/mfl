@@ -1,6 +1,13 @@
+(subdir
+ runtime
+ (rule
+  (target runtime.c)
+  (action
+   (copy ../../../runtime/runtime.c runtime.c))))
+
 (cram
  (deps
   (glob_files_rec fixtures/*)
-  (glob_files_rec ../../runtime/*)
+  runtime/runtime.c
   (glob_files_rec ../../examples/*)
   (package mfl)))

@@ -1,4 +1,4 @@
-  $ dune exec mfl -- ir ../../examples/primes.mfl > prog.ll && clang -Wno-override-module prog.ll ../../runtime/runtime.c -o prog && ./prog
+  $ dune exec mfl -- run ../../examples/primes.mfl
   2
   3
   5

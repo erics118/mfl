@@ -1,4 +1,4 @@
-  $ dune exec mfl -- ir fixtures/run_char_arith.mfl > prog.ll && clang -Wno-override-module prog.ll ../../runtime/runtime.c -o prog && ./prog
+  $ dune exec mfl -- run fixtures/run_char_arith.mfl
   -128
   200
   0

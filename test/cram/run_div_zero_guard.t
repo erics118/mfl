@@ -1,3 +1,3 @@
-  $ dune exec mfl -- ir fixtures/div_zero_guard.mfl > prog.ll && clang -Wno-override-module prog.ll ../../runtime/runtime.c -o prog && ./prog
+  $ dune exec mfl -- run fixtures/div_zero_guard.mfl
   true
   false

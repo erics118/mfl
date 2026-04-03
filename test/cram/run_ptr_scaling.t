@@ -1,4 +1,4 @@
-  $ dune exec mfl -- ir fixtures/run_ptr_scaling.mfl > prog.ll && clang -Wno-override-module prog.ll ../../runtime/runtime.c -o prog && ./prog
+  $ dune exec mfl -- run fixtures/run_ptr_scaling.mfl
   1
   2
   1

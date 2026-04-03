@@ -54,11 +54,39 @@ let run_format input =
   let stmt = parse_with_errors input content in
   print_string (Pretty.pp_stmt stmt ^ "\n")
 
+let run_run input =
+  let stmts = parse_source input |> typecheck in
+  Codegen.codegen_program stmts;
+  let ir = Codegen.emit_ir () in
+  let ir_file = Filename.temp_file "mfl" ".ll" in
+  let bin_file = Filename.temp_file "mfl" "" in
+  let runtime = "runtime/runtime.c" in
+  if not (Sys.file_exists runtime) then (
+    Printf.eprintf "mfl: runtime not found\n";
+    exit 1);
+  let oc = open_out ir_file in
+  output_string oc ir;
+  close_out oc;
+  let clang_exit =
+    Sys.command
+      (Printf.sprintf "clang -Wno-override-module %s %s -o %s"
+         (Filename.quote ir_file) (Filename.quote runtime)
+         (Filename.quote bin_file))
+  in
+  Sys.remove ir_file;
+  if clang_exit <> 0 then (
+    (try Sys.remove bin_file with _ -> ());
+    exit clang_exit);
+  let run_exit = Sys.command (Filename.quote bin_file) in
+  (try Sys.remove bin_file with _ -> ());
+  exit run_exit
+
 let usage_msg =
-  "Usage: mfl <command> <input-file>\n\n\
-   Commands:\n\
-  \  ir      Emit LLVM IR\n\
-  \  format  Pretty-print the source"
+  {|Usage: mfl <command> <input-file>
+Commands:
+    ir      Emit LLVM IR
+    format  Pretty-print the source
+    run     Compile and execute|}
 
 let () =
   if Array.length Sys.argv < 3 then (
@@ -69,6 +97,7 @@ let () =
   match cmd with
   | "ir" -> run_ir input
   | "format" -> run_format input
+  | "run" -> run_run input
   | _ ->
       Printf.eprintf "mfl: unknown command '%s'\n\n%s\n" cmd usage_msg;
       exit 1

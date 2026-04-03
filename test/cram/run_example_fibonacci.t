@@ -1,4 +1,4 @@
-  $ dune exec mfl -- ir ../../examples/fibonacci.mfl > prog.ll && clang -Wno-override-module prog.ll ../../runtime/runtime.c -o prog && ./prog
+  $ dune exec mfl -- run ../../examples/fibonacci.mfl
   0
   1
   1

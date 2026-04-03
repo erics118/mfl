@@ -1,3 +1,3 @@
-  $ dune exec mfl -- ir fixtures/struct_basic.mfl > prog.ll && clang -Wno-override-module prog.ll ../../runtime/runtime.c -o prog && ./prog
+  $ dune exec mfl -- run fixtures/struct_basic.mfl
   10
   20

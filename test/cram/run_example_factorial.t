@@ -1,3 +1,3 @@
-  $ dune exec mfl -- ir ../../examples/factorial.mfl > prog.ll && clang -Wno-override-module prog.ll ../../runtime/runtime.c -o prog && ./prog
+  $ dune exec mfl -- run ../../examples/factorial.mfl
   3628800
 
