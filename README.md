@@ -10,9 +10,10 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [ ] `float`, `double`
 - [x] pointer types: `int *p`
 - [x] array types: `int a[10]`
-- [ ] `struct`, `union`
+- [x] `struct` (named, anonymous, typedef-ed)
+- [ ] `union`
 - [ ] `enum`
-- [ ] `typedef`
+- [x] `typedef`
 - [ ] function pointer types
 
 **operators**
@@ -25,7 +26,7 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [x] ternary: `?:`
 - [ ] compound assignment: `+=`, `-=`, `*=`, `/=`, `&=`, `|=`, `^=`, `<<=`, `>>=`
 - [x] increment/decrement: `++`, `--` (pre and post)
-- [ ] `sizeof`
+- [x] `sizeof`
 - [ ] comma operator
 
 **expressions**
@@ -36,7 +37,7 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [x] cast expressions: `(int)x`
 - [x] address-of `&x` and dereference `*p`
 - [x] subscript `a[i]`
-- [ ] member access `s.x`, `s->x`
+- [x] member access `s.x`, `s->x`
 - [x] char literals: `'a'`
 - [ ] string literals: `"hello"`
 - [ ] adjacent string literal concatenation: `"foo" "bar"`
@@ -97,12 +98,15 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [ ] multiline macros with `\` continuation
 
 **other**
-- [ ] `NULL` = `((void*)0)`, requires pointer types and casts
+- [x] `NULL`
 - [ ] `main` function with args: `int main(int argc, char *argv[])`
 
 ## usage
 
 ```sh
+# compile and run
+dune exec mfl -- run program.mfl
+
 # emit LLVM IR
 dune exec mfl -- ir program.mfl
 
@@ -112,7 +116,7 @@ dune exec mfl -- format program.mfl
 # link with runtime and produce a binary
 dune exec mfl -- ir program.mfl | clang -Wno-override-module -x ir - runtime/runtime.c -o program
 
-# run
+# run a binary
 ./program
 ```
 
@@ -124,6 +128,9 @@ located under `examples/`
 - `fibonacci.mfl`: prints the first 10 Fibonacci numbers
 - `primes.mfl`: prints the primes under 100
 - `quicksort.mfl`: sorts an array of 10 integers using quicksort
+- `pointers.mfl`: pointer arithmetic and dereferencing
+- `tree.mfl`: binary search tree using structs, typedefs, and malloc
+- `typedefs.mfl`: typedef usage examples
 
 ## testing
 
