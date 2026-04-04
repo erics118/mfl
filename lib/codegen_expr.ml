@@ -384,53 +384,70 @@ and codegen_incdec e dir fix =
   (* bool is stored as i8; trunc back to i1 for computation *)
   if ty = Bool then bool_from_mem result "incdecb" else result
 
+and codegen_pointer_cast v from_t to_t =
+  let to_ll = llvm_of_typ to_t in
+  match (from_t, to_t) with
+  | Ptr _, Ptr _ ->
+      (* cast from pointer type to another pointer type *)
+      Llvm.build_pointercast v to_ll "ptrcasttmp" builder
+  | Ptr _, _ ->
+      (* explicit cast from pointer to integer *)
+      Llvm.build_ptrtoint v to_ll "ptrtointtmp" builder
+  | _, Ptr _ ->
+      (* explicit cast from integer to pointer *)
+      Llvm.build_inttoptr v to_ll "inttoptrtmp" builder
+  | _ -> assert false [@coverage off]
+
+and codegen_bool_cast v from_t =
+  (* we have to explicitly handle bool bc trunc may not necessarily work. ie,
+     trunc i32 2 to i1 gives 0 not 1. it should be that any nonzero value is
+     true. instead, we do a != 0 comparison *)
+  let zero = Llvm.const_null (llvm_of_typ from_t) in
+  if is_float_type from_t then
+    Llvm.build_fcmp Llvm.Fcmp.One v zero "booltmp" builder
+  else Llvm.build_icmp Llvm.Icmp.Ne v zero "booltmp" builder
+
+and codegen_arithmetic_cast v from_t to_t =
+  let to_ll = llvm_of_typ to_t in
+  match (from_t, to_t) with
+  | _, _ when is_float_type from_t && is_float_type to_t ->
+      (* extend if Double, otherwise trunc *)
+      if to_t = Double then Llvm.build_fpext v to_ll "fpexttmp" builder
+      else Llvm.build_fptrunc v to_ll "fptrunctmp" builder
+  | _, _ when is_integer_type from_t && is_float_type to_t ->
+      if is_signed from_t then Llvm.build_sitofp v to_ll "sitofptmp" builder
+      else Llvm.build_uitofp v to_ll "uitofptmp" builder
+  | _, _ when is_float_type from_t && is_integer_type to_t ->
+      if is_signed to_t then Llvm.build_fptosi v to_ll "fptositmp" builder
+      else Llvm.build_fptoui v to_ll "fptouitmp" builder
+  | _ ->
+      let from_size = sizeof_typ from_t in
+      let to_size = sizeof_typ to_t in
+      if to_size < from_size then
+        (* if we need to make the value smaller, we trunc *)
+        Llvm.build_trunc v to_ll "trunctmp" builder
+      else if to_size > from_size then
+        (* if we need to make the value larger, we ext, handling sign *)
+        if is_signed from_t then Llvm.build_sext v to_ll "sexttmp" builder
+        else Llvm.build_zext v to_ll "zexttmp" builder
+      else
+        (* same size, different signedness, don't do anything *)
+        v
+
 and codegen_cast to_t e =
   let v = codegen_expr e in
   let from_t = expr_type e in
   if from_t = to_t then
     (* already the same type, we don't need to do anything *)
     v
-  else
-    (* different types, we need to convert *)
-    let to_ll = llvm_of_typ to_t in
-    match (from_t, to_t) with
-    | Ptr _, Ptr _ ->
-        (* cast from pointer type to another pointer type *)
-        Llvm.build_pointercast v to_ll "ptrcasttmp" builder
-    | Ptr _, _ ->
-        (* explicit cast from pointer to integer *)
-        Llvm.build_ptrtoint v to_ll "ptrtointtmp" builder
-    | _, Ptr _ ->
-        (* explicit cast from integer to pointer *)
-        Llvm.build_inttoptr v to_ll "inttoptrtmp" builder
-    | _, Bool ->
-        (* we have to explicitly handle bool bc trunc may not necessarily work.
-           ie, trunc i32 2 to i1 gives 0 not 1. it should be that any nonzero
-           value is true. instead, we do a != 0 comparison *)
-        let zero = Llvm.const_null (llvm_of_typ from_t) in
-        if is_float_type from_t then
-          Llvm.build_fcmp Llvm.Fcmp.One v zero "booltmp" builder
-        else Llvm.build_icmp Llvm.Icmp.Ne v zero "booltmp" builder
-    | _, _ when is_float_type from_t && is_float_type to_t ->
-        if to_t = Double then Llvm.build_fpext v to_ll "fpexttmp" builder
-        else Llvm.build_fptrunc v to_ll "fptrunctmp" builder
-    | _, _ when is_integer_type from_t && is_float_type to_t ->
-        if is_signed from_t then Llvm.build_sitofp v to_ll "sitofptmp" builder
-        else Llvm.build_uitofp v to_ll "uitofptmp" builder
-    | _, _ when is_float_type from_t && is_integer_type to_t ->
-        if is_signed to_t then Llvm.build_fptosi v to_ll "fptositmp" builder
-        else Llvm.build_fptoui v to_ll "fptouitmp" builder
-    | _ ->
-        (* non-bool integer case *)
-        let from_size = sizeof_typ from_t in
-        let to_size = sizeof_typ to_t in
-        if to_size < from_size then
-          (* if we need to make the value smaller, we trunc *)
-          Llvm.build_trunc v to_ll "trunctmp" builder
-        else if to_size > from_size then
-          (* if we need to make the value larger, we ext, handling sign *)
-          if is_signed from_t then Llvm.build_sext v to_ll "sexttmp" builder
-          else Llvm.build_zext v to_ll "zexttmp" builder
-        else
-          (* same size, different signedness, don't do anything *)
-          v
+  else if to_t = Bool then
+    (* convert everything to bool *)
+    codegen_bool_cast v from_t
+  else if
+    (is_pointer_type from_t && is_pointer_type to_t)
+    || (is_integer_type from_t && is_pointer_type to_t)
+    || (is_pointer_type from_t && is_integer_type to_t)
+  then
+    (* for pointer related casts *)
+    codegen_pointer_cast v from_t to_t
+  else codegen_arithmetic_cast v from_t to_t
