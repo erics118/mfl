@@ -322,10 +322,17 @@ let test_logical _ =
   check_typ Bool (bi Or (i 0) (b false))
 
 let test_unary _ =
+  let env = env_with [ ("pi", Ptr Int); ("pf", Ptr Float) ] in
   check_typ Bool (un Not (b true));
   check_typ Bool (un Not (b false));
   check_typ Bool (un Not (i 0));
+  check_typ ~env Bool (un Not !"pi");
+  check_typ ~env Bool (un Not !"pf");
+  check_typ Bool (un Not (f 0.0));
+  check_typ Bool (un Not (d 1.0));
   check_typ Int (un Neg (i 1));
+  check_typ Float (un Neg (f 1.0));
+  check_typ Double (un Neg (d 1.0));
   check_typ Int (un Compl (i 0))
 
 let test_unary_conversions _ =
@@ -390,9 +397,16 @@ let test_logical_errors _ =
     (bi Or (b true) noop)
 
 let test_unary_errors _ =
+  let env = env_with [ ("pi", Ptr Int); ("pf", Ptr Float) ] in
   check_err "operator '!': invalid operand type 'void'" (un Not noop);
   check_err "operator '-': invalid operand type 'void'" (un Neg noop);
-  check_err "operator '~': invalid operand type 'void'" (un Compl noop)
+  check_err "operator '~': invalid operand type 'void'" (un Compl noop);
+  check_err "operator '~': invalid operand type 'float'" (un Compl (f 1.0));
+  check_err "operator '~': invalid operand type 'double'" (un Compl (d 1.0));
+  check_err ~env "operator '-': invalid operand type 'int*'" (un Neg !"pi");
+  check_err ~env "operator '~': invalid operand type 'int*'" (un Compl !"pi");
+  check_err ~env "operator '-': invalid operand type 'float*'" (un Neg !"pf");
+  check_err ~env "operator '~': invalid operand type 'float*'" (un Compl !"pf")
 
 let test_var_ref _ =
   let env = env_with [ ("x", Int); ("ok", Bool) ] in

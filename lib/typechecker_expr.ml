@@ -47,8 +47,9 @@ let check_binary pos op lt rt =
 let check_unary pos op t =
   let err () = raise (Type_error (pos, UnaryTypeMismatch (op, t))) in
   match op with
-  | Not -> if is_integer_type t then Bool else err ()
-  | Neg | Compl -> if is_integer_type t then t else err ()
+  | Not -> if is_scalar_type t then Bool else err ()
+  | Neg -> if is_arithmetic_type t then t else err ()
+  | Compl -> if is_integer_type t then t else err ()
   | AddrOf | Deref -> assert false
 
 (** insert an implicit cast node unless the type already matches *)
@@ -364,7 +365,12 @@ and typecheck_unary_op env ann op e =
           UnaryOp (Checked (pos, tt), op, e)
       | t -> raise (Type_error (pos, UnaryTypeMismatch (op, t)))
     end
-  | Neg | Compl ->
+  | Neg ->
+      if not (is_arithmetic_type t) then
+        raise (Type_error (pos, UnaryTypeMismatch (op, t)));
+      let e = if is_integer_type t then promote_integer pos e else e in
+      UnaryOp (Checked (pos, expr_typ e), op, e)
+  | Compl ->
       if not (is_integer_type t) then
         raise (Type_error (pos, UnaryTypeMismatch (op, t)));
       let e = promote_integer pos e in

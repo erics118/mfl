@@ -95,12 +95,16 @@ and codegen_uop op e =
   match op with
   | Neg ->
       let v = codegen_expr e in
-      Llvm.build_neg v "" builder
+      if is_float_type (expr_type e) then Llvm.build_fneg v "fnegtmp" builder
+      else Llvm.build_neg v "" builder
   | Not ->
       let v = codegen_expr e in
       let zero = Llvm.const_null (Llvm.type_of v) in
-      Llvm.build_icmp Llvm.Icmp.Eq v zero "nottmp" builder
+      if is_float_type (expr_type e) then
+        Llvm.build_fcmp Llvm.Fcmp.Oeq v zero "nottmp" builder
+      else Llvm.build_icmp Llvm.Icmp.Eq v zero "nottmp" builder
   | Compl ->
+      (* only for ints *)
       let v = codegen_expr e in
       Llvm.build_not v "compltmp" builder
   | AddrOf -> begin
