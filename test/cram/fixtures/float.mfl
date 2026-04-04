@@ -1,0 +1,13 @@
+int main() {
+    double a = 3.0;
+    double b = 123.123;
+    double c = 0.123;
+    double d = .123;
+    double e = 123.;
+
+    float a = 3.0f;
+    float b = 123.123f;
+    float c = 0.123f;
+    float d = .123f;
+    float e = 123.f;
+}

@@ -35,6 +35,37 @@ let rec skip_whitespace_and_comments st =
     skip_whitespace_and_comments st
   end
 
+(** finish reading a decimal float literal, the part after the dot. handles f
+    suffix *)
+let finish_decimal_float_literal st start =
+  let invalid_literal () =
+    advance_while is_alnum st;
+    let literal = String.sub st.input start (st.pos - start) in
+    raise
+      (Lex_error
+         (tok_pos st, Printf.sprintf "invalid numeric literal '%s'" literal))
+  in
+  let read_literal () = String.sub st.input start (st.pos - start) in
+  let is_float =
+    match peek st with
+    | Some ('f' | 'F') ->
+        advance st;
+        true
+    | _ -> false
+  in
+  (* fail if detects alphabetic character *)
+  begin match peek st with
+  | Some c when is_alpha c -> invalid_literal ()
+  | _ -> ()
+  end;
+  let literal = read_literal () in
+  let len = String.length literal in
+  (* remove the 'f' suffix *)
+  let clean = if is_float then String.sub literal 0 (len - 1) else literal in
+  if is_float then TokFloat (float_of_string clean)
+  else TokDouble (float_of_string clean)
+
+(** read a number: either an integer or a float/double *)
 let read_number st =
   let start = st.pos in
   let invalid_literal () =
@@ -46,18 +77,22 @@ let read_number st =
   in
   let read_literal () = String.sub st.input start (st.pos - start) in
   advance_while is_digit st;
-  if peek st = Some '.' && Option.fold ~none:false ~some:is_digit (peek2 st)
-  then begin
+  if peek st = Some '.' then begin
     advance st;
     advance_while is_digit st;
-    (match peek st with Some c when is_alpha c -> invalid_literal () | _ -> ());
-    TokFloat (float_of_string (read_literal ()))
+    finish_decimal_float_literal st start
   end
-  else begin
+  else
     match peek st with
     | Some c when is_alpha c -> invalid_literal ()
     | _ -> TokInt (int_of_string (read_literal ()))
-  end
+
+(** read a complete number starting with a dot *)
+let read_dot_number st =
+  let start = st.pos in
+  advance st;
+  advance_while is_digit st;
+  finish_decimal_float_literal st start
 
 let read_hex_escape_sequence st =
   (* hex escape sequence *)

@@ -102,6 +102,8 @@ let next_token st =
   | Some '-' ->
       advance st;
       TokMinus
+  | Some '.' when Option.fold ~none:false ~some:is_digit (peek2 st) ->
+      read_dot_number st
   | Some '.' ->
       advance st;
       TokDot
