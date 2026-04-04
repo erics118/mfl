@@ -4,6 +4,9 @@ open Codegen_context
 let rec codegen_binop operand_typ op lhs rhs =
   let lv = codegen_expr lhs in
   let rv = codegen_expr rhs in
+  (match operand_typ with
+  | Float | Double -> assert false [@coverage off]
+  | _ -> ());
   let signed = is_signed operand_typ in
   match op with
   | Add -> (
@@ -168,6 +171,8 @@ and codegen_or_binop lhs rhs =
 and codegen_expr (e : checked expr) : Llvm.llvalue =
   match e with
   | IntLiteral (Checked (_, t), n) -> Llvm.const_int (llvm_of_typ t) n
+  | FloatLiteral (Checked _, f) -> Llvm.const_float float_type f
+  | DoubleLiteral (Checked _, f) -> Llvm.const_float double_type f
   | BoolLiteral (Checked _, b) ->
       (* bool literals produce i1 for computation *)
       Llvm.const_int bool_type (if b then 1 else 0)

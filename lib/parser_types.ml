@@ -83,6 +83,12 @@ let parse_type_name st =
     | TokSignedKw ->
         advance st;
         parse_int_base `Signed st
+    | TokFloatKw ->
+        advance st;
+        VFloat
+    | TokDoubleKw ->
+        advance st;
+        VDouble
     | TokStructKw ->
         advance st;
         (* struct Tag - reference to a named struct type, no body parsing
@@ -121,8 +127,12 @@ let is_type_keyword = function
   | TokUnsignedKw
   | TokSignedKw
   | TokTypedefKw
-  | TokStructKw -> true
+  | TokStructKw
+  | TokFloatKw
+  | TokDoubleKw -> true
   | TokInt _
+  | TokFloat _
+  | TokDouble _
   | TokBool _
   | TokChar _
   | TokIdent _

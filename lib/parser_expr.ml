@@ -37,6 +37,12 @@ and parse_primary st =
   | TokInt n ->
       advance st;
       IntLiteral (Parsed pos, n)
+  | TokFloat f ->
+      advance st;
+      FloatLiteral (Parsed pos, f)
+  | TokDouble f ->
+      advance st;
+      DoubleLiteral (Parsed pos, f)
   | TokBool b ->
       advance st;
       BoolLiteral (Parsed pos, b)

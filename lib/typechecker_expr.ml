@@ -65,7 +65,7 @@ let implicit_cast pos to_t (e : checked expr) : checked expr =
 let coerce_cond pos (e : checked expr) : checked expr =
   let t = expr_typ e in
   if t = Bool then e
-  else if is_scalar_type t then implicit_cast pos Bool e
+  else if is_integer_type t || is_pointer_type t then implicit_cast pos Bool e
   else raise (Type_error (pos, CondNotBool t))
 
 (** two branches must have the same type *)
@@ -83,11 +83,10 @@ let can_explicit_cast from_t to_t =
         (* structs cannot be cast to or from other types *)
         false
     | Ptr _, Ptr _ | Ptr _, _ | _, Ptr _ ->
-        (* if from or to or both is a pointer, ensure both are scalar *)
-        is_scalar_type from_t && is_scalar_type to_t
-    | _ ->
-        (* otherwise, we need to ensure both are integer types *)
-        is_integer_type from_t && is_integer_type to_t
+        (* ensure both sides are integers or pointers *)
+        (is_integer_type from_t || is_pointer_type from_t)
+        && (is_integer_type to_t || is_pointer_type to_t)
+    | _ -> is_integer_type from_t && is_integer_type to_t
 
 (** if we can do an cast/conversion as if by assignment *)
 let can_assign_cast from_t to_t =
@@ -159,6 +158,8 @@ let common_integer_type lt rt =
 let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
   match expr with
   | IntLiteral (ann, n) -> typecheck_int_lit ann n
+  | FloatLiteral (ann, f) -> FloatLiteral (Checked (pos_of ann, Float), f)
+  | DoubleLiteral (ann, f) -> DoubleLiteral (Checked (pos_of ann, Double), f)
   | BoolLiteral (ann, b) -> typecheck_bool_lit ann b
   | CharLiteral (ann, c) -> typecheck_char_lit ann c
   | BinaryOp (ann, op, lhs, rhs) -> typecheck_binary_op env ann op lhs rhs
@@ -238,8 +239,13 @@ and typecheck_binary_op env ann op lhs rhs =
   in
   match op with
   | And | Or ->
-      (* in C, && and || accept any scalar type; coerce operands to bool *)
-      if not (is_scalar_type (expr_typ lhs) && is_scalar_type (expr_typ rhs))
+      (* only integer and pointer operands coerce to bool *)
+      let lt = expr_typ lhs in
+      let rt = expr_typ rhs in
+      if
+        not
+          ((is_integer_type lt || is_pointer_type lt)
+          && (is_integer_type rt || is_pointer_type rt))
       then err ();
       let lhs = implicit_cast pos Bool lhs in
       let rhs = implicit_cast pos Bool rhs in

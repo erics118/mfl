@@ -14,11 +14,13 @@ let rec string_of_typ = function
   | ULong -> "unsigned long"
   | LongLong -> "long long"
   | ULongLong -> "unsigned long long"
+  | Float -> "float"
+  | Double -> "double"
   | Ptr t -> string_of_typ t ^ "*"
   | Array (t, sz) -> string_of_typ t ^ "[" ^ string_of_int sz ^ "]"
   | Struct t -> "struct " ^ display_struct_tag t
 
-(** true for any integer type, including Bool, excluding Void *)
+(** true for any integer type, including Bool *)
 let is_integer_type = function
   | Bool
   | Char
@@ -32,10 +34,7 @@ let is_integer_type = function
   | ULong
   | LongLong
   | ULongLong -> true
-  | Ptr _ -> false
-  | Array (_, _) -> false
-  | Struct _ -> false
-  | Void -> false
+  | _ -> false
 
 let is_pointer_type = function
   | Ptr _ -> true
@@ -53,6 +52,7 @@ let integer_width = function
   | Short | UShort -> 16
   | Int | UInt -> 32
   | Long | ULong | LongLong | ULongLong -> 64
+  | Float | Double -> 0
   | Ptr _ -> 64
   | Array (_, _) | Struct _ | Void -> 0
 
@@ -64,14 +64,14 @@ let integer_rank = function
   | Int | UInt -> 3
   | Long | ULong -> 4
   | LongLong | ULongLong -> 5
-  | Ptr _ | Array (_, _) | Struct _ | Void -> assert false
+  | Float | Double | Ptr _ | Array (_, _) | Struct _ | Void -> assert false
 
 (** true for signed integer types *)
 let is_signed_type = function
   | Char | SChar | Short | Int | Long | LongLong -> true
   | UChar | UShort | UInt | ULong | ULongLong | Bool | Ptr _
   | Array (_, _)
-  | Struct _ | Void -> false
+  | Float | Double | Struct _ | Void -> false
 
 (** gets the unsigned version of a signed type *)
 let unsigned_counterpart = function
@@ -84,11 +84,13 @@ let unsigned_counterpart = function
   (* these types don't change *)
   | (UChar | UShort | UInt | ULong | ULongLong) as t -> t
   (* these types don't have an unsigned counterpart *)
-  | Bool | Ptr _ | Array (_, _) | Struct _ | Void ->
+  | Bool | Float | Double | Ptr _ | Array (_, _) | Struct _ | Void ->
       invalid_arg "unsigned counterpart"
 
 let expr_typ : checked expr -> typ = function
   | IntLiteral (ann, _)
+  | FloatLiteral (ann, _)
+  | DoubleLiteral (ann, _)
   | BoolLiteral (ann, _)
   | CharLiteral (ann, _)
   | VarRef (ann, _)

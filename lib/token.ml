@@ -4,6 +4,8 @@
 type token =
   (* literals *)
   | TokInt of int  (** integer literal *)
+  | TokFloat of float  (** float literal *)
+  | TokDouble of float  (** double literal *)
   | TokBool of bool  (** boolean literal *)
   | TokChar of int  (** character literal, stored as int *)
   (* identifiers *)
@@ -28,6 +30,8 @@ type token =
   | TokSizeofKw  (** [sizeof] keyword *)
   | TokTypedefKw  (** [typedef] keyword *)
   | TokStructKw  (** [struct] keyword *)
+  | TokFloatKw  (** [float] keyword *)
+  | TokDoubleKw  (** [double] keyword *)
   (* binary operators *)
   | TokPlus  (** [+] *)
   | TokMinus  (** [-] *)
@@ -74,6 +78,8 @@ type token =
 let string_of_token = function
   (* literals *)
   | TokInt x -> string_of_int x
+  | TokFloat f -> Printf.sprintf "%gf" f
+  | TokDouble f -> Printf.sprintf "%g" f
   | TokBool x -> string_of_bool x
   | TokChar c -> Printf.sprintf "'%c'" (Char.chr c)
   (* identifiers *)
@@ -98,6 +104,8 @@ let string_of_token = function
   | TokSizeofKw -> "sizeof"
   | TokTypedefKw -> "typedef"
   | TokStructKw -> "struct"
+  | TokFloatKw -> "float"
+  | TokDoubleKw -> "double"
   (* binary operators *)
   | TokPlus -> "+"
   | TokMinus -> "-"

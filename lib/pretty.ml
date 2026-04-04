@@ -40,6 +40,8 @@ let formatted_string_of_char c =
 let rec pp_expr_aux : type a. ?parent_prec:int -> a expr -> string =
  fun ?(parent_prec = 0) -> function
   | IntLiteral (_, n) -> string_of_int n
+  | FloatLiteral (_, f) -> Printf.sprintf "%f" f
+  | DoubleLiteral (_, f) -> Printf.sprintf "%f" f
   | BoolLiteral (_, b) -> string_of_bool b
   | CharLiteral (_, c) -> formatted_string_of_char c
   | VarRef (_, name) -> name

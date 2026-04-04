@@ -22,6 +22,7 @@ let default_env () =
   }
 
 let i n = IntLiteral (p, n)
+let f x = FloatLiteral (p, x)
 let b b = BoolLiteral (p, b)
 let bi op l r = BinaryOp (p, op, l, r)
 let un op e = UnaryOp (p, op, e)
@@ -78,6 +79,8 @@ let name_of_typ = function
   | ULong -> "ul"
   | LongLong -> "ll"
   | ULongLong -> "ull"
+  | Float -> "f"
+  | Double -> "d"
   | Ptr _ -> "p"
   | Array (_, _) -> "arr"
   | Void -> "v"
@@ -186,11 +189,23 @@ let test_literals _ =
   check_typ Int (i 0);
   check_typ Int (i 123);
   check_typ Int (i (-1));
+  check_typ Float (f 3.14);
   check_typ Bool (b true);
   check_typ Bool (b false);
   (* literals outside the 32-bit signed range are typed as long *)
   check_typ Long (i 2147483648);
   check_typ Long (i (-2147483649))
+
+let test_float_minimal _ =
+  let env = env_with [ ("x", Float); ("y", Double) ] in
+  check_typ ~env Float ("x" := f 3.14);
+  check_err ~env "expected type 'double' but got 'float'" ("y" := f 3.14);
+  check_err "operator '+': type mismatch between 'float' and 'float'"
+    (bi Add (f 1.0) (f 2.0));
+  check_err "cannot cast from 'int' to 'float'" (cast VFloat (i 1));
+  check_err "cannot cast from 'float' to 'int'" (cast VInt (f 1.0));
+  check_err "condition must be 'bool' but got 'float'"
+    (tern (f 1.0) (i 1) (i 2))
 
 let test_arithmetic _ =
   check_typ Int (bi Add (i 1) (i 2));
@@ -886,6 +901,7 @@ let tests =
          "type_error_strings" >:: test_type_error_strings;
          "stmt_fallthrough_helpers" >:: test_stmt_fallthrough_helpers;
          "literals" >:: test_literals;
+         "float_minimal" >:: test_float_minimal;
          "arithmetic" >:: test_arithmetic;
          "bitwise" >:: test_bitwise;
          "comparison" >:: test_comparison;

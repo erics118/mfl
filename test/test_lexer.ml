@@ -33,6 +33,8 @@ let test_literals _ =
   check [ TokInt 0 ] "0";
   check [ TokInt 42 ] "42";
   check [ TokInt 123 ] "123";
+  check [ TokFloat 1.0 ] "1.0";
+  check [ TokFloat 0.3 ] "0.3";
   check [ TokBool true ] "true";
   check [ TokBool false ] "false"
 

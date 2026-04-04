@@ -37,18 +37,27 @@ let rec skip_whitespace_and_comments st =
 
 let read_number st =
   let start = st.pos in
+  let invalid_literal () =
+    advance_while is_alnum st;
+    let literal = String.sub st.input start (st.pos - start) in
+    raise
+      (Lex_error
+         (tok_pos st, Printf.sprintf "invalid numeric literal '%s'" literal))
+  in
+  let read_literal () = String.sub st.input start (st.pos - start) in
   advance_while is_digit st;
-  match peek st with
-  | Some c when is_alpha c ->
-      advance_while is_alnum st;
-      let bad_literal = String.sub st.input start (st.pos - start) in
-      raise
-        (Lex_error
-           ( tok_pos st,
-             Printf.sprintf "invalid numeric literal '%s'" bad_literal ))
-  | _ ->
-      let literal = String.sub st.input start (st.pos - start) in
-      TokInt (int_of_string literal)
+  if peek st = Some '.' && Option.fold ~none:false ~some:is_digit (peek2 st)
+  then begin
+    advance st;
+    advance_while is_digit st;
+    (match peek st with Some c when is_alpha c -> invalid_literal () | _ -> ());
+    TokFloat (float_of_string (read_literal ()))
+  end
+  else begin
+    match peek st with
+    | Some c when is_alpha c -> invalid_literal ()
+    | _ -> TokInt (int_of_string (read_literal ()))
+  end
 
 let read_hex_escape_sequence st =
   (* hex escape sequence *)
@@ -130,4 +139,6 @@ let read_ident st =
   | "sizeof" -> TokSizeofKw
   | "typedef" -> TokTypedefKw
   | "struct" -> TokStructKw
+  | "float" -> TokFloatKw
+  | "double" -> TokDoubleKw
   | s -> TokIdent s

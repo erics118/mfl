@@ -6,7 +6,13 @@ let builtin_names = [ "printint"; "printbool"; "malloc" ]
 let is_builtin name = List.mem name builtin_names
 
 let rec collect_builtin_expr acc = function
-  | IntLiteral _ | BoolLiteral _ | CharLiteral _ | VarRef _ | SizeofType _ ->
+  | IntLiteral _
+  | FloatLiteral _
+  | DoubleLiteral _
+  | BoolLiteral _
+  | CharLiteral _
+  | VarRef _
+  | SizeofType _ ->
       acc
   | UnaryOp (_, _, e)
   | PreInc (_, e)
