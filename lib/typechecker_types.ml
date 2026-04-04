@@ -20,7 +20,7 @@ let rec string_of_typ = function
   | Array (t, sz) -> string_of_typ t ^ "[" ^ string_of_int sz ^ "]"
   | Struct t -> "struct " ^ display_struct_tag t
 
-(** true for any integer type, including Bool *)
+(** true for any integer type, including [Bool] *)
 let is_integer_type = function
   | Bool
   | Char
@@ -36,14 +36,21 @@ let is_integer_type = function
   | ULongLong -> true
   | _ -> false
 
+(** true for the floating types, ie [Float] and [Double] *)
+let is_float_type = function
+  | Float | Double -> true
+  | _ -> false
+
+(** true for arithmetic types, integers and floating types *)
+let is_arithmetic_type t = is_integer_type t || is_float_type t
+
+(** true for any pointer type *)
 let is_pointer_type = function
   | Ptr _ -> true
   | _ -> false
 
-(** is a pointer, integer, float, not array, struct, union *)
-let is_scalar_type = function
-  | Void -> false
-  | t -> is_integer_type t || is_pointer_type t
+(** true for scalar types, ie arithmetic types and pointer types *)
+let is_scalar_type t = is_arithmetic_type t || is_pointer_type t
 
 (** width in bits of an integer type *)
 let integer_width = function
@@ -56,7 +63,7 @@ let integer_width = function
   | Ptr _ -> 64
   | Array (_, _) | Struct _ | Void -> 0
 
-(** rank of integers, in order of priority when casting implicitly *)
+(** rank of integer types, in order of priority when casting implicitly *)
 let integer_rank = function
   | Bool -> 0
   | Char | SChar | UChar -> 1
@@ -73,7 +80,7 @@ let is_signed_type = function
   | Array (_, _)
   | Float | Double | Struct _ | Void -> false
 
-(** gets the unsigned version of a signed type *)
+(** gets the unsigned counterpart of a signed integer type *)
 let unsigned_counterpart = function
   | Char -> UChar
   | SChar -> UChar

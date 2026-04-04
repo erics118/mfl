@@ -1,5 +1,6 @@
 open Ast
 open Codegen_context
+open Typechecker_types
 
 let rec codegen_binop operand_typ op lhs rhs =
   let lv = codegen_expr lhs in
@@ -408,6 +409,15 @@ and codegen_cast to_t e =
            value is true. instead, we do a != 0 comparison *)
         let zero = Llvm.const_null (llvm_of_typ from_t) in
         Llvm.build_icmp Llvm.Icmp.Ne v zero "booltmp" builder
+    | _, _ when is_float_type from_t && is_float_type to_t ->
+        if to_t = Double then Llvm.build_fpext v to_ll "fpexttmp" builder
+        else Llvm.build_fptrunc v to_ll "fptrunctmp" builder
+    | _, _ when is_integer_type from_t && is_float_type to_t ->
+        if is_signed from_t then Llvm.build_sitofp v to_ll "sitofptmp" builder
+        else Llvm.build_uitofp v to_ll "uitofptmp" builder
+    | _, _ when is_float_type from_t && is_integer_type to_t ->
+        if is_signed to_t then Llvm.build_fptosi v to_ll "fptositmp" builder
+        else Llvm.build_fptoui v to_ll "fptouitmp" builder
     | _ ->
         (* non-bool integer case *)
         let from_size = sizeof_typ from_t in

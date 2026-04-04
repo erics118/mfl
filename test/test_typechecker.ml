@@ -198,58 +198,87 @@ let test_literals _ =
   check_typ Long (i 2147483648);
   check_typ Long (i (-2147483649))
 
-let test_float_minimal _ =
-  let env = env_with [ ("x", Float); ("y", Double) ] in
-  check_typ ~env Float ("x" := f 3.14);
-  check_typ ~env Double ("y" := d 3.14);
-  check_err ~env "expected type 'double' but got 'float'" ("y" := f 3.14);
-  check_err ~env "expected type 'float' but got 'double'" ("x" := d 3.14);
+let test_float _ =
+  let env = env_with [ ("f", Float); ("d", Double) ] in
+  check_typ ~env Float ("f" := f 3.14);
+  check_typ ~env Float ("f" := d 3.14);
+  check_typ ~env Float ("f" := i 1);
+  check_typ ~env Double ("d" := d 3.14);
+  check_typ ~env Double ("d" := f 3.14);
+  check_typ ~env Double ("d" := i 1);
+  begin match
+    typecheck_stmt (default_env ())
+      (VarDef
+         {
+           pos = dummy_pos;
+           source_type = VFloat;
+           name = "f";
+           init = Some (i 1);
+         })
+  with
+  | VarDef { source_type = VFloat; init = Some init; _ } ->
+      assert_equal ~printer:string_of_typ Float (expr_typ init)
+  | _ -> assert_failure "expected float var def"
+  end;
+  begin match
+    typecheck_stmt (default_env ())
+      (VarDef
+         {
+           pos = dummy_pos;
+           source_type = VDouble;
+           name = "d";
+           init = Some (f 1.0);
+         })
+  with
+  | VarDef { source_type = VDouble; init = Some init; _ } ->
+      assert_equal ~printer:string_of_typ Double (expr_typ init)
+  | _ -> assert_failure "expected double var def"
+  end;
   let env =
     env_with_funcs
       [
         ("takes_float", { params = [ Float ]; ret = Void });
         ("takes_double", { params = [ Double ]; ret = Void });
-        ("returns_float", { params = []; ret = Float });
-        ("returns_double", { params = []; ret = Double });
       ]
   in
   check_typ ~env Void ("takes_float" $ [ f 1.0 ]);
+  check_typ ~env Void ("takes_float" $ [ d 1.0 ]);
+  check_typ ~env Void ("takes_float" $ [ i 1 ]);
   check_typ ~env Void ("takes_double" $ [ d 1.0 ]);
-  check_err ~env "expected type 'float' but got 'double'"
-    ("takes_float" $ [ d 1.0 ]);
-  check_err ~env "expected type 'double' but got 'float'"
-    ("takes_double" $ [ f 1.0 ]);
+  check_typ ~env Void ("takes_double" $ [ f 1.0 ]);
+  check_typ ~env Void ("takes_double" $ [ i 1 ]);
   begin match
-    typecheck_stmt env
+    typecheck_stmt (default_env ())
       (FuncDef
          {
            pos = dummy_pos;
            ret_type = VFloat;
            name = "rf";
            params = [];
-           body = [ ReturnStmt (dummy_pos, Some (f 1.0)) ];
+           body = [ ReturnStmt (dummy_pos, Some (i 1)) ];
          })
   with
   | FuncDef { ret_type = VFloat; _ } -> ()
   | _ -> assert_failure "expected float return function"
   end;
-  check_stmt_err ~env "expected type 'float' but got 'double'"
-    (FuncDef
-       {
-         pos = dummy_pos;
-         ret_type = VFloat;
-         name = "bad_rf";
-         params = [];
-         body = [ ReturnStmt (dummy_pos, Some (d 1.0)) ];
-       });
+  begin match
+    typecheck_stmt (default_env ())
+      (FuncDef
+         {
+           pos = dummy_pos;
+           ret_type = VDouble;
+           name = "rd";
+           params = [];
+           body = [ ReturnStmt (dummy_pos, Some (f 1.0)) ];
+         })
+  with
+  | FuncDef { ret_type = VDouble; _ } -> ()
+  | _ -> assert_failure "expected double return function"
+  end;
   check_err "operator '+': type mismatch between 'float' and 'float'"
     (bi Add (f 1.0) (f 2.0));
   check_err "operator '+': type mismatch between 'double' and 'double'"
     (bi Add (d 1.0) (d 2.0));
-  check_err "cannot cast from 'int' to 'float'" (cast VFloat (i 1));
-  check_err "cannot cast from 'int' to 'double'" (cast VDouble (i 1));
-  check_err "cannot cast from 'float' to 'int'" (cast VInt (f 1.0));
-  check_err "cannot cast from 'double' to 'int'" (cast VInt (d 1.0));
   check_err "condition must be 'bool' but got 'float'"
     (tern (f 1.0) (i 1) (i 2));
   check_err "condition must be 'bool' but got 'double'"
@@ -464,13 +493,21 @@ let test_cast _ =
   let env = env_with [ ("x", Long); ("n", Int); ("c", Char); ("p", Ptr Int) ] in
   check_typ ~env Int (cast VInt !"x");
   check_typ ~env Long (cast VLong !"n");
+  check_typ ~env Float (cast VFloat !"n");
+  check_typ ~env Double (cast VDouble !"n");
   check_typ ~env Bool (cast VBool !"n");
   check_typ ~env Char (cast VChar !"n");
   check_typ ~env (Ptr Int) (cast (VPtr VInt) !"n");
   check_typ ~env Int (cast VInt !"p");
   check_typ ~env (Ptr (Ptr Int)) (cast (VPtr (VPtr VInt)) !"p");
   check_typ Int (cast VInt (i 5));
-  check_typ Long (cast VLong (i 5))
+  check_typ Long (cast VLong (i 5));
+  check_typ Float (cast VFloat (i 5));
+  check_typ Double (cast VDouble (i 5));
+  check_typ Int (cast VInt (f 1.0));
+  check_typ Int (cast VInt (d 1.0));
+  check_typ Double (cast VDouble (f 1.0));
+  check_typ Float (cast VFloat (d 1.0))
 
 let test_cast_errors _ =
   check_err "cannot cast from 'int' to 'void'" (cast VVoid (i 1));
@@ -949,7 +986,7 @@ let tests =
          "type_error_strings" >:: test_type_error_strings;
          "stmt_fallthrough_helpers" >:: test_stmt_fallthrough_helpers;
          "literals" >:: test_literals;
-         "float_minimal" >:: test_float_minimal;
+         "float_minimal" >:: test_float;
          "arithmetic" >:: test_arithmetic;
          "bitwise" >:: test_bitwise;
          "comparison" >:: test_comparison;

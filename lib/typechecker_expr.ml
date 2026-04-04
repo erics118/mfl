@@ -76,32 +76,43 @@ let check_ternary pos then_t else_t =
 
 (** if we can cast to a different scalar type *)
 let can_explicit_cast from_t to_t =
-  if from_t = to_t then true
+  if from_t = to_t then (* allow same types to cast (redundant) *)
+    true
+  else if is_arithmetic_type from_t && is_arithmetic_type to_t then
+    (* arithmetic types can cast from each other *)
+    true
+  else if is_pointer_type from_t && is_pointer_type to_t then
+    (* pointers can cast to any type of pointer *)
+    true
+  else if
+    (is_integer_type from_t && is_pointer_type to_t)
+    || (is_pointer_type from_t && is_integer_type to_t)
+  then
+    (* pointer and int can cast freely *)
+    true
   else
-    match (from_t, to_t) with
-    | Struct _, _ | _, Struct _ ->
-        (* structs cannot be cast to or from other types *)
-        false
-    | Ptr _, Ptr _ | Ptr _, _ | _, Ptr _ ->
-        (* ensure both sides are integers or pointers *)
-        (is_integer_type from_t || is_pointer_type from_t)
-        && (is_integer_type to_t || is_pointer_type to_t)
-    | _ -> is_integer_type from_t && is_integer_type to_t
+    (* no other types are allowed *)
+    false
 
 (** if we can do an cast/conversion as if by assignment *)
 let can_assign_cast from_t to_t =
-  if from_t = to_t then true
+  if from_t = to_t then (* allow same types to cast (redundant) *)
+    true
+  else if
+    (is_pointer_type from_t && to_t = Ptr Void)
+    || (from_t = Ptr Void && is_pointer_type to_t)
+  then
+    (* we can explicitly cast to/from void* *)
+    true
   else
     match (from_t, to_t) with
-    | Ptr _, Ptr Void | Ptr Void, Ptr _ ->
-        (* void* cast is always allowed *)
-        true
     | Array (t, _), Ptr t2 ->
         (* array decays to pointer to its element type *)
         t = t2
     | _ ->
-        (* otherwise, check that both are integer types *)
-        is_integer_type from_t && is_integer_type to_t
+        (* otherwise, only integer-to-integer assignment conversions are
+           currently allowed *)
+        is_arithmetic_type from_t && is_arithmetic_type to_t
 
 (** the integer constant 0 can be implicitly converted to any pointer type *)
 let is_null_ptr_constant = function
