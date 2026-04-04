@@ -408,7 +408,9 @@ and codegen_cast to_t e =
            ie, trunc i32 2 to i1 gives 0 not 1. it should be that any nonzero
            value is true. instead, we do a != 0 comparison *)
         let zero = Llvm.const_null (llvm_of_typ from_t) in
-        Llvm.build_icmp Llvm.Icmp.Ne v zero "booltmp" builder
+        if is_float_type from_t then
+          Llvm.build_fcmp Llvm.Fcmp.One v zero "booltmp" builder
+        else Llvm.build_icmp Llvm.Icmp.Ne v zero "booltmp" builder
     | _, _ when is_float_type from_t && is_float_type to_t ->
         if to_t = Double then Llvm.build_fpext v to_ll "fpexttmp" builder
         else Llvm.build_fptrunc v to_ll "fptrunctmp" builder

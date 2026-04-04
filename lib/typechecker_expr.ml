@@ -65,7 +65,7 @@ let implicit_cast pos to_t (e : checked expr) : checked expr =
 let coerce_cond pos (e : checked expr) : checked expr =
   let t = expr_typ e in
   if t = Bool then e
-  else if is_integer_type t || is_pointer_type t then implicit_cast pos Bool e
+  else if is_scalar_type t then implicit_cast pos Bool e
   else raise (Type_error (pos, CondNotBool t))
 
 (** two branches must have the same type *)
@@ -250,14 +250,10 @@ and typecheck_binary_op env ann op lhs rhs =
   in
   match op with
   | And | Or ->
-      (* only integer and pointer operands coerce to bool *)
+      (* scalar operands coerce to bool *)
       let lt = expr_typ lhs in
       let rt = expr_typ rhs in
-      if
-        not
-          ((is_integer_type lt || is_pointer_type lt)
-          && (is_integer_type rt || is_pointer_type rt))
-      then err ();
+      if not (is_scalar_type lt && is_scalar_type rt) then err ();
       let lhs = implicit_cast pos Bool lhs in
       let rhs = implicit_cast pos Bool rhs in
       BinaryOp (Checked (pos, Bool), op, lhs, rhs)

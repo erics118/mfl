@@ -279,10 +279,10 @@ let test_float _ =
     (bi Add (f 1.0) (f 2.0));
   check_err "operator '+': type mismatch between 'double' and 'double'"
     (bi Add (d 1.0) (d 2.0));
-  check_err "condition must be 'bool' but got 'float'"
-    (tern (f 1.0) (i 1) (i 2));
-  check_err "condition must be 'bool' but got 'double'"
-    (tern (d 1.0) (i 1) (i 2))
+  check_typ Int (tern (f 1.0) (i 1) (i 2));
+  check_typ Int (tern (d 1.0) (i 1) (i 2));
+  check_typ Bool (bi And (f 1.0) (d 0.0));
+  check_typ Bool (bi Or (d 0.0) (f 1.0))
 
 let test_arithmetic _ =
   check_typ Int (bi Add (i 1) (i 2));
@@ -769,6 +769,8 @@ let test_stmt_conditions _ =
   let ok s = ignore (typecheck_stmt (default_env ()) s) in
   let e = EmptyStmt dummy_pos in
   ok (If { pos = dummy_pos; cond = i 1; then_body = e; else_body = None });
+  ok (If { pos = dummy_pos; cond = f 1.0; then_body = e; else_body = None });
+  ok (If { pos = dummy_pos; cond = d 0.0; then_body = e; else_body = None });
   ok (WhileLoop { pos = dummy_pos; cond = i 1; body = e });
   ok (DoWhileLoop { pos = dummy_pos; body = e; cond = i 1 });
   ok
