@@ -35,8 +35,8 @@ let rec skip_whitespace_and_comments st =
     skip_whitespace_and_comments st
   end
 
-(** finish reading a decimal float literal, the part after the dot. handles f
-    suffix *)
+(** finish reading a decimal float literal, the part after the dot. handles
+    [f] and [l] suffixes *)
 let finish_decimal_float_literal st start =
   let invalid_literal () =
     advance_while is_alnum st;
@@ -46,12 +46,15 @@ let finish_decimal_float_literal st start =
          (tok_pos st, Printf.sprintf "invalid numeric literal '%s'" literal))
   in
   let read_literal () = String.sub st.input start (st.pos - start) in
-  let is_float =
+  let suffix =
     match peek st with
     | Some ('f' | 'F') ->
         advance st;
-        true
-    | _ -> false
+        `Float
+    | Some ('l' | 'L') ->
+        advance st;
+        `LongDouble
+    | _ -> `Double
   in
   (* fail if detects alphabetic character *)
   begin match peek st with
@@ -60,10 +63,16 @@ let finish_decimal_float_literal st start =
   end;
   let literal = read_literal () in
   let len = String.length literal in
-  (* remove the 'f' suffix *)
-  let clean = if is_float then String.sub literal 0 (len - 1) else literal in
-  if is_float then TokFloat (float_of_string clean)
-  else TokDouble (float_of_string clean)
+  (* remove a trailing float/long-double suffix *)
+  let clean =
+    match suffix with
+    | `Double -> literal
+    | `Float | `LongDouble -> String.sub literal 0 (len - 1)
+  in
+  match suffix with
+  | `Float -> TokFloat (float_of_string clean)
+  | `Double -> TokDouble (float_of_string clean)
+  | `LongDouble -> TokLongDouble (float_of_string clean)
 
 (** read a number: either an integer or a float/double *)
 let read_number st =

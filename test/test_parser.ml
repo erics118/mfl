@@ -204,6 +204,7 @@ let test_int_types _ =
   roundtrip "int x;";
   roundtrip "long x;";
   roundtrip "long long x;";
+  roundtrip "long double x;";
   (* unsigned integer types *)
   roundtrip "unsigned char x;";
   roundtrip "unsigned short x;";
@@ -399,6 +400,7 @@ let test_cast _ =
   (* all type keywords work as cast targets *)
   roundtrip "(int)x;";
   roundtrip "(long)x;";
+  roundtrip "(long double)x;";
   roundtrip "(bool)x;";
   roundtrip "(char)x;";
   roundtrip "(short)x;";

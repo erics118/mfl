@@ -43,6 +43,9 @@ and parse_primary st =
   | TokDouble f ->
       advance st;
       DoubleLiteral (Parsed pos, f)
+  | TokLongDouble f ->
+      advance st;
+      LongDoubleLiteral (Parsed pos, f)
   | TokBool b ->
       advance st;
       BoolLiteral (Parsed pos, b)

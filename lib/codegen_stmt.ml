@@ -9,6 +9,7 @@ let rec collect_builtin_expr acc = function
   | IntLiteral _
   | FloatLiteral _
   | DoubleLiteral _
+  | LongDoubleLiteral _
   | BoolLiteral _
   | CharLiteral _
   | VarRef _

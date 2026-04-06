@@ -6,6 +6,7 @@ type token =
   | TokInt of int  (** integer literal *)
   | TokFloat of float  (** float literal *)
   | TokDouble of float  (** double literal *)
+  | TokLongDouble of float  (** long double literal *)
   | TokBool of bool  (** boolean literal *)
   | TokChar of int  (** character literal, stored as int *)
   (* identifiers *)
@@ -80,6 +81,7 @@ let string_of_token = function
   | TokInt x -> string_of_int x
   | TokFloat f -> Printf.sprintf "%gf" f
   | TokDouble f -> Printf.sprintf "%g" f
+  | TokLongDouble f -> Printf.sprintf "%gL" f
   | TokBool x -> string_of_bool x
   | TokChar c -> Printf.sprintf "'%c'" (Char.chr c)
   (* identifiers *)

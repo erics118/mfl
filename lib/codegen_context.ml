@@ -31,6 +31,7 @@ let rec sizeof_typ = function
   | Long | ULong | LongLong | ULongLong -> 8
   | Float -> 4
   | Double -> 8
+  | LongDouble -> 8
   | Ptr _ -> 8
   | Array (t, sz) -> sizeof_typ t * sz
   | Void -> 0
@@ -97,6 +98,7 @@ let rec llvm_of_typ = function
   | Long | ULong | LongLong | ULongLong -> long_type
   | Float -> float_type
   | Double -> double_type
+  | LongDouble -> double_type
   | Array (t, sz) -> Llvm.array_type (llvm_of_typ t) sz
   | Ptr _ -> pointer_type
   | Struct tag -> begin
@@ -121,7 +123,7 @@ let emit_store t v ptr =
 let is_signed = function
   | Char | SChar | Short | Int | Long | LongLong -> true
   | UChar | UShort | UInt | ULong | ULongLong -> false
-  | Float | Double -> false
+  | Float | Double | LongDouble -> false
   | Bool | Ptr _ | Array (_, _) | Struct _ | Void -> false
 
 (* extract the resolved type from a checked expression annotation *)
@@ -129,6 +131,7 @@ let expr_type : checked expr -> typ = function
   | IntLiteral (Checked (_, t), _)
   | FloatLiteral (Checked (_, t), _)
   | DoubleLiteral (Checked (_, t), _)
+  | LongDoubleLiteral (Checked (_, t), _)
   | BoolLiteral (Checked (_, t), _)
   | CharLiteral (Checked (_, t), _)
   | VarRef (Checked (_, t), _)

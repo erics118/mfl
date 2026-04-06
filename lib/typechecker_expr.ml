@@ -171,8 +171,9 @@ let common_integer_type lt rt =
     conversions; float and double dominate integer types. *)
 let common_arithmetic_type lt rt =
   if is_float_type lt || is_float_type rt then
-    (* if either is a double, then result type is double *)
-    if lt = Double || rt = Double then Double else Float
+    if lt = LongDouble || rt = LongDouble then LongDouble
+    else if lt = Double || rt = Double then Double
+    else Float
   else
     (* otherwise, ints *)
     common_integer_type lt rt
@@ -182,6 +183,8 @@ let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
   | IntLiteral (ann, n) -> typecheck_int_lit ann n
   | FloatLiteral (ann, f) -> FloatLiteral (Checked (pos_of ann, Float), f)
   | DoubleLiteral (ann, f) -> DoubleLiteral (Checked (pos_of ann, Double), f)
+  | LongDoubleLiteral (ann, f) ->
+      LongDoubleLiteral (Checked (pos_of ann, LongDouble), f)
   | BoolLiteral (ann, b) -> typecheck_bool_lit ann b
   | CharLiteral (ann, c) -> typecheck_char_lit ann c
   | BinaryOp (ann, op, lhs, rhs) -> typecheck_binary_op env ann op lhs rhs

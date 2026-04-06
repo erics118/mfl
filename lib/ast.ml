@@ -48,6 +48,7 @@ type source_type =
   | VULongLong
   | VFloat
   | VDouble
+  | VLongDouble
   | VPtr of source_type
   | VArray of source_type * int
   | VNamed of string  (** user-defined type names *)
@@ -77,6 +78,7 @@ let rec string_of_source_type = function
   | VULongLong -> "unsigned long long"
   | VFloat -> "float"
   | VDouble -> "double"
+  | VLongDouble -> "long double"
   | VPtr t -> string_of_source_type t ^ "*"
   | VArray (t, sz) -> string_of_source_type t ^ "[" ^ string_of_int sz ^ "]"
   | VNamed name -> name
@@ -105,6 +107,7 @@ type typ =
   | ULongLong  (** i64, unsigned *)
   | Float  (** f32 *)
   | Double  (** f64 *)
+  | LongDouble  (** long double *)
   | Ptr of typ (* pointer type *)
   | Array of typ * int  (** array with size *)
   | Struct of string  (** struct type identified by tag *)
@@ -128,6 +131,7 @@ let rec typ_of_source_type = function
   | VULongLong -> ULongLong
   | VFloat -> Float
   | VDouble -> Double
+  | VLongDouble -> LongDouble
   | VPtr t -> Ptr (typ_of_source_type t)
   | VArray (t, sz) -> Array (typ_of_source_type t, sz)
   | VNamed _ -> assert false [@coverage off]
@@ -151,6 +155,7 @@ let rec source_type_of_typ = function
   | ULongLong -> VULongLong
   | Float -> VFloat
   | Double -> VDouble
+  | LongDouble -> VLongDouble
   | Ptr t -> VPtr (source_type_of_typ t)
   | Array (t, sz) -> VArray (source_type_of_typ t, sz)
   | Struct tag -> VStruct tag
@@ -180,6 +185,8 @@ type 'a expr =
   | IntLiteral : 'a ann * int -> 'a expr
   | FloatLiteral : 'a ann * float -> 'a expr  (** 32-bit float, [f] suffix *)
   | DoubleLiteral : 'a ann * float -> 'a expr  (** 64-bit double, no suffix *)
+  | LongDoubleLiteral : 'a ann * float -> 'a expr
+      (** long double, [L] suffix *)
   | BoolLiteral : 'a ann * bool -> 'a expr
   | CharLiteral : 'a ann * int -> 'a expr  (** stored as int for simplicity *)
   | VarRef : 'a ann * string -> 'a expr

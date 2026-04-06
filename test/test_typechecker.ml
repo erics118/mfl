@@ -24,6 +24,7 @@ let default_env () =
 let i n = IntLiteral (p, n)
 let f x = FloatLiteral (p, x)
 let d x = DoubleLiteral (p, x)
+let ld x = LongDoubleLiteral (p, x)
 let b b = BoolLiteral (p, b)
 let bi op l r = BinaryOp (p, op, l, r)
 let un op e = UnaryOp (p, op, e)
@@ -82,6 +83,7 @@ let name_of_typ = function
   | ULongLong -> "ull"
   | Float -> "f"
   | Double -> "d"
+  | LongDouble -> "ld"
   | Ptr _ -> "p"
   | Array (_, _) -> "arr"
   | Void -> "v"
@@ -124,6 +126,7 @@ let test_type_helpers _ =
   assert_equal "unsigned long" (string_of_typ ULong);
   assert_equal "long long" (string_of_typ LongLong);
   assert_equal "unsigned long long" (string_of_typ ULongLong);
+  assert_equal "long double" (string_of_typ LongDouble);
   assert_equal "int*" (string_of_typ (Ptr Int));
   assert_equal "char[4]" (string_of_typ (Array (Char, 4)));
   assert_equal "struct Foo" (string_of_typ (Struct "__anon_Foo"));
@@ -192,6 +195,7 @@ let test_literals _ =
   check_typ Int (i (-1));
   check_typ Float (f 3.14);
   check_typ Double (d 3.14);
+  check_typ LongDouble (ld 3.14);
   check_typ Bool (b true);
   check_typ Bool (b false);
   (* literals outside the 32-bit signed range are typed as long *)
@@ -199,13 +203,19 @@ let test_literals _ =
   check_typ Long (i (-2147483649))
 
 let test_float _ =
-  let env = env_with [ ("f", Float); ("d", Double) ] in
+  let env = env_with [ ("f", Float); ("d", Double); ("ld", LongDouble) ] in
   check_typ ~env Float ("f" := f 3.14);
   check_typ ~env Float ("f" := d 3.14);
+  check_typ ~env Float ("f" := ld 3.14);
   check_typ ~env Float ("f" := i 1);
-  check_typ ~env Double ("d" := d 3.14);
   check_typ ~env Double ("d" := f 3.14);
+  check_typ ~env Double ("d" := d 3.14);
+  check_typ ~env Double ("d" := ld 3.14);
   check_typ ~env Double ("d" := i 1);
+  check_typ ~env LongDouble ("ld" := f 3.14);
+  check_typ ~env LongDouble ("ld" := d 3.14);
+  check_typ ~env LongDouble ("ld" := ld 3.14);
+  check_typ ~env LongDouble ("ld" := i 1);
   begin match typecheck_expr env ("f" := d 3.14) with
   | Assign (_, _, value) -> assert_implicit_cast_to Float value
   | _ -> assert_failure "expected float assignment cast"
@@ -213,6 +223,10 @@ let test_float _ =
   begin match typecheck_expr env ("d" := f 3.14) with
   | Assign (_, _, value) -> assert_implicit_cast_to Double value
   | _ -> assert_failure "expected double assignment cast"
+  end;
+  begin match typecheck_expr env ("ld" := d 3.14) with
+  | Assign (_, _, value) -> assert_implicit_cast_to LongDouble value
+  | _ -> assert_failure "expected long double assignment cast"
   end;
   begin match typecheck_expr env ("f" := i 1) with
   | Assign (_, _, value) -> assert_implicit_cast_to Float value
@@ -246,11 +260,26 @@ let test_float _ =
       assert_equal ~printer:string_of_typ Double (expr_typ init)
   | _ -> assert_failure "expected double var def"
   end;
+  begin match
+    typecheck_stmt (default_env ())
+      (VarDef
+         {
+           pos = dummy_pos;
+           source_type = VLongDouble;
+           name = "ld";
+           init = Some (d 1.0);
+         })
+  with
+  | VarDef { source_type = VLongDouble; init = Some init; _ } ->
+      assert_equal ~printer:string_of_typ LongDouble (expr_typ init)
+  | _ -> assert_failure "expected long double var def"
+  end;
   let env =
     env_with_funcs
       [
         ("takes_float", { params = [ Float ]; ret = Void });
         ("takes_double", { params = [ Double ]; ret = Void });
+        ("takes_long_double", { params = [ LongDouble ]; ret = Void });
       ]
   in
   check_typ ~env Void ("takes_float" $ [ f 1.0 ]);
@@ -259,6 +288,9 @@ let test_float _ =
   check_typ ~env Void ("takes_double" $ [ d 1.0 ]);
   check_typ ~env Void ("takes_double" $ [ f 1.0 ]);
   check_typ ~env Void ("takes_double" $ [ i 1 ]);
+  check_typ ~env Void ("takes_long_double" $ [ ld 1.0 ]);
+  check_typ ~env Void ("takes_long_double" $ [ d 1.0 ]);
+  check_typ ~env Void ("takes_long_double" $ [ f 1.0 ]);
   begin match typecheck_expr env ("takes_float" $ [ d 1.0 ]) with
   | FuncCall (_, _, [ arg ]) -> assert_implicit_cast_to Float arg
   | _ -> assert_failure "expected float arg cast"
@@ -266,6 +298,10 @@ let test_float _ =
   begin match typecheck_expr env ("takes_double" $ [ f 1.0 ]) with
   | FuncCall (_, _, [ arg ]) -> assert_implicit_cast_to Double arg
   | _ -> assert_failure "expected double arg cast"
+  end;
+  begin match typecheck_expr env ("takes_long_double" $ [ d 1.0 ]) with
+  | FuncCall (_, _, [ arg ]) -> assert_implicit_cast_to LongDouble arg
+  | _ -> assert_failure "expected long double arg cast"
   end;
   begin match
     typecheck_stmt (default_env ())
@@ -310,6 +346,20 @@ let test_float _ =
   | FuncDef { ret_type = VDouble; _ } -> ()
   | _ -> assert_failure "expected double return function"
   end;
+  begin match
+    typecheck_stmt (default_env ())
+      (FuncDef
+         {
+           pos = dummy_pos;
+           ret_type = VLongDouble;
+           name = "rld";
+           params = [];
+           body = [ ReturnStmt (dummy_pos, Some (d 1.0)) ];
+         })
+  with
+  | FuncDef { ret_type = VLongDouble; _ } -> ()
+  | _ -> assert_failure "expected long double return function"
+  end;
   begin match typecheck_expr (default_env ()) (bi Equal (i 1) (f 1.0)) with
   | BinaryOp (_, _, lhs, rhs) ->
       assert_implicit_cast_to Float lhs;
@@ -322,8 +372,15 @@ let test_float _ =
       assert_equal ~printer:string_of_typ Double (expr_typ rhs)
   | _ -> assert_failure "expected float/double comparison"
   end;
+  begin match typecheck_expr (default_env ()) (bi Equal (d 1.0) (ld 1.0)) with
+  | BinaryOp (_, _, lhs, rhs) ->
+      assert_implicit_cast_to LongDouble lhs;
+      assert_equal ~printer:string_of_typ LongDouble (expr_typ rhs)
+  | _ -> assert_failure "expected double/long double comparison"
+  end;
   check_typ Float (bi Add (f 1.0) (f 2.0));
   check_typ Double (bi Add (d 1.0) (d 2.0));
+  check_typ LongDouble (bi Add (ld 1.0) (d 2.0));
   check_typ Double (bi Mul (f 1.0) (d 2.0));
   check_err "operator '%': type mismatch between 'float' and 'float'"
     (bi Mod (f 1.0) (f 2.0));
@@ -336,7 +393,8 @@ let test_float _ =
   check_typ Bool (bi And (f 1.0) (d 0.0));
   check_typ Bool (bi Or (d 0.0) (f 1.0));
   check_typ Double (tern (b true) (f 1.0) (d 1.0));
-  check_typ Double (tern (b true) (d 1.0) (f 1.0))
+  check_typ Double (tern (b true) (d 1.0) (f 1.0));
+  check_typ LongDouble (tern (b true) (ld 1.0) (d 1.0))
 
 let test_arithmetic _ =
   check_typ Int (bi Add (i 1) (i 2));
@@ -350,6 +408,7 @@ let test_arithmetic _ =
   check_typ Double (bi Sub (d 5.0) (f 3.0));
   check_typ Float (bi Mul (f 3.0) (f 4.0));
   check_typ Double (bi Div (d 8.0) (i 2));
+  check_typ LongDouble (bi Add (d 1.0) (ld 2.0));
   begin match typecheck_expr (default_env ()) (bi Add (i 1) (d 2.0)) with
   | BinaryOp (Checked (_, Double), Add, lhs, rhs) ->
       assert_implicit_cast_to Double lhs;
@@ -400,6 +459,7 @@ let test_equality _ =
   check_typ Bool (bi Neq (b true) (b true));
   check_typ Bool (bi Equal (f 1.0) (f 1.0));
   check_typ Bool (bi Neq (d 1.0) (d 2.0));
+  check_typ Bool (bi Equal (ld 1.0) (d 1.0));
   check_typ Bool (bi Equal (i 1) (f 1.0));
   check_typ Bool (bi Neq (f 1.0) (d 2.0))
 
@@ -423,9 +483,11 @@ let test_unary _ =
   check_typ ~env Bool (un Not !"pf");
   check_typ Bool (un Not (f 0.0));
   check_typ Bool (un Not (d 1.0));
+  check_typ Bool (un Not (ld 1.0));
   check_typ Int (un Neg (i 1));
   check_typ Float (un Neg (f 1.0));
   check_typ Double (un Neg (d 1.0));
+  check_typ LongDouble (un Neg (ld 1.0));
   check_typ Int (un Compl (i 0))
 
 let test_unary_conversions _ =
@@ -496,6 +558,8 @@ let test_unary_errors _ =
   check_err "operator '~': invalid operand type 'void'" (un Compl noop);
   check_err "operator '~': invalid operand type 'float'" (un Compl (f 1.0));
   check_err "operator '~': invalid operand type 'double'" (un Compl (d 1.0));
+  check_err "operator '~': invalid operand type 'long double'"
+    (un Compl (ld 1.0));
   check_err ~env "operator '-': invalid operand type 'int*'" (un Neg !"pi");
   check_err ~env "operator '~': invalid operand type 'int*'" (un Compl !"pi");
   check_err ~env "operator '-': invalid operand type 'float*'" (un Neg !"pf");
@@ -620,6 +684,7 @@ let test_cast _ =
   check_typ ~env Long (cast VLong !"n");
   check_typ ~env Float (cast VFloat !"n");
   check_typ ~env Double (cast VDouble !"n");
+  check_typ ~env LongDouble (cast VLongDouble !"n");
   check_typ ~env Bool (cast VBool !"n");
   check_typ ~env Char (cast VChar !"n");
   check_typ ~env (Ptr Int) (cast (VPtr VInt) !"n");
@@ -629,10 +694,13 @@ let test_cast _ =
   check_typ Long (cast VLong (i 5));
   check_typ Float (cast VFloat (i 5));
   check_typ Double (cast VDouble (i 5));
+  check_typ LongDouble (cast VLongDouble (i 5));
   check_typ Int (cast VInt (f 1.0));
   check_typ Int (cast VInt (d 1.0));
   check_typ Double (cast VDouble (f 1.0));
-  check_typ Float (cast VFloat (d 1.0))
+  check_typ Float (cast VFloat (d 1.0));
+  check_typ LongDouble (cast VLongDouble (d 1.0));
+  check_typ Double (cast VDouble (ld 1.0))
 
 let test_cast_errors _ =
   check_err "cannot cast from 'int' to 'void'" (cast VVoid (i 1));

@@ -4,7 +4,14 @@ open Parser_state
 
 (* parses the "long"/"long int" after consuming the first "long" *)
 let parse_long_suffix signedness st =
-  if st.cur_tok = TokLongKw then begin
+  if st.cur_tok = TokDoubleKw then begin
+    (* error if we have explcitly specified, and we see "double" *)
+    if signedness <> `None then
+      raise (Parse_error (cur_pos st, "invalid type specifier"));
+    advance st;
+    VLongDouble
+  end
+  else if st.cur_tok = TokLongKw then begin
     advance st;
     (* ignore the "int" if there is one *)
     if st.cur_tok = TokIntKw then advance st;
@@ -133,6 +140,7 @@ let is_type_keyword = function
   | TokInt _
   | TokFloat _
   | TokDouble _
+  | TokLongDouble _
   | TokBool _
   | TokChar _
   | TokIdent _

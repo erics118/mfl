@@ -37,6 +37,8 @@ let test_literals _ =
   check [ TokDouble 0.3 ] "0.3";
   check [ TokDouble 1.0 ] "1.";
   check [ TokDouble 0.5 ] ".5";
+  check [ TokLongDouble 1.0 ] "1.0L";
+  check [ TokLongDouble 0.5 ] ".5L";
   check [ TokFloat 1.0 ] "1.0f";
   check [ TokFloat 1.0 ] "1.f";
   check [ TokFloat 0.5 ] ".5f";

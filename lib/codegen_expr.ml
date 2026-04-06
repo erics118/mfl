@@ -4,7 +4,7 @@ open Typechecker_types
 
 let rec codegen_binop operand_typ op lhs rhs =
   match operand_typ with
-  | Float | Double -> codegen_float_binop op lhs rhs
+  | Float | Double | LongDouble -> codegen_float_binop op lhs rhs
   | _ -> codegen_int_and_ptr_binop operand_typ op lhs rhs
 
 and codegen_float_binop op lhs rhs =
@@ -198,6 +198,7 @@ and codegen_expr (e : checked expr) : Llvm.llvalue =
   | IntLiteral (Checked (_, t), n) -> Llvm.const_int (llvm_of_typ t) n
   | FloatLiteral (Checked _, f) -> Llvm.const_float float_type f
   | DoubleLiteral (Checked _, f) -> Llvm.const_float double_type f
+  | LongDoubleLiteral (Checked _, f) -> Llvm.const_float double_type f
   | BoolLiteral (Checked _, b) ->
       (* bool literals produce i1 for computation *)
       Llvm.const_int bool_type (if b then 1 else 0)
@@ -381,10 +382,10 @@ and codegen_incdec e dir fix =
         let neg_one = Llvm.const_int int_type (-1) in
         Llvm.build_gep (llvm_of_typ t) old_val [| neg_one |] "incdec" builder
     (* floats *)
-    | `Inc, Float | `Inc, Double ->
+    | `Inc, t when is_float_type t ->
         let one = Llvm.const_float ll_ty 1. in
         Llvm.build_fadd old_val one "incdec" builder
-    | `Dec, Float | `Dec, Double ->
+    | `Dec, t when is_float_type t ->
         let one = Llvm.const_float ll_ty 1. in
         Llvm.build_fsub old_val one "incdec" builder
     (* integers *)
@@ -443,9 +444,18 @@ and codegen_arithmetic_cast v from_t to_t =
   let to_ll = llvm_of_typ to_t in
   match (from_t, to_t) with
   | _, _ when is_float_type from_t && is_float_type to_t ->
-      (* extend if Double, otherwise trunc *)
-      if to_t = Double then Llvm.build_fpext v to_ll "fpexttmp" builder
-      else Llvm.build_fptrunc v to_ll "fptrunctmp" builder
+      (* for floats, no concept of signedness *)
+      let from_size = sizeof_typ from_t in
+      let to_size = sizeof_typ to_t in
+      if to_size < from_size then
+        (* if we need to make the value smaller, we trunc *)
+        Llvm.build_fptrunc v to_ll "fptrunctmp" builder (* ext *)
+      else if to_size > from_size then
+        (* if we need to make the value larger, we ext *)
+        Llvm.build_fpext v to_ll "fpexttmp" builder
+      else
+        (* same size, don't do anything *)
+        v
   | _, _ when is_integer_type from_t && is_float_type to_t ->
       if is_signed from_t then Llvm.build_sitofp v to_ll "sitofptmp" builder
       else Llvm.build_uitofp v to_ll "uitofptmp" builder
