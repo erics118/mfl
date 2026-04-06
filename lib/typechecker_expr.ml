@@ -167,6 +167,16 @@ let common_integer_type lt rt =
       (* otherwise, use the the other type, but as unsigned *)
       unsigned_counterpart signed_t
 
+(** get the common type for arithmetic operands. integers use the usual integer
+    conversions; float and double dominate integer types. *)
+let common_arithmetic_type lt rt =
+  if is_float_type lt || is_float_type rt then
+    (* if either is a double, then result type is double *)
+    if lt = Double || rt = Double then Double else Float
+  else
+    (* otherwise, ints *)
+    common_integer_type lt rt
+
 let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
   match expr with
   | IntLiteral (ann, n) -> typecheck_int_lit ann n
@@ -245,71 +255,65 @@ and typecheck_binary_op env ann op lhs rhs =
   let pos = pos_of ann in
   let lhs = typecheck_expr env lhs in
   let rhs = typecheck_expr env rhs in
+  let lt = expr_typ lhs in
+  let rt = expr_typ rhs in
   let err () =
     raise
       (Type_error (pos, BinaryTypeMismatch (op, expr_typ lhs, expr_typ rhs)))
   in
   match op with
+  (* &&, || for scalar *)
   | And | Or ->
       (* scalar operands coerce to bool *)
-      let lt = expr_typ lhs in
-      let rt = expr_typ rhs in
       if not (is_scalar_type lt && is_scalar_type rt) then err ();
-      let lhs = implicit_cast pos Bool lhs in
-      let rhs = implicit_cast pos Bool rhs in
-      BinaryOp (Checked (pos, Bool), op, lhs, rhs)
-  | (Equal | Neq)
-    when is_pointer_type (expr_typ lhs) && is_null_ptr_constant rhs ->
+      let lhs' = implicit_cast pos Bool lhs in
+      let rhs' = implicit_cast pos Bool rhs in
+      BinaryOp (Checked (pos, Bool), op, lhs', rhs')
+  (* =, != for ptr *)
+  | (Equal | Neq) when is_pointer_type lt && is_null_ptr_constant rhs ->
       (* ptr == 0 or ptr != 0: cast 0 to the pointer type *)
-      BinaryOp
-        (Checked (pos, Bool), op, lhs, implicit_cast pos (expr_typ lhs) rhs)
-  | (Equal | Neq)
-    when is_null_ptr_constant lhs && is_pointer_type (expr_typ rhs) ->
+      BinaryOp (Checked (pos, Bool), op, lhs, implicit_cast pos lt rhs)
+  (* =, != ptr *)
+  | (Equal | Neq) when is_null_ptr_constant lhs && is_pointer_type rt ->
       (* 0 == ptr or 0 != ptr: cast 0 to pointer type *)
-      BinaryOp
-        (Checked (pos, Bool), op, implicit_cast pos (expr_typ rhs) lhs, rhs)
+      BinaryOp (Checked (pos, Bool), op, implicit_cast pos rt lhs, rhs)
+  (* cmp for ptr *)
   | (Less | Leq | Greater | Geq | Equal | Neq)
-    when is_pointer_type (expr_typ lhs) && is_pointer_type (expr_typ rhs) ->
+    when is_pointer_type lt && is_pointer_type rt ->
       (* comparisons between pointers *)
       if expr_typ lhs = expr_typ rhs then
         BinaryOp (Checked (pos, Bool), op, lhs, rhs)
       else
         raise
           (Type_error (pos, BinaryTypeMismatch (op, expr_typ lhs, expr_typ rhs)))
+  (* ptr + int, int + ptr *)
   | Add
-    when (is_pointer_type (expr_typ lhs) && is_integer_type (expr_typ rhs))
-         || (is_integer_type (expr_typ lhs) && is_pointer_type (expr_typ rhs))
-    ->
+    when (is_pointer_type lt && is_integer_type (expr_typ rhs))
+         || (is_integer_type lt && is_pointer_type (expr_typ rhs)) ->
       (* ptr + int or int + ptr, reject void* *)
-      if expr_typ lhs = Ptr Void || expr_typ rhs = Ptr Void then
+      if lt = Ptr Void || rt = Ptr Void then
         raise
           (Type_error (pos, BinaryTypeMismatch (op, expr_typ lhs, expr_typ rhs)));
-      let t =
-        if is_pointer_type (expr_typ lhs) then expr_typ lhs else expr_typ rhs
-      in
+      let t = if is_pointer_type lt then expr_typ lhs else expr_typ rhs in
       BinaryOp (Checked (pos, t), op, lhs, rhs)
-  | Sub when is_pointer_type (expr_typ lhs) && is_integer_type (expr_typ rhs) ->
+  | Sub when is_pointer_type lt && is_integer_type rt ->
       (* ptr - int, reject void* *)
-      if expr_typ lhs = Ptr Void then
-        raise
-          (Type_error (pos, BinaryTypeMismatch (op, expr_typ lhs, expr_typ rhs)));
-      BinaryOp (Checked (pos, expr_typ lhs), op, lhs, rhs)
-  | Sub when is_pointer_type (expr_typ lhs) && is_pointer_type (expr_typ rhs) ->
+      if lt = Ptr Void then
+        raise (Type_error (pos, BinaryTypeMismatch (op, lt, rt)));
+      BinaryOp (Checked (pos, lt), op, lhs, rhs)
+  (* ptr - ptr *)
+  | Sub when is_pointer_type lt && is_pointer_type rt ->
       (* ptr - ptr: types must match; void* - void* is rejected *)
-      if
-        expr_typ lhs = Ptr Void
-        || expr_typ rhs = Ptr Void
-        || expr_typ lhs <> expr_typ rhs
-      then
-        raise
-          (Type_error (pos, BinaryTypeMismatch (op, expr_typ lhs, expr_typ rhs)));
+      if lt = Ptr Void || rt = Ptr Void || lt <> rt then
+        raise (Type_error (pos, BinaryTypeMismatch (op, lt, rt)));
       BinaryOp (Checked (pos, Long), op, lhs, rhs)
+  (* bit shift between int and int *)
   | LShift | RShift ->
-      if not (is_integer_type (expr_typ lhs) && is_integer_type (expr_typ rhs))
-      then err ();
-      let lhs = promote_integer pos lhs in
-      let rhs = promote_integer pos rhs in
-      BinaryOp (Checked (pos, expr_typ lhs), op, lhs, rhs)
+      if not (is_integer_type lt && is_integer_type rt) then err ();
+      let lhs' = promote_integer pos lhs in
+      let rhs' = promote_integer pos rhs in
+      BinaryOp (Checked (pos, expr_typ lhs'), op, lhs', rhs')
+  (* arithmetic for int *)
   | Add
   | Sub
   | Mul
@@ -324,19 +328,18 @@ and typecheck_binary_op env ann op lhs rhs =
   | Geq
   | Equal
   | Neq ->
-      if not (is_integer_type (expr_typ lhs) && is_integer_type (expr_typ rhs))
-      then err ();
-      let lhs = promote_integer pos lhs in
-      let rhs = promote_integer pos rhs in
-      let common_t = common_integer_type (expr_typ lhs) (expr_typ rhs) in
-      let lhs = implicit_cast pos common_t lhs in
-      let rhs = implicit_cast pos common_t rhs in
+      if not (is_integer_type lt && is_integer_type rt) then err ();
+      let lhs' = promote_integer pos lhs in
+      let rhs' = promote_integer pos rhs in
+      let common_t = common_integer_type (expr_typ lhs') (expr_typ rhs') in
+      let lhs' = implicit_cast pos common_t lhs' in
+      let rhs' = implicit_cast pos common_t rhs' in
       let t =
         match op with
         | Less | Leq | Greater | Geq | Equal | Neq -> Bool
         | _ -> common_t
       in
-      BinaryOp (Checked (pos, t), op, lhs, rhs)
+      BinaryOp (Checked (pos, t), op, lhs', rhs')
 
 and typecheck_var_ref env ann x =
   let pos = pos_of ann in
