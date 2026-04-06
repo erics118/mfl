@@ -71,12 +71,13 @@ let rec typecheck_stmt (env : env) (stmt : parsed stmt) : checked stmt =
       Typedef { pos; struct_def; existing_type; alias }
   | StructDef { pos; tag; fields; var_name } ->
       typecheck_struct_def env pos tag fields var_name
-  | FuncDecl { pos; ret_type; name; params; is_extern } ->
-      typecheck_func_decl env pos ret_type name params is_extern
+  | FuncDecl { pos; ret_type; name; params; is_extern; is_variadic } ->
+      typecheck_func_decl env pos ret_type name params is_extern is_variadic
   | VarDef { pos; source_type; name; init } ->
       typecheck_var_def env pos source_type name init
-  | FuncDef { pos; ret_type; name; params; body } ->
-      (* todo: support variadic function definitions *)
+  | FuncDef { pos; ret_type; name; params; is_variadic; body } ->
+      if is_variadic then
+        failwith "variadic function definitions not implemented yet";
       typecheck_func_def env pos ret_type name params body
   | If { pos; cond; then_body; else_body } ->
       typecheck_if env pos cond then_body else_body
@@ -150,27 +151,37 @@ and normalize_params env pos params =
     params
 
 (* register the function signature *)
-and register_func_sig env pos ret_type name params =
+and register_func_sig env pos ret_type name params is_variadic =
   let ret_t = resolve_source_type env pos ret_type in
-  match params with
-  | VariadicParams _ -> failwith "variadic typechecking not implemented yet"
-  | FixedParams params ->
-      let params = normalize_params env pos params in
-      Hashtbl.replace env.funcs name
-        {
-          params = List.map (fun (vt, _) -> typ_of_source_type vt) params;
-          ret = ret_t;
-        };
-      (ret_t, FixedParams params)
+  if is_variadic then failwith "variadic typechecking not implemented yet"
+  else
+    let params = normalize_params env pos params in
+    Hashtbl.replace env.funcs name
+      {
+        params = List.map (fun (vt, _) -> typ_of_source_type vt) params;
+        ret = ret_t;
+        is_variadic = false;
+      };
+    (ret_t, params)
 
 (* typecheck a function declaration *)
-and typecheck_func_decl env pos ret_type name params is_extern =
-  let ret_t, params = register_func_sig env pos ret_type name params in
-  FuncDecl { pos; ret_type = source_type_of_typ ret_t; name; params; is_extern }
+and typecheck_func_decl env pos ret_type name params is_extern is_variadic =
+  let ret_t, params =
+    register_func_sig env pos ret_type name params is_variadic
+  in
+  FuncDecl
+    {
+      pos;
+      ret_type = source_type_of_typ ret_t;
+      name;
+      params;
+      is_extern;
+      is_variadic;
+    }
 
 (* typecheck a function definition *)
 and typecheck_func_def env pos ret_type name params body =
-  let ret_t, params = register_func_sig env pos ret_type name params in
+  let ret_t, params = register_func_sig env pos ret_type name params false in
   let fn_env =
     {
       vars = [ Hashtbl.create 8 ];
@@ -184,11 +195,19 @@ and typecheck_func_def env pos ret_type name params body =
   (* then we add the variables to the env *)
   List.iter
     (fun (vt, pname) -> define_var fn_env pname (typ_of_source_type vt))
-    (fixed_params_of_func_params params);
+    params;
   let body = List.map (typecheck_stmt fn_env) body in
   if ret_t <> Void && name <> "main" && stmts_can_fall_through body then
     raise (Type_error (pos, MissingReturn name));
-  FuncDef { pos; ret_type = source_type_of_typ ret_t; name; params; body }
+  FuncDef
+    {
+      pos;
+      ret_type = source_type_of_typ ret_t;
+      name;
+      params;
+      is_variadic = false;
+      body;
+    }
 
 and typecheck_if env pos cond then_body else_body =
   let cond = typecheck_expr env cond in

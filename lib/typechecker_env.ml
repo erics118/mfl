@@ -3,6 +3,7 @@ open Ast
 type func_sig = {
   params : typ list;
   ret : typ;
+  is_variadic : bool;
 }
 
 type env = {

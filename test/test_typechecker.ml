@@ -14,7 +14,8 @@ let make_tbl pairs =
 let default_env () =
   {
     vars = [ Hashtbl.create 4 ];
-    funcs = make_tbl [ ("noop", { params = []; ret = Void }) ];
+    funcs =
+      make_tbl [ ("noop", { params = []; ret = Void; is_variadic = false }) ];
     typedefs = [ make_tbl [] ];
     structs = make_tbl [];
     return_typ = None;
@@ -54,7 +55,9 @@ let env_with vars = { (default_env ()) with vars = [ make_tbl vars ] }
 let env_with_funcs funcs =
   {
     (default_env ()) with
-    funcs = make_tbl (funcs @ [ ("noop", { params = []; ret = Void }) ]);
+    funcs =
+      make_tbl
+        (funcs @ [ ("noop", { params = []; ret = Void; is_variadic = false }) ]);
   }
 
 let all_integer_types =
@@ -287,9 +290,11 @@ let test_float _ =
   let env =
     env_with_funcs
       [
-        ("takes_float", { params = [ Float ]; ret = Void });
-        ("takes_double", { params = [ Double ]; ret = Void });
-        ("takes_long_double", { params = [ LongDouble ]; ret = Void });
+        ("takes_float", { params = [ Float ]; ret = Void; is_variadic = false });
+        ( "takes_double",
+          { params = [ Double ]; ret = Void; is_variadic = false } );
+        ( "takes_long_double",
+          { params = [ LongDouble ]; ret = Void; is_variadic = false } );
       ]
   in
   check_typ ~env Void ("takes_float" $ [ f 1.0 ]);
@@ -320,7 +325,8 @@ let test_float _ =
            pos = dummy_pos;
            ret_type = VFloat;
            name = "rf";
-           params = FixedParams [];
+           params = [];
+           is_variadic = false;
            body = [ ReturnStmt (dummy_pos, Some (i 1)) ];
          })
   with
@@ -334,7 +340,8 @@ let test_float _ =
            pos = dummy_pos;
            ret_type = VFloat;
            name = "rf_cast";
-           params = FixedParams [];
+           params = [];
+           is_variadic = false;
            body = [ ReturnStmt (dummy_pos, Some (d 1.0)) ];
          })
   with
@@ -349,7 +356,8 @@ let test_float _ =
            pos = dummy_pos;
            ret_type = VDouble;
            name = "rd";
-           params = FixedParams [];
+           params = [];
+           is_variadic = false;
            body = [ ReturnStmt (dummy_pos, Some (f 1.0)) ];
          })
   with
@@ -363,7 +371,8 @@ let test_float _ =
            pos = dummy_pos;
            ret_type = VLongDouble;
            name = "rld";
-           params = FixedParams [];
+           params = [];
+           is_variadic = false;
            body = [ ReturnStmt (dummy_pos, Some (d 1.0)) ];
          })
   with
@@ -599,15 +608,18 @@ let test_func_call _ =
   let env =
     env_with_funcs
       [
-        ("add", { params = [ Int; Int ]; ret = Int });
-        ("ready", { params = []; ret = Bool });
+        ("add", { params = [ Int; Int ]; ret = Int; is_variadic = false });
+        ("ready", { params = []; ret = Bool; is_variadic = false });
       ]
   in
   check_typ ~env Int ("add" $ [ i 1; i 2 ]);
   check_typ ~env Bool ("ready" $ [])
 
 let test_func_call_errors _ =
-  let env = env_with_funcs [ ("add", { params = [ Int; Int ]; ret = Int }) ] in
+  let env =
+    env_with_funcs
+      [ ("add", { params = [ Int; Int ]; ret = Int; is_variadic = false }) ]
+  in
   check_err ~env "unbound function 'f'" ("f" $ []);
   check_err ~env "'add' expects 2 argument(s) but got 1" ("add" $ [ i 1 ]);
   check_err ~env "'add' expects 2 argument(s) but got 0" ("add" $ []);
@@ -749,8 +761,8 @@ let test_conversions _ =
   let env =
     env_with_funcs
       [
-        ("flag", { params = [ Bool ]; ret = Bool });
-        ("widen", { params = [ Long ]; ret = Long });
+        ("flag", { params = [ Bool ]; ret = Bool; is_variadic = false });
+        ("widen", { params = [ Long ]; ret = Long; is_variadic = false });
       ]
   in
   check_typ ~env Bool ("flag" $ [ i 1 ]);
@@ -816,7 +828,9 @@ let test_pointers _ =
            ("pp", Ptr (Ptr Int));
          ])
       with
-      funcs = make_tbl [ ("load", { params = [ Ptr Int ]; ret = Int }) ];
+      funcs =
+        make_tbl
+          [ ("load", { params = [ Ptr Int ]; ret = Int; is_variadic = false }) ];
     }
   in
   check_typ ~env (Ptr Int) (un AddrOf !"x");
@@ -914,9 +928,10 @@ let test_void_ptr _ =
       funcs =
         make_tbl
           [
-            ("take_vp", { params = [ Ptr Void ]; ret = Void });
-            ("take_p", { params = [ Ptr Int ]; ret = Void });
-            ("noop", { params = []; ret = Void });
+            ( "take_vp",
+              { params = [ Ptr Void ]; ret = Void; is_variadic = false } );
+            ("take_p", { params = [ Ptr Int ]; ret = Void; is_variadic = false });
+            ("noop", { params = []; ret = Void; is_variadic = false });
           ];
     }
   in
@@ -1127,11 +1142,12 @@ let test_array_param_decay _ =
            pos = dummy_pos;
            ret_type = VInt;
            name = "sum";
-           params = FixedParams [ (VNamed "numbers", "values") ];
+           params = [ (VNamed "numbers", "values") ];
+           is_variadic = false;
            body = [ ReturnStmt (dummy_pos, Some (i 0)) ];
          })
   with
-  | FuncDef { params = FixedParams [ (VPtr VInt, "values") ]; _ } -> ()
+  | FuncDef { params = [ (VPtr VInt, "values") ]; _ } -> ()
   | _ -> assert_failure "expected array parameter to decay to int*"
 
 let test_break_continue_errors _ =
@@ -1146,7 +1162,8 @@ let test_missing_return _ =
          pos = dummy_pos;
          ret_type = VInt;
          name = "f";
-         params = FixedParams [];
+         params = [];
+         is_variadic = false;
          body = [ EmptyStmt dummy_pos ];
        });
   ignore
@@ -1156,7 +1173,8 @@ let test_missing_return _ =
             pos = dummy_pos;
             ret_type = VInt;
             name = "f";
-            params = FixedParams [];
+            params = [];
+            is_variadic = false;
             body =
               [
                 If
@@ -1192,17 +1210,14 @@ let test_func_decl _ =
            pos = dummy_pos;
            ret_type = VInt;
            name = "puts";
-           params = FixedParams [ (VPtr VChar, "s") ];
+           params = [ (VPtr VChar, "s") ];
+           is_variadic = false;
            is_extern = true;
          })
   with
   | FuncDecl
-      {
-        ret_type = VInt;
-        params = FixedParams [ (VPtr VChar, "s") ];
-        is_extern = true;
-        _;
-      } -> ()
+      { ret_type = VInt; params = [ (VPtr VChar, "s") ]; is_extern = true; _ }
+    -> ()
   | _ -> assert_failure "expected checked func decl"
   end;
   let env = default_env () in
@@ -1213,10 +1228,25 @@ let test_func_decl _ =
             pos = dummy_pos;
             ret_type = VInt;
             name = "puts";
-            params = FixedParams [ (VPtr VChar, "s") ];
+            params = [ (VPtr VChar, "s") ];
+            is_variadic = false;
             is_extern = true;
           }));
   check_typ ~env Int ("puts" $ [ StringLiteral (p, [ 104; 105 ]) ])
+
+let test_variadic_func_call _ =
+  let env =
+    env_with_funcs
+      [ ("printf", { params = [ Ptr Char ]; ret = Int; is_variadic = true }) ]
+  in
+  check_typ ~env Int ("printf" $ [ StringLiteral (p, [ 37; 100 ]); i 3 ]);
+  check_err ~env "'printf' expects 1 argument(s) but got 0" ("printf" $ []);
+  begin match
+    typecheck_expr env ("printf" $ [ StringLiteral (p, [ 37; 102 ]); f 1.5 ])
+  with
+  | FuncCall (_, _, [ _; ImplicitCast (Checked (_, Double), _, _) ]) -> ()
+  | _ -> assert_failure "expected float variadic arg to promote to double"
+  end
 
 let tests =
   "typechecker"
@@ -1270,6 +1300,7 @@ let tests =
          "missing_return" >:: test_missing_return;
          "typecheck_program" >:: test_typecheck_program;
          "func_decl" >:: test_func_decl;
+         "variadic_func_call" >:: test_variadic_func_call;
          "incdec" >:: test_incdec;
          "incdec_errors" >:: test_incdec_errors;
        ]

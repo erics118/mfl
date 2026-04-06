@@ -2,17 +2,14 @@
 
 open Ast
 
-let string_of_fixed_params l =
-  String.concat ", "
-    (List.map
-       (fun (vt, n) -> Printf.sprintf "%s %s" (string_of_source_type vt) n)
-       l)
-
-let string_of_params = function
-  | FixedParams l -> string_of_fixed_params l
-  | VariadicParams l ->
-      let fixed = string_of_fixed_params l in
-      if fixed = "" then "..." else fixed ^ ", ..."
+let string_of_params params is_variadic =
+  let fixed =
+    String.concat ", "
+      (List.map
+         (fun (vt, n) -> Printf.sprintf "%s %s" (string_of_source_type vt) n)
+         params)
+  in
+  if is_variadic then if fixed = "" then "..." else fixed ^ ", ..." else fixed
 
 let string_of_decl source_type name =
   match source_type with
@@ -179,15 +176,17 @@ and pp_stmt_aux : type a. ?top_level:bool -> ?indent:int -> a stmt -> string =
       end
     | Typedef { existing_type; alias; _ } ->
         Printf.sprintf "typedef %s;" (string_of_decl existing_type alias)
-    | FuncDecl { ret_type; name; params; is_extern; _ } ->
+    | FuncDecl { ret_type; name; params; is_variadic; is_extern; _ } ->
         let prefix = if is_extern then "extern " else "" in
         Printf.sprintf "%s%s %s(%s);" prefix
           (string_of_source_type ret_type)
-          name (string_of_params params)
-    | FuncDef { ret_type; name; params; body; _ } ->
+          name
+          (string_of_params params is_variadic)
+    | FuncDef { ret_type; name; params; is_variadic; body; _ } ->
         Printf.sprintf "%s %s(%s) %s"
           (string_of_source_type ret_type)
-          name (string_of_params params)
+          name
+          (string_of_params params is_variadic)
           (pp_block_aux ~indent body)
     | If _ -> pp_body stmt
     | WhileLoop { cond; body; _ } ->

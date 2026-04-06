@@ -159,9 +159,7 @@ and codegen_do_while_loop body cond =
   ignore (Llvm.build_cond_br c body_bb after_bb builder);
   Llvm.position_at_end after_bb builder
 
-and codegen_func_sig ret_type name params =
-  (* todo: support codegen variadic params *)
-  let params = fixed_params_of_func_params params in
+and codegen_func_sig ret_type name params _is_variadic =
   (* use i1 for bool in signatures, not i8. zeroext handles the ABI *)
   let llvm_of_sig_typ t = if t = Bool then bool_type else llvm_of_typ t in
   let param_types =
@@ -187,12 +185,10 @@ and codegen_func_sig ret_type name params =
   (fn, ty)
 
 and codegen_func_decl ret_type name params =
-  ignore (codegen_func_sig ret_type name params)
+  ignore (codegen_func_sig ret_type name params false)
 
 and codegen_func_def ret_type name params body =
-  let fn, ty = codegen_func_sig ret_type name params in
-  (* todo (later): codegen of variadic function def *)
-  let params = fixed_params_of_func_params params in
+  let fn, ty = codegen_func_sig ret_type name params false in
   let entry = Llvm.append_block context "entry" fn in
   (* clear scope for each function. no global variables atm *)
   Hashtbl.clear locals;

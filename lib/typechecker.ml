@@ -10,9 +10,12 @@ let typecheck_program (stmts : parsed stmt list) : checked stmt list =
   let typedefs = [ Hashtbl.create 8 ] in
   let structs = Hashtbl.create 8 in
   (* "stdlib" functions *)
-  Hashtbl.replace funcs "printint" { params = [ Int ]; ret = Void };
-  Hashtbl.replace funcs "printbool" { params = [ Bool ]; ret = Void };
-  Hashtbl.replace funcs "malloc" { params = [ Long ]; ret = Ptr Void };
+  Hashtbl.replace funcs "printint"
+    { params = [ Int ]; ret = Void; is_variadic = false };
+  Hashtbl.replace funcs "printbool"
+    { params = [ Bool ]; ret = Void; is_variadic = false };
+  Hashtbl.replace funcs "malloc"
+    { params = [ Long ]; ret = Ptr Void; is_variadic = false };
   let env =
     {
       vars = [ Hashtbl.create 8 ];

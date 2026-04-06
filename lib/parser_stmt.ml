@@ -94,9 +94,10 @@ and parse_param st =
   in
   (param_type, name)
 
+(** returns a tuple of (params_type * name list, is_variadic) *)
 and parse_func_params st =
   match st.cur_tok with
-  | TokRParen -> FixedParams []
+  | TokRParen -> ([], false)
   | _ ->
       let rec loop rev_params =
         match st.cur_tok with
@@ -104,7 +105,7 @@ and parse_func_params st =
         | TokEllipsis -> begin
             advance st;
             match st.cur_tok with
-            | TokRParen -> VariadicParams (List.rev rev_params)
+            | TokRParen -> (List.rev rev_params, true)
             | _ -> raise (Parse_error (cur_pos st, "expected ')'"))
           end
         (* normal *)
@@ -114,7 +115,7 @@ and parse_func_params st =
             | TokComma ->
                 consume st TokComma;
                 loop (param :: rev_params)
-            | TokRParen -> FixedParams (List.rev (param :: rev_params))
+            | TokRParen -> (List.rev (param :: rev_params), false)
             | _ -> raise (Parse_error (cur_pos st, "expected ',' or ')'"))
           end
       in
@@ -277,20 +278,20 @@ and parse_var_def_tail st pos source_type name =
 
 and parse_func_tail st pos ret_type name ~is_extern =
   consume st TokLParen;
-  let params = parse_func_params st in
+  let params, is_variadic = parse_func_params st in
   consume st TokRParen;
   begin match st.cur_tok with
   (* function declaration *)
   | TokSemicolon ->
       consume st TokSemicolon;
-      FuncDecl { pos; ret_type; name; params; is_extern }
+      FuncDecl { pos; ret_type; name; params; is_extern; is_variadic }
   (* function definition *)
   | TokLBrace ->
       if is_extern then
         raise (Parse_error (cur_pos st, "extern function cannot have a body"));
       consume st TokLBrace;
       let body = parse_scoped_compound_stmt st in
-      FuncDef { pos; ret_type; name; params; body }
+      FuncDef { pos; ret_type; name; params; is_variadic; body }
   (* neither, so error *)
   | _ -> raise (Parse_error (cur_pos st, "expected ';' or '{'"))
   end

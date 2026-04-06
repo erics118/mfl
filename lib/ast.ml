@@ -164,14 +164,6 @@ let rec source_type_of_typ = function
 type parsed
 
 type checked
-type fixed_params = (source_type * string) list
-
-type func_params =
-  | FixedParams of fixed_params
-  | VariadicParams of fixed_params
-
-let fixed_params_of_func_params = function
-  | FixedParams params | VariadicParams params -> params
 
 let format_byte ~(inside : [ `Char | `String ]) = function
   (* simple escape sequence *)
@@ -294,14 +286,16 @@ type 'a stmt =
       pos : pos;
       ret_type : source_type;
       name : string;
-      params : func_params;
+      params : (source_type * string) list;
+      is_variadic : bool;
       is_extern : bool;
     }  (** [extern? ret_type name(params)] declares a function *)
   | FuncDef of {
       pos : pos;
       ret_type : source_type;
       name : string;
-      params : func_params;
+      params : (source_type * string) list;
+      is_variadic : bool;
       body : 'a stmt list;
     }  (** [ret_type name(params) { body }] defines a function *)
   | If of {
