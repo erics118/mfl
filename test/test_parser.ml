@@ -329,6 +329,15 @@ let test_function_calls _ =
   roundtrip "return ready();";
   roundtrip "int run() {\n    return add(1, 2 + 3);\n}"
 
+let test_func_decl _ =
+  roundtrip "int add(int a, int b);";
+  roundtrip "extern int puts(char* s);";
+  roundtrip
+    {|int add(int a, int b);
+int add(int a, int b) {
+    return a + b;
+}|}
+
 let test_ternary _ =
   roundtrip "a ? b : c;";
   roundtrip "a + 1 ? b : c * d;";
@@ -535,6 +544,7 @@ let tests =
          "break_continue" >:: test_break_continue;
          "returns" >:: test_returns;
          "function_calls" >:: test_function_calls;
+         "func_decl" >:: test_func_decl;
          "ternary" >:: test_ternary;
          "compound_statements" >:: test_compound_statements;
          "if" >:: test_if;

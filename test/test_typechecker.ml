@@ -1184,6 +1184,36 @@ let test_typecheck_program _ =
   ] -> assert_equal ~printer:string_of_typ Int (expr_typ init)
   | _ -> assert_failure "expected typed program using stdlib printint"
 
+let test_func_decl _ =
+  begin match
+    typecheck_stmt (default_env ())
+      (FuncDecl
+         {
+           pos = dummy_pos;
+           ret_type = VInt;
+           name = "puts";
+           params = [ (VPtr VChar, "s") ];
+           is_extern = true;
+         })
+  with
+  | FuncDecl
+      { ret_type = VInt; params = [ (VPtr VChar, "s") ]; is_extern = true; _ }
+    -> ()
+  | _ -> assert_failure "expected checked func decl"
+  end;
+  let env = default_env () in
+  ignore
+    (typecheck_stmt env
+       (FuncDecl
+          {
+            pos = dummy_pos;
+            ret_type = VInt;
+            name = "puts";
+            params = [ (VPtr VChar, "s") ];
+            is_extern = true;
+          }));
+  check_typ ~env Int ("puts" $ [ StringLiteral (p, [ 104; 105 ]) ])
+
 let tests =
   "typechecker"
   >::: [
@@ -1235,6 +1265,7 @@ let tests =
          "break_continue_errors" >:: test_break_continue_errors;
          "missing_return" >:: test_missing_return;
          "typecheck_program" >:: test_typecheck_program;
+         "func_decl" >:: test_func_decl;
          "incdec" >:: test_incdec;
          "incdec_errors" >:: test_incdec_errors;
        ]
