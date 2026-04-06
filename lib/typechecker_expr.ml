@@ -319,6 +319,18 @@ and typecheck_arithmetic_compare_binop pos op lhs rhs =
   let rhs' = implicit_cast pos common_t rhs' in
   BinaryOp (Checked (pos, Bool), op, lhs', rhs')
 
+and typecheck_arithmetic_binop pos op lhs rhs =
+  let lt = expr_typ lhs in
+  let rt = expr_typ rhs in
+  if not (is_arithmetic_type lt && is_arithmetic_type rt) then
+    raise (Type_error (pos, BinaryTypeMismatch (op, lt, rt)));
+  let lhs' = if is_integer_type lt then promote_integer pos lhs else lhs in
+  let rhs' = if is_integer_type rt then promote_integer pos rhs else rhs in
+  let common_t = common_arithmetic_type (expr_typ lhs') (expr_typ rhs') in
+  let lhs' = implicit_cast pos common_t lhs' in
+  let rhs' = implicit_cast pos common_t rhs' in
+  BinaryOp (Checked (pos, common_t), op, lhs', rhs')
+
 and typecheck_integer_binop pos op lhs rhs =
   let lt = expr_typ lhs in
   let rt = expr_typ rhs in
@@ -364,18 +376,12 @@ and typecheck_binary_op env ann op lhs rhs =
   (* bit shift *)
   | LShift | RShift -> typecheck_shift_binop pos op lhs rhs
   (* arithmetic for float *)
-  | (Add | Sub | Mul | Div | Mod | BitAnd | BitOr | BitXor)
-    when not (is_integer_type lt && is_integer_type rt) ->
-      raise (Type_error (pos, BinaryTypeMismatch (op, lt, rt)))
+  | Add | Sub | Mul | Div -> typecheck_arithmetic_binop pos op lhs rhs
   (* cmp for floats *)
   | (Less | Leq | Greater | Geq | Equal | Neq)
     when is_arithmetic_type lt && is_arithmetic_type rt ->
       typecheck_arithmetic_compare_binop pos op lhs rhs
   (* arithmetic and cmp for int *)
-  | Add
-  | Sub
-  | Mul
-  | Div
   | Mod
   | BitAnd
   | BitOr
@@ -436,16 +442,16 @@ and typecheck_ternary_op env ann cond then_e else_e =
   let else_e = typecheck_expr env else_e in
   let then_t = expr_typ then_e in
   let else_t = expr_typ else_e in
-  (* for integer types, apply standard arithmetic conversions *)
-  if is_integer_type then_t && is_integer_type else_t then
-    let then_e = promote_integer pos then_e in
-    let else_e = promote_integer pos else_e in
-    let common_t = common_integer_type (expr_typ then_e) (expr_typ else_e) in
+  (* for arithmetic types, apply standard arithmetic conversions *)
+  if is_arithmetic_type then_t && is_arithmetic_type else_t then
+    let then_e = if is_integer_type then_t then promote_integer pos then_e else then_e in
+    let else_e = if is_integer_type else_t then promote_integer pos else_e else else_e in
+    let common_t = common_arithmetic_type (expr_typ then_e) (expr_typ else_e) in
     let then_e = implicit_cast pos common_t then_e in
     let else_e = implicit_cast pos common_t else_e in
     Ternary (Checked (pos, common_t), cond, then_e, else_e)
   else
-    (* for non-integer types, require exact match *)
+    (* for non-arithmetic types, require exact match *)
     let t = check_ternary pos then_t else_t in
     Ternary (Checked (pos, t), cond, then_e, else_e)
 
@@ -482,7 +488,7 @@ and typecheck_incdec env ann fix dir operand make =
   let e = typecheck_expr env operand in
   assert_lvalue pos e;
   let t = expr_typ e in
-  if (not (is_integer_type t)) && not (is_pointer_type t) then
+  if (not (is_arithmetic_type t)) && not (is_pointer_type t) then
     raise (Type_error (pos, IncDecTypeMismatch (fix, dir, t)));
   make (Checked (pos, t)) e
 

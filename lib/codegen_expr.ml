@@ -11,6 +11,10 @@ and codegen_float_binop op lhs rhs =
   let lv = codegen_expr lhs in
   let rv = codegen_expr rhs in
   match op with
+  | Add -> Llvm.build_fadd lv rv "addtmp" builder
+  | Sub -> Llvm.build_fsub lv rv "subtmp" builder
+  | Mul -> Llvm.build_fmul lv rv "multmp" builder
+  | Div -> Llvm.build_fdiv lv rv "divtmp" builder
   | Equal -> Llvm.build_fcmp Llvm.Fcmp.Oeq lv rv "eqtmp" builder
   | Neq ->
       (* use Une b/c NaN != x is true *)
@@ -376,6 +380,14 @@ and codegen_incdec e dir fix =
         (* we need to use gep -1 for pointers *)
         let neg_one = Llvm.const_int int_type (-1) in
         Llvm.build_gep (llvm_of_typ t) old_val [| neg_one |] "incdec" builder
+    (* floats *)
+    | `Inc, Float | `Inc, Double ->
+        let one = Llvm.const_float ll_ty 1. in
+        Llvm.build_fadd old_val one "incdec" builder
+    | `Dec, Float | `Dec, Double ->
+        let one = Llvm.const_float ll_ty 1. in
+        Llvm.build_fsub old_val one "incdec" builder
+    (* integers *)
     | `Inc, _ ->
         (* add 1 *)
         let one = Llvm.const_int ll_ty 1 in
