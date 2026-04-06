@@ -52,6 +52,9 @@ and parse_primary st =
   | TokChar c ->
       advance st;
       CharLiteral (Parsed pos, c)
+  | TokString s ->
+      advance st;
+      StringLiteral (Parsed pos, s)
   | TokIdent _ -> parse_identifier_expr st pos
   | TokLParen -> parse_paren_expr st
   | TokEof -> raise (Parse_error (pos, "unexpected end of input"))
