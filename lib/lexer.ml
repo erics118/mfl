@@ -102,6 +102,11 @@ let next_token st =
   | Some '-' ->
       advance st;
       TokMinus
+  | Some '.' when peek2 st = Some '.' && peek3 st = Some '.' ->
+      advance st;
+      advance st;
+      advance st;
+      TokEllipsis
   | Some '.' when Option.fold ~none:false ~some:is_digit (peek2 st) ->
       read_dot_number st
   | Some '.' ->

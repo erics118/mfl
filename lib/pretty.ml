@@ -2,11 +2,17 @@
 
 open Ast
 
-let string_of_params l =
+let string_of_fixed_params l =
   String.concat ", "
     (List.map
        (fun (vt, n) -> Printf.sprintf "%s %s" (string_of_source_type vt) n)
        l)
+
+let string_of_params = function
+  | FixedParams l -> string_of_fixed_params l
+  | VariadicParams l ->
+      let fixed = string_of_fixed_params l in
+      if fixed = "" then "..." else fixed ^ ", ..."
 
 let string_of_decl source_type name =
   match source_type with

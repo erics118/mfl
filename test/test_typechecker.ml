@@ -320,7 +320,7 @@ let test_float _ =
            pos = dummy_pos;
            ret_type = VFloat;
            name = "rf";
-           params = [];
+           params = FixedParams [];
            body = [ ReturnStmt (dummy_pos, Some (i 1)) ];
          })
   with
@@ -334,7 +334,7 @@ let test_float _ =
            pos = dummy_pos;
            ret_type = VFloat;
            name = "rf_cast";
-           params = [];
+           params = FixedParams [];
            body = [ ReturnStmt (dummy_pos, Some (d 1.0)) ];
          })
   with
@@ -349,7 +349,7 @@ let test_float _ =
            pos = dummy_pos;
            ret_type = VDouble;
            name = "rd";
-           params = [];
+           params = FixedParams [];
            body = [ ReturnStmt (dummy_pos, Some (f 1.0)) ];
          })
   with
@@ -363,7 +363,7 @@ let test_float _ =
            pos = dummy_pos;
            ret_type = VLongDouble;
            name = "rld";
-           params = [];
+           params = FixedParams [];
            body = [ ReturnStmt (dummy_pos, Some (d 1.0)) ];
          })
   with
@@ -1127,11 +1127,11 @@ let test_array_param_decay _ =
            pos = dummy_pos;
            ret_type = VInt;
            name = "sum";
-           params = [ (VNamed "numbers", "values") ];
+           params = FixedParams [ (VNamed "numbers", "values") ];
            body = [ ReturnStmt (dummy_pos, Some (i 0)) ];
          })
   with
-  | FuncDef { params = [ (VPtr VInt, "values") ]; _ } -> ()
+  | FuncDef { params = FixedParams [ (VPtr VInt, "values") ]; _ } -> ()
   | _ -> assert_failure "expected array parameter to decay to int*"
 
 let test_break_continue_errors _ =
@@ -1146,7 +1146,7 @@ let test_missing_return _ =
          pos = dummy_pos;
          ret_type = VInt;
          name = "f";
-         params = [];
+         params = FixedParams [];
          body = [ EmptyStmt dummy_pos ];
        });
   ignore
@@ -1156,7 +1156,7 @@ let test_missing_return _ =
             pos = dummy_pos;
             ret_type = VInt;
             name = "f";
-            params = [];
+            params = FixedParams [];
             body =
               [
                 If
@@ -1192,13 +1192,17 @@ let test_func_decl _ =
            pos = dummy_pos;
            ret_type = VInt;
            name = "puts";
-           params = [ (VPtr VChar, "s") ];
+           params = FixedParams [ (VPtr VChar, "s") ];
            is_extern = true;
          })
   with
   | FuncDecl
-      { ret_type = VInt; params = [ (VPtr VChar, "s") ]; is_extern = true; _ }
-    -> ()
+      {
+        ret_type = VInt;
+        params = FixedParams [ (VPtr VChar, "s") ];
+        is_extern = true;
+        _;
+      } -> ()
   | _ -> assert_failure "expected checked func decl"
   end;
   let env = default_env () in
@@ -1209,7 +1213,7 @@ let test_func_decl _ =
             pos = dummy_pos;
             ret_type = VInt;
             name = "puts";
-            params = [ (VPtr VChar, "s") ];
+            params = FixedParams [ (VPtr VChar, "s") ];
             is_extern = true;
           }));
   check_typ ~env Int ("puts" $ [ StringLiteral (p, [ 104; 105 ]) ])

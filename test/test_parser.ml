@@ -336,7 +336,8 @@ let test_func_decl _ =
     {|int add(int a, int b);
 int add(int a, int b) {
     return a + b;
-}|}
+}|};
+  roundtrip "int a(int x, ...);"
 
 let test_ternary _ =
   roundtrip "a ? b : c;";

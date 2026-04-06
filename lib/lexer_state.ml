@@ -44,9 +44,12 @@ let advance_while pred st =
     advance st
   done
 
-let peek2 st =
-  let pos = st.pos + 1 in
+let _peek_n st n =
+  let pos = st.pos + n in
   if pos < String.length st.input then Some st.input.[pos] else None
+
+let peek2 st = _peek_n st 1
+let peek3 st = _peek_n st 2
 
 type snapshot = {
   snap_pos : int;

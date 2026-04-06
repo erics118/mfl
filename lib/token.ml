@@ -74,6 +74,7 @@ type token =
   | TokQuestion  (** [?] for the ternary operator *)
   | TokColon  (** [:] for the ternary operator*)
   | TokDot  (** [.] member access *)
+  | TokEllipsis  (** [...] variadic function tail *)
   | TokArrow  (** [->] pointer member access *)
   (* special *)
   | TokEof  (** end of input *)
@@ -151,6 +152,7 @@ let string_of_token = function
   | TokQuestion -> "?"
   | TokColon -> ":"
   | TokDot -> "."
+  | TokEllipsis -> "..."
   | TokArrow -> "->"
   (* special *)
   | TokEof -> "EOF"

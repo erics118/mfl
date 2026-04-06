@@ -94,6 +94,32 @@ and parse_param st =
   in
   (param_type, name)
 
+and parse_func_params st =
+  match st.cur_tok with
+  | TokRParen -> FixedParams []
+  | _ ->
+      let rec loop rev_params =
+        match st.cur_tok with
+        (* variadic *)
+        | TokEllipsis -> begin
+            advance st;
+            match st.cur_tok with
+            | TokRParen -> VariadicParams (List.rev rev_params)
+            | _ -> raise (Parse_error (cur_pos st, "expected ')'"))
+          end
+        (* normal *)
+        | _ -> begin
+            let param = parse_param st in
+            match st.cur_tok with
+            | TokComma ->
+                consume st TokComma;
+                loop (param :: rev_params)
+            | TokRParen -> FixedParams (List.rev (param :: rev_params))
+            | _ -> raise (Parse_error (cur_pos st, "expected ',' or ')'"))
+          end
+      in
+      loop []
+
 and parse_array_suffix st source_type =
   consume st TokLBracket;
   let sz =
@@ -251,7 +277,7 @@ and parse_var_def_tail st pos source_type name =
 
 and parse_func_tail st pos ret_type name ~is_extern =
   consume st TokLParen;
-  let params = parse_rparen_list st parse_param in
+  let params = parse_func_params st in
   consume st TokRParen;
   begin match st.cur_tok with
   (* function declaration *)

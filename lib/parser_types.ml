@@ -190,6 +190,7 @@ let is_type_keyword = function
   | TokColon
   | TokDot
   | TokArrow
+  | TokEllipsis
   | TokEof -> false
 
 let is_type_token st =

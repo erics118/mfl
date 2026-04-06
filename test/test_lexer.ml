@@ -100,15 +100,19 @@ let test_identifiers_and_keywords _ =
 let test_parens _ =
   check [ TokLParen ] "(";
   check [ TokRParen ] ")";
+  check [ TokLBracket ] "[";
+  check [ TokRBracket ] "]";
   check [ TokComma ] ",";
   check [ TokQuestion ] "?";
   check [ TokColon ] ":";
   check [ TokLParen; ti 1; TokRParen ] "(1)";
   check [ TokLBrace ] "{";
   check [ TokRBrace ] "}";
-  check [ TokLBrace; ti 1; TokSemicolon; TokRBrace ] "{1;}"
+  check [ TokLBrace; ti 1; TokSemicolon; TokRBrace ] "{1;}";
+  check [ TokLBracket; ti 1; TokRBracket ] "[1]"
 
 let test_binary_ops _ =
+  check [ TokAssign ] "=";
   check [ TokPlus ] "+";
   check [ TokMinus ] "-";
   check [ TokStar ] "*";
@@ -136,12 +140,15 @@ let test_binary_ops _ =
 
 let test_member_access_ops _ =
   check [ TokDot ] ".";
+  check [ TokEllipsis ] "...";
   check [ TokArrow ] "->";
   (* -> takes priority over - and > separately *)
   check [ TokArrow; TokIdent "x" ] "->x";
   check [ TokMinus; TokGt ] "- >";
   (* . does not consume subsequent chars *)
-  check [ TokDot; TokIdent "x" ] ".x"
+  check [ TokDot; TokIdent "x" ] ".x";
+  (* ... takes priority over separate dots *)
+  check [ TokEllipsis; TokIdent "x" ] "...x"
 
 let test_unary_ops _ =
   check [ TokBang ] "!";
@@ -227,7 +234,24 @@ let test_sequences _ =
       TokSemicolon;
       TokRBrace;
     ]
-    "int f(int a, int b) { return a + b; }"
+    "int f(int a, int b) { return a + b; }";
+  check
+    [
+      TokIntKw;
+      TokIdent "f";
+      TokLParen;
+      TokIntKw;
+      TokIdent "a";
+      TokComma;
+      TokEllipsis;
+      TokRParen;
+      TokLBrace;
+      TokReturnKw;
+      TokInt (0, NoIntSuffix);
+      TokSemicolon;
+      TokRBrace;
+    ]
+    "int f(int a, ...) { return 0; }"
 
 let test_string_of_token _ =
   (* special *)
@@ -273,6 +297,7 @@ let test_string_of_token _ =
   assert_equal "struct" (string_of_token TokStructKw);
   assert_equal "extern" (string_of_token TokExternKw);
   assert_equal "." (string_of_token TokDot);
+  assert_equal "..." (string_of_token TokEllipsis);
   assert_equal "->" (string_of_token TokArrow);
   (* binary operators *)
   assert_equal "+" (string_of_token TokPlus);
