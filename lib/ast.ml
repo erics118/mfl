@@ -165,7 +165,7 @@ type parsed
 
 type checked
 
-let format_byte = function
+let format_byte ~(inside : [ `Char | `String ]) = function
   (* simple escape sequence *)
   | 0 -> "\\0"
   | 7 -> "\\a"
@@ -176,15 +176,18 @@ let format_byte = function
   | 12 -> "\\f"
   | 13 -> "\\r"
   | 92 -> "\\\\"
-  | 39 -> "\\'"
+  | 34 -> if inside = `String then "\\\"" else "\""
+  | 39 -> if inside = `Char then "\\\'" else "'"
   (* normal chars *)
   | n when n >= 32 && n <= 126 -> String.make 1 (Char.chr n)
   (* hexadecimal escape sequence *)
   | n -> Printf.sprintf "\\x%02x" n
 
-let format_bytes bytes = String.concat "" (List.map format_byte bytes)
-let escaped_string_of_byte c = "'" ^ format_byte c ^ "'"
-let escaped_string_of_bytes s = "\"" ^ format_bytes s ^ "\""
+let format_bytes ~inside bytes =
+  String.concat "" (List.map (format_byte ~inside) bytes)
+
+let escaped_string_of_byte c = "'" ^ format_byte ~inside:`Char c ^ "'"
+let escaped_string_of_bytes s = "\"" ^ format_bytes ~inside:`String s ^ "\""
 
 type int_suffix =
   | NoIntSuffix

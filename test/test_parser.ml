@@ -244,6 +244,8 @@ let test_char_literal _ =
   roundtrip "char x = 'a';";
   roundtrip "int x = '\\n';";
   roundtrip "'\\\\';";
+  roundtrip "'\\'';";
+  roundtrip "'\"';";
   roundtrip "'\\t';";
   roundtrip "'\\0';";
   check "'A';" "'\\x41';";
@@ -251,6 +253,14 @@ let test_char_literal _ =
   roundtrip "signed char x = 'a';";
   roundtrip "unsigned char x = 'a';";
   roundtrip "int x = 'a' + 1;"
+
+let test_string_literal _ =
+  roundtrip {|"";|};
+  roundtrip {|"ab";|};
+  roundtrip {|"\n";|};
+  roundtrip {|"'";|};
+  roundtrip {|"\"";|};
+  roundtrip {|char* s = "ab";|}
 
 let test_pointer_types _ =
   roundtrip "int* p;";
@@ -519,6 +529,7 @@ let tests =
          "var_defs" >:: test_var_defs;
          "int_types" >:: test_int_types;
          "char_literal" >:: test_char_literal;
+         "string_literal" >:: test_string_literal;
          "pointer_types" >:: test_pointer_types;
          "array" >:: test_array;
          "break_continue" >:: test_break_continue;
