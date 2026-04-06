@@ -159,7 +159,7 @@ and codegen_do_while_loop body cond =
   ignore (Llvm.build_cond_br c body_bb after_bb builder);
   Llvm.position_at_end after_bb builder
 
-and codegen_func_sig ret_type name params _is_variadic =
+and codegen_func_sig ret_type name params is_variadic =
   (* use i1 for bool in signatures, not i8. zeroext handles the ABI *)
   let llvm_of_sig_typ t = if t = Bool then bool_type else llvm_of_typ t in
   let param_types =
@@ -169,7 +169,12 @@ and codegen_func_sig ret_type name params _is_variadic =
          params)
   in
   let ret_t = Ast.typ_of_source_type ret_type in
-  let ty = Llvm.function_type (llvm_of_sig_typ ret_t) param_types in
+  let ty =
+    if is_variadic then
+      Llvm.var_arg_function_type (llvm_of_sig_typ ret_t) param_types
+    else
+      Llvm.function_type (llvm_of_sig_typ ret_t) param_types
+  in
   let fn =
     match Llvm.lookup_function name the_module with
     | Some fn -> fn
@@ -184,11 +189,11 @@ and codegen_func_sig ret_type name params _is_variadic =
     params;
   (fn, ty)
 
-and codegen_func_decl ret_type name params =
-  ignore (codegen_func_sig ret_type name params false)
+and codegen_func_decl ret_type name params is_variadic =
+  ignore (codegen_func_sig ret_type name params is_variadic)
 
-and codegen_func_def ret_type name params body =
-  let fn, ty = codegen_func_sig ret_type name params false in
+and codegen_func_def ret_type name params is_variadic body =
+  let fn, ty = codegen_func_sig ret_type name params is_variadic in
   let entry = Llvm.append_block context "entry" fn in
   (* clear scope for each function. no global variables atm *)
   Hashtbl.clear locals;
@@ -230,10 +235,10 @@ and codegen_stmt = function
         List.map (fun (vt, fname) -> (fname, Ast.typ_of_source_type vt)) fields
       in
       codegen_struct_def tag resolved
-  | FuncDecl { ret_type; name; params; _ } ->
-      codegen_func_decl ret_type name params
-  | FuncDef { ret_type; name; params; body; _ } ->
-      codegen_func_def ret_type name params body
+  | FuncDecl { ret_type; name; params; is_variadic; _ } ->
+      codegen_func_decl ret_type name params is_variadic
+  | FuncDef { ret_type; name; params; is_variadic; body; _ } ->
+      codegen_func_def ret_type name params is_variadic body
   | ReturnStmt (_, Some e) ->
       let v = codegen_expr e in
       ignore (Llvm.build_ret v builder)
@@ -284,9 +289,9 @@ let codegen_program (stmts : checked stmt list) : unit =
   List.iter (fun name -> ignore (ensure_function_declared name)) builtins;
   List.iter
     (function
-      | FuncDecl { ret_type; name; params; _ }
-      | FuncDef { ret_type; name; params; _ } ->
-          codegen_func_decl ret_type name params
+      | FuncDecl { ret_type; name; params; is_variadic; _ }
+      | FuncDef { ret_type; name; params; is_variadic; _ } ->
+          codegen_func_decl ret_type name params is_variadic
       | _ -> ())
     stmts;
   List.iter codegen_stmt stmts

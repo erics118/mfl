@@ -143,6 +143,18 @@ let promote_integer pos (e : checked expr) : checked expr =
     (* otherwise, leave it *)
     e
 
+(** default argument promotion, used by variadic calls *)
+let default_arg_promotion pos e =
+  match expr_typ e with
+  (* decay arrays to pointers *)
+  | Array (t, _) -> implicit_cast pos (Ptr t) e
+  (* cast float to double *)
+  | Float -> implicit_cast pos Double e
+  (* promote to int *)
+  | t when is_integer_type t -> promote_integer pos e
+  (* other types are unchanged *)
+  | _ -> e
+
 (** get the common type after the arithmetic conversions for integers. this
     should be an accurate implementation of the c conversion rules *)
 let common_integer_type lt rt =
@@ -467,10 +479,20 @@ and typecheck_func_call env ann f args =
   in
   (* ensure correct number of parameters *)
   let expected = List.length sig_.params and got = List.length args in
-  if expected <> got then
+  if got < expected || ((not sig_.is_variadic) && got <> expected) then
     raise (Type_error (pos, ArityMismatch (f, expected, got)));
-  (* map2, ensuring each param has the right type *)
-  let args =
+  (* typecheck fixed args against declared parameter types *)
+  let fixed_args, variadic_args =
+    let rec split n acc rest =
+      if n = 0 then (List.rev acc, rest)
+      else
+        match rest with
+        | x :: xs -> split (n - 1) (x :: acc) xs
+        | [] -> assert false
+    in
+    split expected [] args
+  in
+  let fixed_args =
     List.map2
       (fun param_t arg ->
         let arg = typecheck_expr env arg in
@@ -479,9 +501,14 @@ and typecheck_func_call env ann f args =
         if at <> param_t then
           raise (Type_error (pos, TypeMismatch (param_t, at)));
         arg)
-      sig_.params args
+      sig_.params fixed_args
   in
-  FuncCall (Checked (pos, sig_.ret), f, args)
+  let variadic_args =
+    List.map
+      (fun arg -> default_arg_promotion pos (typecheck_expr env arg))
+      variadic_args
+  in
+  FuncCall (Checked (pos, sig_.ret), f, fixed_args @ variadic_args)
 
 (** typecheck an increment/decrement operation. [make] is a function that makes
     the checked expr node, as there are four very similar cases *)

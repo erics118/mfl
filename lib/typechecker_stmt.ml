@@ -151,23 +151,21 @@ and normalize_params env pos params =
     params
 
 (* register the function signature *)
-and register_func_sig env pos ret_type name params is_variadic =
+and register_func_sig env pos ret_type name params ~is_variadic =
   let ret_t = resolve_source_type env pos ret_type in
-  if is_variadic then failwith "variadic typechecking not implemented yet"
-  else
-    let params = normalize_params env pos params in
-    Hashtbl.replace env.funcs name
-      {
-        params = List.map (fun (vt, _) -> typ_of_source_type vt) params;
-        ret = ret_t;
-        is_variadic = false;
-      };
-    (ret_t, params)
+  let params = normalize_params env pos params in
+  Hashtbl.replace env.funcs name
+    {
+      params = List.map (fun (vt, _) -> typ_of_source_type vt) params;
+      ret = ret_t;
+      is_variadic;
+    };
+  (ret_t, params)
 
 (* typecheck a function declaration *)
 and typecheck_func_decl env pos ret_type name params is_extern is_variadic =
   let ret_t, params =
-    register_func_sig env pos ret_type name params is_variadic
+    register_func_sig env pos ret_type name params ~is_variadic
   in
   FuncDecl
     {
@@ -181,7 +179,9 @@ and typecheck_func_decl env pos ret_type name params is_extern is_variadic =
 
 (* typecheck a function definition *)
 and typecheck_func_def env pos ret_type name params body =
-  let ret_t, params = register_func_sig env pos ret_type name params false in
+  let ret_t, params =
+    register_func_sig env pos ret_type name params ~is_variadic:false
+  in
   let fn_env =
     {
       vars = [ Hashtbl.create 8 ];
