@@ -195,7 +195,7 @@ and codegen_or_binop lhs rhs =
 
 and codegen_expr (e : checked expr) : Llvm.llvalue =
   match e with
-  | IntLiteral (Checked (_, t), n) -> Llvm.const_int (llvm_of_typ t) n
+  | IntLiteral (Checked (_, t), n, _) -> Llvm.const_int (llvm_of_typ t) n
   | FloatLiteral (Checked _, f) -> Llvm.const_float float_type f
   | DoubleLiteral (Checked _, f) -> Llvm.const_float double_type f
   | LongDoubleLiteral (Checked _, f) -> Llvm.const_float double_type f

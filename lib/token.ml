@@ -3,7 +3,7 @@
 (** lexical tokens *)
 type token =
   (* literals *)
-  | TokInt of int  (** integer literal *)
+  | TokInt of int * Ast.int_suffix  (** integer literal *)
   | TokFloat of float  (** float literal *)
   | TokDouble of float  (** double literal *)
   | TokLongDouble of float  (** long double literal *)
@@ -78,7 +78,7 @@ type token =
 (** render a token as a string *)
 let string_of_token = function
   (* literals *)
-  | TokInt x -> string_of_int x
+  | TokInt (x, suffix) -> string_of_int x ^ Ast.string_of_int_suffix suffix
   | TokFloat f -> Printf.sprintf "%gf" f
   | TokDouble f -> Printf.sprintf "%g" f
   | TokLongDouble f -> Printf.sprintf "%gL" f

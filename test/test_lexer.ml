@@ -2,6 +2,8 @@ open OUnit2
 open Mfl
 open Token
 
+let ti n = TokInt (n, NoIntSuffix)
+
 (* Lex an entire input string into a token list, stopping at TokEof. Parser
    streams the tokens instead, lexing only as needed *)
 let tokenize input =
@@ -30,9 +32,16 @@ let test_semicolons _ =
   check [ TokSemicolon; TokSemicolon; TokSemicolon; TokSemicolon ] ";;;  ;"
 
 let test_literals _ =
-  check [ TokInt 0 ] "0";
-  check [ TokInt 42 ] "42";
-  check [ TokInt 123 ] "123";
+  check [ ti 0 ] "0";
+  check [ ti 42 ] "42";
+  check [ ti 123 ] "123";
+  check [ TokInt (3, UnsignedSuffix) ] "3U";
+  check [ TokInt (3, LongSuffix) ] "3L";
+  check [ TokInt (3, UnsignedLongSuffix) ] "3UL";
+  check [ TokInt (3, UnsignedLongSuffix) ] "3LU";
+  check [ TokInt (3, LongLongSuffix) ] "3LL";
+  check [ TokInt (3, UnsignedLongLongSuffix) ] "3ULL";
+  check [ TokInt (3, UnsignedLongLongSuffix) ] "3LLU";
   check [ TokDouble 1.0 ] "1.0";
   check [ TokDouble 0.3 ] "0.3";
   check [ TokDouble 1.0 ] "1.";
@@ -71,15 +80,13 @@ let test_identifiers_and_keywords _ =
   check [ TokIdent "CustomType" ] "CustomType";
   check [ TokIdent "abc1" ] "abc1";
   check [ TokIdent "_a" ] "_a";
-  check [ TokInt 0 ] "NULL";
-  check
-    [ TokIntKw; TokIdent "x"; TokAssign; TokInt 3; TokSemicolon ]
-    "int x = 3;";
+  check [ ti 0 ] "NULL";
+  check [ TokIntKw; TokIdent "x"; TokAssign; ti 3; TokSemicolon ] "int x = 3;";
   check
     [ TokBoolKw; TokIdent "x"; TokAssign; TokBool true; TokSemicolon ]
     "bool x = true;";
   check
-    [ TokIdent "CustomType"; TokIdent "x"; TokAssign; TokInt 3; TokSemicolon ]
+    [ TokIdent "CustomType"; TokIdent "x"; TokAssign; ti 3; TokSemicolon ]
     "CustomType x = 3;"
 
 let test_parens _ =
@@ -88,10 +95,10 @@ let test_parens _ =
   check [ TokComma ] ",";
   check [ TokQuestion ] "?";
   check [ TokColon ] ":";
-  check [ TokLParen; TokInt 1; TokRParen ] "(1)";
+  check [ TokLParen; ti 1; TokRParen ] "(1)";
   check [ TokLBrace ] "{";
   check [ TokRBrace ] "}";
-  check [ TokLBrace; TokInt 1; TokSemicolon; TokRBrace ] "{1;}"
+  check [ TokLBrace; ti 1; TokSemicolon; TokRBrace ] "{1;}"
 
 let test_binary_ops _ =
   check [ TokPlus ] "+";
@@ -113,8 +120,8 @@ let test_binary_ops _ =
   check [ TokLtLt ] "<<";
   check [ TokGtGt ] ">>";
   (* << and >> take priority over < and > *)
-  check [ TokLtLt; TokInt 1 ] "<< 1";
-  check [ TokGtGt; TokInt 1 ] ">> 1";
+  check [ TokLtLt; ti 1 ] "<< 1";
+  check [ TokGtGt; ti 1 ] ">> 1";
   (* <= and >= still work *)
   check [ TokLtEq ] "<=";
   check [ TokGtEq ] ">="
@@ -136,8 +143,8 @@ let test_unary_ops _ =
   (* != takes priority over ! *)
   check [ TokBangEq ] "!=";
   (* ++ and -- take priority over + and - *)
-  check [ TokPlusPlus; TokInt 1 ] "++ 1";
-  check [ TokMinusMinus; TokInt 1 ] "-- 1";
+  check [ TokPlusPlus; ti 1 ] "++ 1";
+  check [ TokMinusMinus; ti 1 ] "-- 1";
   (* not parsed as ++ and -- *)
   check [ TokPlus ] "+";
   check [ TokMinus ] "-"
@@ -170,18 +177,18 @@ let test_char _ =
   lex_fails "hex escape out of range" "'\\x100'"
 
 let test_whitespace _ =
-  check [ TokInt 1; TokPlus; TokInt 2 ] "1 + 2";
-  check [ TokInt 1; TokPlus; TokInt 2 ] "1+2";
-  check [ TokInt 1; TokPlus; TokInt 2 ] "  1  +  2  ";
-  check [ TokInt 1; TokPlus; TokInt 2 ] "1\t+\n2\r"
+  check [ ti 1; TokPlus; ti 2 ] "1 + 2";
+  check [ ti 1; TokPlus; ti 2 ] "1+2";
+  check [ ti 1; TokPlus; ti 2 ] "  1  +  2  ";
+  check [ ti 1; TokPlus; ti 2 ] "1\t+\n2\r"
 
 let test_sequences _ =
   check [ TokBool true; TokAmpAmp; TokBool false ] "true && false";
   check [ TokBang; TokBool true ] "!true";
-  check [ TokInt 1; TokEqEq; TokInt 1 ] "1 == 1";
-  check [ TokInt 3; TokAmp; TokInt 5 ] "3 & 5";
-  check [ TokInt 1; TokSemicolon ] "1;";
-  check [ TokInt 1; TokPlus; TokInt 3; TokSemicolon ] "1 + 3;";
+  check [ ti 1; TokEqEq; ti 1 ] "1 == 1";
+  check [ ti 3; TokAmp; ti 5 ] "3 & 5";
+  check [ ti 1; TokSemicolon ] "1;";
+  check [ ti 1; TokPlus; ti 3; TokSemicolon ] "1 + 3;";
   check
     [
       TokIdent "a";
@@ -192,7 +199,7 @@ let test_sequences _ =
       TokSemicolon;
     ]
     "a ? b : c;";
-  check [ TokReturnKw; TokInt 1; TokSemicolon ] "return 1;";
+  check [ TokReturnKw; ti 1; TokSemicolon ] "return 1;";
   check
     [
       TokIntKw;
@@ -229,7 +236,8 @@ let test_string_of_token _ =
   assert_equal "[" (string_of_token TokLBracket);
   assert_equal "]" (string_of_token TokRBracket);
   (* literals *)
-  assert_equal "42" (string_of_token (TokInt 42));
+  assert_equal "42" (string_of_token (ti 42));
+  assert_equal "3UL" (string_of_token (TokInt (3, UnsignedLongSuffix)));
   assert_equal "true" (string_of_token (TokBool true));
   assert_equal "false" (string_of_token (TokBool false));
   (* identifiers *)
@@ -289,19 +297,19 @@ let test_comments _ =
   check [] "//////hello world";
   check [] "//////";
   check [] "// hello world\n";
-  check [ TokInt 1 ] "// hello world\n1";
-  check [ TokInt 1; TokInt 2 ] "1 // hello world\n2";
-  check [ TokInt 1 ] "1 // no newline at eof";
+  check [ ti 1 ] "// hello world\n1";
+  check [ ti 1; ti 2 ] "1 // hello world\n2";
+  check [ ti 1 ] "1 // no newline at eof";
   (* block comments are stripped *)
   check [] "/* hello world */";
   check [] "/*hello world*/";
   check [] "/**/";
   check [] "/*****/";
-  check [ TokInt 1 ] "/* hello world */ 1";
-  check [ TokInt 1; TokInt 2 ] "1 /* hello world */ 2";
-  check [ TokInt 1 ] "/* line1\nline2 */ 1";
+  check [ ti 1 ] "/* hello world */ 1";
+  check [ ti 1; ti 2 ] "1 /* hello world */ 2";
+  check [ ti 1 ] "/* line1\nline2 */ 1";
   (* block comment w normal tokens *)
-  check [ TokInt 1; TokPlus; TokInt 2 ] "1/**/+/**/2";
+  check [ ti 1; TokPlus; ti 2 ] "1/**/+/**/2";
   check [ TokStar; TokSlash ] "/* outer */ * /";
   (* unterminated block comment *)
   lex_fails "unterminated block comment" "/* bad"

@@ -31,6 +31,16 @@ let test_literals _ =
   roundtrip "1;\n2;";
   roundtrip ";\n;\n1;";
   roundtrip "0;";
+  roundtrip "3U;";
+  roundtrip "3L;";
+  roundtrip "3UL;";
+  roundtrip "3LL;";
+  roundtrip "3ULL;";
+  check "3U;" "3u;";
+  check "3L;" "3l;";
+  check "3UL;" "3ul;";
+  check "3LL;" "3ll;";
+  check "3ULL;" "3ull;";
   roundtrip "true;";
   roundtrip "false;"
 

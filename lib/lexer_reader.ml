@@ -35,8 +35,8 @@ let rec skip_whitespace_and_comments st =
     skip_whitespace_and_comments st
   end
 
-(** finish reading a decimal float literal, the part after the dot. handles
-    [f] and [l] suffixes *)
+(** finish reading a decimal float literal, the part after the dot. handles [f]
+    and [l] suffixes *)
 let finish_decimal_float_literal st start =
   let invalid_literal () =
     advance_while is_alnum st;
@@ -84,17 +84,63 @@ let read_number st =
       (Lex_error
          (tok_pos st, Printf.sprintf "invalid numeric literal '%s'" literal))
   in
-  let read_literal () = String.sub st.input start (st.pos - start) in
+  let read_int_suffix () =
+    match (peek st, peek2 st) with
+    (* ul/ull *)
+    | Some ('u' | 'U'), Some ('l' | 'L') ->
+        advance st;
+        advance st;
+        begin match peek st with
+        | Some ('l' | 'L') ->
+            advance st;
+            Ast.UnsignedLongLongSuffix
+        | _ -> Ast.UnsignedLongSuffix
+        end
+    (* lu *)
+    | Some ('l' | 'L'), Some ('u' | 'U') ->
+        advance st;
+        advance st;
+        Ast.UnsignedLongSuffix
+    (* ll/llu *)
+    | Some ('l' | 'L'), Some ('l' | 'L') ->
+        advance st;
+        advance st;
+        begin match peek st with
+        | Some ('u' | 'U') ->
+            advance st;
+            Ast.UnsignedLongLongSuffix
+        | _ -> Ast.LongLongSuffix
+        end
+    (* u *)
+    | Some ('u' | 'U'), _ ->
+        advance st;
+        UnsignedSuffix
+    (* l *)
+    | Some ('l' | 'L'), _ ->
+        advance st;
+        begin match peek st with
+        | Some ('u' | 'U') ->
+            advance st;
+            Ast.UnsignedLongSuffix
+        | _ -> Ast.LongSuffix
+        end
+    | _ -> Ast.NoIntSuffix
+  in
   advance_while is_digit st;
+  let digits_end = st.pos in
   if peek st = Some '.' then begin
     advance st;
     advance_while is_digit st;
     finish_decimal_float_literal st start
   end
-  else
+  else begin
+    let suffix = read_int_suffix () in
     match peek st with
     | Some c when is_alpha c -> invalid_literal ()
-    | _ -> TokInt (int_of_string (read_literal ()))
+    | _ ->
+        let digits = String.sub st.input start (digits_end - start) in
+        TokInt (int_of_string digits, suffix)
+  end
 
 (** read a complete number starting with a dot *)
 let read_dot_number st =
@@ -163,7 +209,7 @@ let read_ident st =
   match String.sub st.input start (st.pos - start) with
   | "true" -> TokBool true
   | "false" -> TokBool false
-  | "NULL" -> TokInt 0
+  | "NULL" -> TokInt (0, NoIntSuffix)
   | "int" -> TokIntKw
   | "bool" -> TokBoolKw
   | "return" -> TokReturnKw

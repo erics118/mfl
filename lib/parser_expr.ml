@@ -34,9 +34,9 @@ and parse_identifier_expr st pos =
 and parse_primary st =
   let pos = cur_pos st in
   match st.cur_tok with
-  | TokInt n ->
+  | TokInt (n, suffix) ->
       advance st;
-      IntLiteral (Parsed pos, n)
+      IntLiteral (Parsed pos, n, suffix)
   | TokFloat f ->
       advance st;
       FloatLiteral (Parsed pos, f)

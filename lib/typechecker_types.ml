@@ -97,7 +97,7 @@ let unsigned_counterpart = function
     -> invalid_arg "unsigned counterpart"
 
 let expr_typ : checked expr -> typ = function
-  | IntLiteral (ann, _)
+  | IntLiteral (ann, _, _)
   | FloatLiteral (ann, _)
   | DoubleLiteral (ann, _)
   | LongDoubleLiteral (ann, _)

@@ -42,8 +42,10 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [ ] string literals: `"hello"`
 - [ ] adjacent string literal concatenation: `"foo" "bar"`
 - [x] string escape sequences: `\n`, `\t`, `\0`, `\\`, `\"`, `\xNN`
-- [ ] hex/octal/float literals: `0xFF`, `0777`, `3.14`
-- [ ] integer suffixes: `42UL`, `1LL`
+- [ ] hex/octal literals: `0xFF`, `0777`
+- [x] integer suffixes: `42UL`, `1LL`
+- [x] simple float literals: `3.14`
+- [ ] exponent float literals: `1e-9`
 - [x] floating point suffixes: `3.14f`, `2.71828L`
 
 **statements**

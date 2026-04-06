@@ -97,7 +97,7 @@ and parse_array_suffix st source_type =
   consume st TokLBracket;
   let sz =
     match st.cur_tok with
-    | TokInt n ->
+    | TokInt (n, _) ->
         advance st;
         n
     | _ ->

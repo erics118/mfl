@@ -39,7 +39,7 @@ let formatted_string_of_char c =
 
 let rec pp_expr_aux : type a. ?parent_prec:int -> a expr -> string =
  fun ?(parent_prec = 0) -> function
-  | IntLiteral (_, n) -> string_of_int n
+  | IntLiteral (_, n, suffix) -> string_of_int n ^ string_of_int_suffix suffix
   | FloatLiteral (_, f) -> Printf.sprintf "%f" f
   | DoubleLiteral (_, f) -> Printf.sprintf "%f" f
   | LongDoubleLiteral (_, f) -> Printf.sprintf "%f" f

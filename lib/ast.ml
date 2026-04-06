@@ -165,6 +165,22 @@ type parsed
 
 type checked
 
+type int_suffix =
+  | NoIntSuffix
+  | UnsignedSuffix
+  | LongSuffix
+  | UnsignedLongSuffix
+  | LongLongSuffix
+  | UnsignedLongLongSuffix
+
+let string_of_int_suffix = function
+  | NoIntSuffix -> ""
+  | UnsignedSuffix -> "U"
+  | LongSuffix -> "L"
+  | UnsignedLongSuffix -> "UL"
+  | LongLongSuffix -> "LL"
+  | UnsignedLongLongSuffix -> "ULL"
+
 (** annotation on every expr node; [Parsed] holds position only, [Checked] adds
     the resolved type *)
 type _ ann =
@@ -182,7 +198,8 @@ let typ_of : checked ann -> typ = function
 
 (** expressions *)
 type 'a expr =
-  | IntLiteral : 'a ann * int -> 'a expr
+  | IntLiteral : 'a ann * int * int_suffix -> 'a expr
+      (** int, with optional suffix *)
   | FloatLiteral : 'a ann * float -> 'a expr  (** 32-bit float, [f] suffix *)
   | DoubleLiteral : 'a ann * float -> 'a expr  (** 64-bit double, no suffix *)
   | LongDoubleLiteral : 'a ann * float -> 'a expr

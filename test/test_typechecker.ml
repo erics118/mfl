@@ -21,7 +21,12 @@ let default_env () =
     in_loop = false;
   }
 
-let i n = IntLiteral (p, n)
+let i n = IntLiteral (p, n, NoIntSuffix)
+let iu n = IntLiteral (p, n, UnsignedSuffix)
+let il n = IntLiteral (p, n, LongSuffix)
+let iul n = IntLiteral (p, n, UnsignedLongSuffix)
+let ill n = IntLiteral (p, n, LongLongSuffix)
+let iull n = IntLiteral (p, n, UnsignedLongLongSuffix)
 let f x = FloatLiteral (p, x)
 let d x = DoubleLiteral (p, x)
 let ld x = LongDoubleLiteral (p, x)
@@ -193,6 +198,11 @@ let test_literals _ =
   check_typ Int (i 0);
   check_typ Int (i 123);
   check_typ Int (i (-1));
+  check_typ UInt (iu 3);
+  check_typ Long (il 3);
+  check_typ ULong (iul 3);
+  check_typ LongLong (ill 3);
+  check_typ ULongLong (iull 3);
   check_typ Float (f 3.14);
   check_typ Double (d 3.14);
   check_typ LongDouble (ld 3.14);

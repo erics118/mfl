@@ -128,7 +128,7 @@ let is_signed = function
 
 (* extract the resolved type from a checked expression annotation *)
 let expr_type : checked expr -> typ = function
-  | IntLiteral (Checked (_, t), _)
+  | IntLiteral (Checked (_, t), _, _)
   | FloatLiteral (Checked (_, t), _)
   | DoubleLiteral (Checked (_, t), _)
   | LongDoubleLiteral (Checked (_, t), _)

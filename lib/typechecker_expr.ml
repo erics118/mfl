@@ -117,7 +117,7 @@ let can_assign_cast from_t to_t =
 
 (** the integer constant 0 can be implicitly converted to any pointer type *)
 let is_null_ptr_constant = function
-  | IntLiteral (_, 0) -> true
+  | IntLiteral (_, 0, NoIntSuffix) -> true
   | _ -> false
 
 (** apply "conversion as if by assignment" *)
@@ -180,7 +180,7 @@ let common_arithmetic_type lt rt =
 
 let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
   match expr with
-  | IntLiteral (ann, n) -> typecheck_int_lit ann n
+  | IntLiteral (ann, n, suffix) -> typecheck_int_lit ann n suffix
   | FloatLiteral (ann, f) -> FloatLiteral (Checked (pos_of ann, Float), f)
   | DoubleLiteral (ann, f) -> DoubleLiteral (Checked (pos_of ann, Double), f)
   | LongDoubleLiteral (ann, f) ->
@@ -241,12 +241,22 @@ let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
       let t = resolve_source_type env pos t in
       SizeofType (Checked (pos, Long), source_type_of_typ t)
 
-and typecheck_int_lit (ann : parsed ann) (n : int) : checked expr =
+and typecheck_int_lit (ann : parsed ann) (n : int) (suffix : int_suffix) :
+    checked expr =
   (* decimal literals outside of the 32 bit range are turned into longs *)
   (* todo: might overflow bc we can represent 64 bit integers but integers in
   ocaml only have 63 bits *)
-  let t = if n >= -2147483648 && n <= 2147483647 then Int else Long in
-  IntLiteral (Checked (pos_of ann, t), n)
+  let fits_int = n >= -2147483648 && n <= 2147483647 in
+  let t =
+    match suffix with
+    | NoIntSuffix -> if fits_int then Int else Long
+    | UnsignedSuffix -> if fits_int then UInt else ULong
+    | LongSuffix -> Long
+    | UnsignedLongSuffix -> ULong
+    | LongLongSuffix -> LongLong
+    | UnsignedLongLongSuffix -> ULongLong
+  in
+  IntLiteral (Checked (pos_of ann, t), n, suffix)
 
 and typecheck_bool_lit (ann : parsed ann) (b : bool) : checked expr =
   BoolLiteral (Checked (pos_of ann, Bool), b)
