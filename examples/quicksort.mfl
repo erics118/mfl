@@ -1,3 +1,5 @@
+extern int printf(char* fmt, ...);
+
 // swap two elements
 void swap(int* a, int* b) {
     int tmp = *a;
@@ -45,6 +47,7 @@ int main() {
     quicksort(arr, 0, 9);
 
     for (int i = 0; i < 10; ++i) {
-        printint(arr[i]);
+        printf("%d", arr[i]);
+        printf(i == 9 ? "\n" : " ");
     }
 }

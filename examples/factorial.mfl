@@ -1,3 +1,5 @@
+extern int printf(char* fmt, ...);
+
 int factorial(int n) {
     if (n <= 1) {
         return 1;
@@ -7,5 +9,5 @@ int factorial(int n) {
 
 int main() {
     int fact = factorial(10);
-    printint(fact);
+    printf("%d\n", fact);
 }
