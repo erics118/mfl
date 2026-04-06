@@ -176,6 +176,7 @@ let read_escape_sequence st =
   | Some 'f' -> 12
   | Some 'r' -> 13
   | Some '\\' -> 92
+  | Some '"' -> 34
   | Some '\'' -> 39
   | Some 'x' -> read_hex_escape_sequence st
   | _ ->
@@ -185,6 +186,32 @@ let read_escape_sequence st =
         | None -> "unrecognized escape sequence at end of input"
       in
       raise (Lex_error (tok_pos st, msg))
+
+let read_string st =
+  let bytes = ref [] in
+  advance st;
+  let rec loop () =
+    match peek st with
+    (* end of string *)
+    | Some '"' ->
+        advance st;
+        TokString (List.rev !bytes)
+    (* escape sequence *)
+    | Some '\\' ->
+        let value = read_escape_sequence st in
+        bytes := value :: !bytes;
+        loop ()
+    (* bad characters *)
+    | Some ('\n' | '\r' | '\000') ->
+        raise (Lex_error (tok_pos st, "invalid string literal"))
+    (* normal characters *)
+    | Some c ->
+        advance st;
+        bytes := Char.code c :: !bytes;
+        loop ()
+    | None -> raise (Lex_error (tok_pos st, "unterminated string literal"))
+  in
+  loop ()
 
 let read_char st =
   advance st;

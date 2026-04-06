@@ -103,6 +103,7 @@ let expr_typ : checked expr -> typ = function
   | LongDoubleLiteral (ann, _)
   | BoolLiteral (ann, _)
   | CharLiteral (ann, _)
+  | StringLiteral (ann, _)
   | VarRef (ann, _)
   | BinaryOp (ann, _, _, _)
   | UnaryOp (ann, _, _)

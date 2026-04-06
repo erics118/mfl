@@ -187,6 +187,7 @@ let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
       LongDoubleLiteral (Checked (pos_of ann, LongDouble), f)
   | BoolLiteral (ann, b) -> typecheck_bool_lit ann b
   | CharLiteral (ann, c) -> typecheck_char_lit ann c
+  | StringLiteral (ann, s) -> typecheck_string_lit ann s
   | BinaryOp (ann, op, lhs, rhs) -> typecheck_binary_op env ann op lhs rhs
   | VarRef (ann, x) -> typecheck_var_ref env ann x
   | UnaryOp (ann, op, e) -> typecheck_unary_op env ann op e
@@ -263,6 +264,11 @@ and typecheck_bool_lit (ann : parsed ann) (b : bool) : checked expr =
 
 and typecheck_char_lit (ann : parsed ann) (c : int) : checked expr =
   CharLiteral (Checked (pos_of ann, Char), c)
+
+and typecheck_string_lit (ann : parsed ann) (s : int list) : checked expr =
+  let len = List.length s + 1 in
+  (* a string is just an array, plus a null terminator *)
+  StringLiteral (Checked (pos_of ann, Array (Char, len)), s)
 
 and typecheck_logical_binop pos op lhs rhs =
   let lt = expr_typ lhs in

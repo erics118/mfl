@@ -12,6 +12,7 @@ let rec collect_builtin_expr acc = function
   | LongDoubleLiteral _
   | BoolLiteral _
   | CharLiteral _
+  | StringLiteral _
   | VarRef _
   | SizeofType _ -> acc
   | UnaryOp (_, _, e)

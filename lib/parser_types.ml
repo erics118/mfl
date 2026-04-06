@@ -143,6 +143,7 @@ let is_type_keyword = function
   | TokLongDouble _
   | TokBool _
   | TokChar _
+  | TokString _
   | TokIdent _
   | TokReturnKw
   | TokIfKw

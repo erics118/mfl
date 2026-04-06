@@ -52,7 +52,13 @@ let test_literals _ =
   check [ TokFloat 1.0 ] "1.f";
   check [ TokFloat 0.5 ] ".5f";
   check [ TokBool true ] "true";
-  check [ TokBool false ] "false"
+  check [ TokBool false ] "false";
+  check [ TokString [] ] {|""|};
+  check [ TokString [ 97; 98 ] ] {|"ab"|};
+  check [ TokString [ 10 ] ] {|"\n"|};
+  check [ TokString [ 13 ] ] {|"\r"|};
+  check [ TokString [ 39 ] ] {|"\'"|};
+  check [ TokString [ 34 ] ] {|"\""|}
 
 let test_identifiers_and_keywords _ =
   check [ TokIntKw ] "int";
@@ -240,6 +246,8 @@ let test_string_of_token _ =
   assert_equal "3UL" (string_of_token (TokInt (3, UnsignedLongSuffix)));
   assert_equal "true" (string_of_token (TokBool true));
   assert_equal "false" (string_of_token (TokBool false));
+  assert_equal {|"ab"|} (string_of_token (TokString [ 97; 98 ]));
+  assert_equal {|"\n"|} (string_of_token (TokString [ 10 ]));
   (* identifiers *)
   assert_equal "x" (string_of_token (TokIdent "x"));
   (* keywords *)
@@ -318,6 +326,9 @@ let test_errors _ =
   lex_fails "invalid numeric literal '1a'" "1a";
   lex_fails "invalid numeric literal '123abc'" "123abc";
   lex_fails "invalid numeric literal '123a4'" "123a4";
+  lex_fails "unterminated string literal" "\"abc";
+  lex_fails "invalid string literal" "\"a\n\"";
+  lex_fails "unrecognized escape sequence '\\e'" "\"\\e\"";
   lex_fails "unexpected character '@'" "@";
   lex_fails "unexpected character '#'" "#"
 

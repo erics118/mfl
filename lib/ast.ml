@@ -165,6 +165,27 @@ type parsed
 
 type checked
 
+let format_byte = function
+  (* simple escape sequence *)
+  | 0 -> "\\0"
+  | 7 -> "\\a"
+  | 8 -> "\\b"
+  | 9 -> "\\t"
+  | 10 -> "\\n"
+  | 11 -> "\\v"
+  | 12 -> "\\f"
+  | 13 -> "\\r"
+  | 92 -> "\\\\"
+  | 39 -> "\\'"
+  (* normal chars *)
+  | n when n >= 32 && n <= 126 -> String.make 1 (Char.chr n)
+  (* hexadecimal escape sequence *)
+  | n -> Printf.sprintf "\\x%02x" n
+
+let format_bytes bytes = String.concat "" (List.map format_byte bytes)
+let escaped_string_of_byte c = "'" ^ format_byte c ^ "'"
+let escaped_string_of_bytes s = "\"" ^ format_bytes s ^ "\""
+
 type int_suffix =
   | NoIntSuffix
   | UnsignedSuffix
@@ -206,6 +227,7 @@ type 'a expr =
       (** long double, [L] suffix *)
   | BoolLiteral : 'a ann * bool -> 'a expr
   | CharLiteral : 'a ann * int -> 'a expr  (** stored as int for simplicity *)
+  | StringLiteral : 'a ann * int list -> 'a expr
   | VarRef : 'a ann * string -> 'a expr
   | BinaryOp : 'a ann * op * 'a expr * 'a expr -> 'a expr
   | UnaryOp : 'a ann * uop * 'a expr -> 'a expr

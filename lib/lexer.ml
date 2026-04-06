@@ -131,6 +131,7 @@ let next_token st =
   | Some '^' ->
       advance st;
       TokCaret
+  | Some '"' -> read_string st
   | Some '\'' -> read_char st
   | Some c when is_digit c -> read_number st
   | Some c when is_alpha c -> read_ident st

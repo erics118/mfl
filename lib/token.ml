@@ -9,6 +9,8 @@ type token =
   | TokLongDouble of float  (** long double literal *)
   | TokBool of bool  (** boolean literal *)
   | TokChar of int  (** character literal, stored as int *)
+  | TokString of int list
+      (** string literal, bytes without the null terminator *)
   (* identifiers *)
   | TokIdent of string  (** identifier *)
   (* keywords *)
@@ -84,6 +86,7 @@ let string_of_token = function
   | TokLongDouble f -> Printf.sprintf "%gL" f
   | TokBool x -> string_of_bool x
   | TokChar c -> Printf.sprintf "'%c'" (Char.chr c)
+  | TokString s -> Ast.escaped_string_of_bytes s
   (* identifiers *)
   | TokIdent x -> x
   (* keywords *)

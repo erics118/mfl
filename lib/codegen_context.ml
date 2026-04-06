@@ -134,6 +134,7 @@ let expr_type : checked expr -> typ = function
   | LongDoubleLiteral (Checked (_, t), _)
   | BoolLiteral (Checked (_, t), _)
   | CharLiteral (Checked (_, t), _)
+  | StringLiteral (Checked (_, t), _)
   | VarRef (Checked (_, t), _)
   | BinaryOp (Checked (_, t), _, _, _)
   | UnaryOp (Checked (_, t), _, _)
