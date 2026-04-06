@@ -313,6 +313,18 @@ and typecheck_binary_op env ann op lhs rhs =
       let lhs' = promote_integer pos lhs in
       let rhs' = promote_integer pos rhs in
       BinaryOp (Checked (pos, expr_typ lhs'), op, lhs', rhs')
+  (* arithmetic for float *)
+  | (Add | Sub | Mul | Div | Mod | BitAnd | BitOr | BitXor)
+    when not (is_integer_type lt && is_integer_type rt) -> err ()
+  (* cmp for floats *)
+  | (Less | Leq | Greater | Geq | Equal | Neq)
+    when is_arithmetic_type lt && is_arithmetic_type rt ->
+      let lhs' = if is_integer_type lt then promote_integer pos lhs else lhs in
+      let rhs' = if is_integer_type rt then promote_integer pos rhs else rhs in
+      let common_t = common_arithmetic_type (expr_typ lhs) (expr_typ rhs) in
+      let lhs' = implicit_cast pos common_t lhs' in
+      let rhs' = implicit_cast pos common_t rhs' in
+      BinaryOp (Checked (pos, Bool), op, lhs', rhs')
   (* arithmetic for int *)
   | Add
   | Sub
