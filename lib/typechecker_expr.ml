@@ -297,17 +297,32 @@ and typecheck_pointer_binop pos op lhs rhs =
       BinaryOp (Checked (pos, Long), op, lhs, rhs)
   | _ -> assert false [@coverage off]
 
-and typecheck_integer_only_binop pos op lhs rhs =
+(** <<, >> between ints. no implicit casts *)
+and typecheck_shift_binop pos op lhs rhs =
   let lt = expr_typ lhs in
   let rt = expr_typ rhs in
-  (* bit ops must be between ints *)
+  (* shifts must be between ints *)
   if not (is_integer_type lt && is_integer_type rt) then
     raise (Type_error (pos, BinaryTypeMismatch (op, lt, rt)));
   let lhs' = promote_integer pos lhs in
   let rhs' = promote_integer pos rhs in
   BinaryOp (Checked (pos, expr_typ lhs'), op, lhs', rhs')
 
-and typecheck_binop pos op lhs rhs =
+(** &, |, % between ints. allows implicit casts *)
+and typecheck_integer_binop pos op lhs rhs =
+  let lt = expr_typ lhs in
+  let rt = expr_typ rhs in
+  if not (is_integer_type lt && is_integer_type rt) then
+    raise (Type_error (pos, BinaryTypeMismatch (op, lt, rt)));
+  let lhs' = if is_integer_type lt then promote_integer pos lhs else lhs in
+  let rhs' = if is_integer_type rt then promote_integer pos rhs else rhs in
+  let common_t = common_integer_type (expr_typ lhs') (expr_typ rhs') in
+  let lhs' = implicit_cast pos common_t lhs' in
+  let rhs' = implicit_cast pos common_t rhs' in
+  BinaryOp (Checked (pos, common_t), op, lhs', rhs')
+
+(* +, -, *, /, and cmp operators between arithmetic types *)
+and typecheck_arithmetic_binop pos op lhs rhs =
   let lt = expr_typ lhs in
   let rt = expr_typ rhs in
   (* operations must be between two arithmetic types *)
@@ -350,18 +365,12 @@ and typecheck_binary_op env ann op lhs rhs =
   (* ptr - int *)
   | Sub when is_pointer_type lt && (is_integer_type rt || is_pointer_type rt) ->
       typecheck_pointer_binop pos op lhs rhs
-  (* operations that only allow ints *)
-  | BitAnd | BitOr | BitXor | LShift | RShift | Mod ->
-      typecheck_integer_only_binop pos op lhs rhs
-  (* arithmetic for float *)
-  (* -> typecheck_arithmetic_binop pos op lhs rhs *)
-  (* cmp for floats *)
-  (* | (Less | Leq | Greater | Geq | Equal | Neq) *)
-  (* when is_arithmetic_type lt && is_arithmetic_type rt -> *)
-  (* typecheck_arithmetic_compare_binop pos op lhs rhs *)
-  (* arithmetic and cmp for int *)
+      (* operations that only allow ints *)
+  | LShift | RShift -> typecheck_shift_binop pos op lhs rhs
+  | BitAnd | BitOr | BitXor | Mod -> typecheck_integer_binop pos op lhs rhs
+  (* arithmetic and cmp for arithmetic *)
   | Add | Sub | Mul | Div | Less | Leq | Greater | Geq | Equal | Neq ->
-      typecheck_binop pos op lhs rhs
+      typecheck_arithmetic_binop pos op lhs rhs
 
 and typecheck_var_ref env ann x =
   let pos = pos_of ann in

@@ -206,6 +206,18 @@ let test_float _ =
   check_typ ~env Double ("d" := d 3.14);
   check_typ ~env Double ("d" := f 3.14);
   check_typ ~env Double ("d" := i 1);
+  begin match typecheck_expr env ("f" := d 3.14) with
+  | Assign (_, _, value) -> assert_implicit_cast_to Float value
+  | _ -> assert_failure "expected float assignment cast"
+  end;
+  begin match typecheck_expr env ("d" := f 3.14) with
+  | Assign (_, _, value) -> assert_implicit_cast_to Double value
+  | _ -> assert_failure "expected double assignment cast"
+  end;
+  begin match typecheck_expr env ("f" := i 1) with
+  | Assign (_, _, value) -> assert_implicit_cast_to Float value
+  | _ -> assert_failure "expected int-to-float assignment cast"
+  end;
   begin match
     typecheck_stmt (default_env ())
       (VarDef
@@ -247,6 +259,14 @@ let test_float _ =
   check_typ ~env Void ("takes_double" $ [ d 1.0 ]);
   check_typ ~env Void ("takes_double" $ [ f 1.0 ]);
   check_typ ~env Void ("takes_double" $ [ i 1 ]);
+  begin match typecheck_expr env ("takes_float" $ [ d 1.0 ]) with
+  | FuncCall (_, _, [ arg ]) -> assert_implicit_cast_to Float arg
+  | _ -> assert_failure "expected float arg cast"
+  end;
+  begin match typecheck_expr env ("takes_double" $ [ f 1.0 ]) with
+  | FuncCall (_, _, [ arg ]) -> assert_implicit_cast_to Double arg
+  | _ -> assert_failure "expected double arg cast"
+  end;
   begin match
     typecheck_stmt (default_env ())
       (FuncDef
@@ -266,6 +286,21 @@ let test_float _ =
       (FuncDef
          {
            pos = dummy_pos;
+           ret_type = VFloat;
+           name = "rf_cast";
+           params = [];
+           body = [ ReturnStmt (dummy_pos, Some (d 1.0)) ];
+         })
+  with
+  | FuncDef { body = [ ReturnStmt (_, Some value) ]; _ } ->
+      assert_implicit_cast_to Float value
+  | _ -> assert_failure "expected float return cast"
+  end;
+  begin match
+    typecheck_stmt (default_env ())
+      (FuncDef
+         {
+           pos = dummy_pos;
            ret_type = VDouble;
            name = "rd";
            params = [];
@@ -275,28 +310,78 @@ let test_float _ =
   | FuncDef { ret_type = VDouble; _ } -> ()
   | _ -> assert_failure "expected double return function"
   end;
-  check_err "operator '+': type mismatch between 'float' and 'float'"
-    (bi Add (f 1.0) (f 2.0));
-  check_err "operator '+': type mismatch between 'double' and 'double'"
-    (bi Add (d 1.0) (d 2.0));
+  begin match typecheck_expr (default_env ()) (bi Equal (i 1) (f 1.0)) with
+  | BinaryOp (_, _, lhs, rhs) ->
+      assert_implicit_cast_to Float lhs;
+      assert_equal ~printer:string_of_typ Float (expr_typ rhs)
+  | _ -> assert_failure "expected mixed float comparison"
+  end;
+  begin match typecheck_expr (default_env ()) (bi Equal (f 1.0) (d 1.0)) with
+  | BinaryOp (_, _, lhs, rhs) ->
+      assert_implicit_cast_to Double lhs;
+      assert_equal ~printer:string_of_typ Double (expr_typ rhs)
+  | _ -> assert_failure "expected float/double comparison"
+  end;
+  check_typ Float (bi Add (f 1.0) (f 2.0));
+  check_typ Double (bi Add (d 1.0) (d 2.0));
+  check_typ Double (bi Mul (f 1.0) (d 2.0));
+  check_err "operator '%': type mismatch between 'float' and 'float'"
+    (bi Mod (f 1.0) (f 2.0));
+  check_err "operator '<<': type mismatch between 'double' and 'int'"
+    (bi LShift (d 1.0) (i 1));
+  check_err "operator '&': type mismatch between 'float' and 'int'"
+    (bi BitAnd (f 1.0) (i 1));
   check_typ Int (tern (f 1.0) (i 1) (i 2));
   check_typ Int (tern (d 1.0) (i 1) (i 2));
   check_typ Bool (bi And (f 1.0) (d 0.0));
-  check_typ Bool (bi Or (d 0.0) (f 1.0))
+  check_typ Bool (bi Or (d 0.0) (f 1.0));
+  check_typ Double (tern (b true) (f 1.0) (d 1.0));
+  check_typ Double (tern (b true) (d 1.0) (f 1.0))
 
 let test_arithmetic _ =
   check_typ Int (bi Add (i 1) (i 2));
   check_typ Int (bi Sub (i 5) (i 3));
   check_typ Int (bi Mul (i 3) (i 4));
   check_typ Int (bi Div (i 8) (i 2));
-  check_typ Int (bi Mod (i 7) (i 3))
+  check_typ Int (bi Mod (i 7) (i 3));
+  check_typ Float (bi Add (f 1.0) (f 2.0));
+  check_typ Double (bi Add (d 1.0) (d 2.0));
+  check_typ Double (bi Add (i 1) (d 2.0));
+  check_typ Double (bi Sub (d 5.0) (f 3.0));
+  check_typ Float (bi Mul (f 3.0) (f 4.0));
+  check_typ Double (bi Div (d 8.0) (i 2));
+  begin match typecheck_expr (default_env ()) (bi Add (i 1) (d 2.0)) with
+  | BinaryOp (Checked (_, Double), Add, lhs, rhs) ->
+      assert_implicit_cast_to Double lhs;
+      assert_equal ~printer:string_of_typ Double (expr_typ rhs)
+  | _ -> assert_failure "expected int/double arithmetic conversion"
+  end;
+  begin match typecheck_expr (default_env ()) (bi Mul (f 3.0) (i 4)) with
+  | BinaryOp (Checked (_, Float), Mul, lhs, rhs) ->
+      assert_equal ~printer:string_of_typ Float (expr_typ lhs);
+      assert_implicit_cast_to Float rhs
+  | _ -> assert_failure "expected int/float arithmetic conversion"
+  end
 
 let test_bitwise _ =
   check_typ Int (bi BitAnd (i 3) (i 5));
   check_typ Int (bi BitOr (i 3) (i 5));
   check_typ Int (bi BitXor (i 3) (i 5));
   check_typ Int (bi LShift (i 1) (i 2));
-  check_typ Int (bi RShift (i 8) (i 1))
+  check_typ Int (bi RShift (i 8) (i 1));
+  let env = env_with [ ("l", Long); ("c", Char) ] in
+  begin match typecheck_expr env (bi BitOr !"l" !"c") with
+  | BinaryOp (Checked (_, Long), BitOr, lhs, rhs) ->
+      assert_equal ~printer:string_of_typ Long (expr_typ lhs);
+      assert_implicit_cast_to Long rhs
+  | _ -> assert_failure "expected integer common-type conversion"
+  end;
+  begin match typecheck_expr env (bi LShift !"l" !"c") with
+  | BinaryOp (Checked (_, Long), LShift, lhs, rhs) ->
+      assert_equal ~printer:string_of_typ Long (expr_typ lhs);
+      assert_implicit_cast_to Int rhs
+  | _ -> assert_failure "expected shift promotions without common-type cast"
+  end
 
 let test_comparison _ =
   check_typ Bool (bi Less (i 1) (i 2));
@@ -467,7 +552,15 @@ let test_ternary _ =
   check_typ ~env Long (tern (b true) (i 1) !"l");
   (* bool promotes to int *)
   check_typ Int (tern (b true) (b false) (i 1));
-  check_typ Int (tern (b true) (i 1) (b false))
+  check_typ Int (tern (b true) (i 1) (b false));
+  check_typ Double (tern (b true) (f 1.0) (d 2.0));
+  check_typ Double (tern (b true) (i 1) (d 2.0));
+  begin match typecheck_expr (default_env ()) (tern (b true) (i 1) (d 2.0)) with
+  | Ternary (Checked (_, Double), _, then_e, else_e) ->
+      assert_implicit_cast_to Double then_e;
+      assert_equal ~printer:string_of_typ Double (expr_typ else_e)
+  | _ -> assert_failure "expected arithmetic ternary conversion"
+  end
 
 let test_ternary_errors _ =
   (* void is not a scalar condition *)
@@ -477,7 +570,9 @@ let test_ternary_errors _ =
   check_err "expected type 'void' but got 'int'" (tern (b true) noop (i 1))
 
 let test_incdec _ =
-  let env = env_with [ ("x", Int); ("flag", Bool) ] in
+  let env =
+    env_with [ ("x", Int); ("flag", Bool); ("f", Float); ("d", Double) ]
+  in
   check_typ ~env Int (pre_inc !"x");
   check_typ ~env Int (post_inc !"x");
   check_typ ~env Int (pre_dec !"x");
@@ -486,6 +581,14 @@ let test_incdec _ =
   check_typ ~env Bool (post_inc !"flag");
   check_typ ~env Bool (pre_dec !"flag");
   check_typ ~env Bool (post_dec !"flag");
+  check_typ ~env Float (pre_inc !"f");
+  check_typ ~env Float (post_inc !"f");
+  check_typ ~env Float (pre_dec !"f");
+  check_typ ~env Float (post_dec !"f");
+  check_typ ~env Double (pre_inc !"d");
+  check_typ ~env Double (post_inc !"d");
+  check_typ ~env Double (pre_dec !"d");
+  check_typ ~env Double (post_dec !"d");
   (* inc/dec through a dereferenced pointer lvalue *)
   let env = env_with [ ("p", Ptr Int); ("pp", Ptr (Ptr Int)) ] in
   check_typ ~env Int (pre_inc (un Deref !"p"));
