@@ -238,7 +238,7 @@ let read_ident st =
   | "false" -> TokBool false
   | "NULL" -> TokInt (0, NoIntSuffix)
   | "int" -> TokIntKw
-  | "bool" -> TokBoolKw
+  | "bool" | "_Bool" -> TokBoolKw
   | "return" -> TokReturnKw
   | "if" -> TokIfKw
   | "else" -> TokElseKw

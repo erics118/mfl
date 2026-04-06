@@ -63,6 +63,7 @@ let test_literals _ =
 let test_identifiers_and_keywords _ =
   check [ TokIntKw ] "int";
   check [ TokBoolKw ] "bool";
+  check [ TokBoolKw ] "_Bool";
   check [ TokReturnKw ] "return";
   check [ TokIfKw ] "if";
   check [ TokElseKw ] "else";
