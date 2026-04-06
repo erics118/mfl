@@ -82,6 +82,7 @@ let test_identifiers_and_keywords _ =
   check [ TokStructKw ] "struct";
   check [ TokFloatKw ] "float";
   check [ TokDoubleKw ] "double";
+  check [ TokExternKw ] "extern";
   check [ TokIdent "x" ] "x";
   check [ TokIdent "CustomType" ] "CustomType";
   check [ TokIdent "abc1" ] "abc1";
@@ -269,6 +270,7 @@ let test_string_of_token _ =
   assert_equal "signed" (string_of_token TokSignedKw);
   assert_equal "typedef" (string_of_token TokTypedefKw);
   assert_equal "struct" (string_of_token TokStructKw);
+  assert_equal "extern" (string_of_token TokExternKw);
   assert_equal "." (string_of_token TokDot);
   assert_equal "->" (string_of_token TokArrow);
   (* binary operators *)

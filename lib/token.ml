@@ -35,6 +35,7 @@ type token =
   | TokStructKw  (** [struct] keyword *)
   | TokFloatKw  (** [float] keyword *)
   | TokDoubleKw  (** [double] keyword *)
+  | TokExternKw  (** [extern] keyword *)
   (* binary operators *)
   | TokPlus  (** [+] *)
   | TokMinus  (** [-] *)
@@ -111,6 +112,7 @@ let string_of_token = function
   | TokStructKw -> "struct"
   | TokFloatKw -> "float"
   | TokDoubleKw -> "double"
+  | TokExternKw -> "extern"
   (* binary operators *)
   | TokPlus -> "+"
   | TokMinus -> "-"

@@ -18,6 +18,7 @@ let rec stmt_can_fall_through = function
   | VarDef _
   | Typedef _
   | StructDef _
+  | FuncDecl _
   | FuncDef _
   | BreakStmt _
   | ContinueStmt _
@@ -70,6 +71,8 @@ let rec typecheck_stmt (env : env) (stmt : parsed stmt) : checked stmt =
       Typedef { pos; struct_def; existing_type; alias }
   | StructDef { pos; tag; fields; var_name } ->
       typecheck_struct_def env pos tag fields var_name
+  | FuncDecl { pos; ret_type; name; params; is_extern } ->
+      typecheck_func_decl env pos ret_type name params is_extern
   | VarDef { pos; source_type; name; init } ->
       typecheck_var_def env pos source_type name init
   | FuncDef { pos; ret_type; name; params; body } ->
@@ -136,22 +139,34 @@ and normalize_param_type = function
   | Array (t, _) -> Ptr t
   | t -> t
 
-and typecheck_func_def env pos ret_type name params body =
+(* normalizes a list of parameters, ie typedefs, ptr, array *)
+and normalize_params env pos params =
+  List.map
+    (fun (vt, pname) ->
+      ( source_type_of_typ
+          (normalize_param_type (resolve_source_type env pos vt)),
+        pname ))
+    params
+
+(* register the function signature *)
+and register_func_sig env pos ret_type name params =
   let ret_t = resolve_source_type env pos ret_type in
-  let params =
-    List.map
-      (fun (vt, pname) ->
-        ( source_type_of_typ
-            (normalize_param_type (resolve_source_type env pos vt)),
-          pname ))
-      params
-  in
-  (* add function to env first *)
+  let params = normalize_params env pos params in
   Hashtbl.replace env.funcs name
     {
       params = List.map (fun (vt, _) -> typ_of_source_type vt) params;
       ret = ret_t;
     };
+  (ret_t, params)
+
+(* typecheck a function declaration *)
+and typecheck_func_decl env pos ret_type name params is_extern =
+  let ret_t, params = register_func_sig env pos ret_type name params in
+  FuncDecl { pos; ret_type = source_type_of_typ ret_t; name; params; is_extern }
+
+(* typecheck a function definition *)
+and typecheck_func_def env pos ret_type name params body =
+  let ret_t, params = register_func_sig env pos ret_type name params in
   let fn_env =
     {
       vars = [ Hashtbl.create 8 ];

@@ -154,6 +154,7 @@ let is_type_keyword = function
   | TokContinueKw
   | TokDoKw
   | TokSizeofKw
+  | TokExternKw
   | TokPlus
   | TokMinus
   | TokStar

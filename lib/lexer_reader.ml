@@ -258,4 +258,5 @@ let read_ident st =
   | "struct" -> TokStructKw
   | "float" -> TokFloatKw
   | "double" -> TokDoubleKw
+  | "extern" -> TokExternKw
   | s -> TokIdent s

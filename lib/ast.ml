@@ -282,6 +282,13 @@ type 'a stmt =
       var_name : string option;
           (** if [Some var_name], also declares a variable of the struct type *)
     }  (** [struct tag { fields };] or [struct tag { fields } var;] *)
+  | FuncDecl of {
+      pos : pos;
+      ret_type : source_type;
+      name : string;
+      params : (source_type * string) list;
+      is_extern : bool;
+    }  (** [extern? ret_type name(params)] declares a function *)
   | FuncDef of {
       pos : pos;
       ret_type : source_type;

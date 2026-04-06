@@ -173,6 +173,11 @@ and pp_stmt_aux : type a. ?top_level:bool -> ?indent:int -> a stmt -> string =
       end
     | Typedef { existing_type; alias; _ } ->
         Printf.sprintf "typedef %s;" (string_of_decl existing_type alias)
+    | FuncDecl { ret_type; name; params; is_extern; _ } ->
+        let prefix = if is_extern then "extern " else "" in
+        Printf.sprintf "%s%s %s(%s);" prefix
+          (string_of_source_type ret_type)
+          name (string_of_params params)
     | FuncDef { ret_type; name; params; body; _ } ->
         Printf.sprintf "%s %s(%s) %s"
           (string_of_source_type ret_type)

@@ -72,7 +72,7 @@ let bool_from_mem v name = Llvm.build_trunc v bool_type name builder
    matching the C ABI *)
 let zext_attr = Llvm.create_enum_attr context "zeroext" 0L
 
-let ensure_builtin_decl name =
+let ensure_function_declared name =
   match Llvm.lookup_function name the_module with
   | Some fn -> fn
   | None -> begin

@@ -41,7 +41,7 @@ let rec collect_builtin_stmt acc = function
   | ReturnStmt (_, None) | BreakStmt _ | ContinueStmt _ | EmptyStmt _ -> acc
   | ReturnStmt (_, Some e) | VarDef { init = Some e; _ } ->
       collect_builtin_expr acc e
-  | VarDef { init = None; _ } | Typedef _ | StructDef _ -> acc
+  | VarDef { init = None; _ } | Typedef _ | StructDef _ | FuncDecl _ -> acc
   | CompoundStmt (_, stmts) -> List.fold_left collect_builtin_stmt acc stmts
   | FuncDef { body; _ } -> List.fold_left collect_builtin_stmt acc body
   | If { cond; then_body; else_body; _ } ->
@@ -159,7 +159,7 @@ and codegen_do_while_loop body cond =
   ignore (Llvm.build_cond_br c body_bb after_bb builder);
   Llvm.position_at_end after_bb builder
 
-and codegen_func_def ret_type name params body =
+and codegen_func_sig ret_type name params =
   (* use i1 for bool in signatures, not i8. zeroext handles the ABI *)
   let llvm_of_sig_typ t = if t = Bool then bool_type else llvm_of_typ t in
   let param_types =
@@ -170,7 +170,11 @@ and codegen_func_def ret_type name params body =
   in
   let ret_t = Ast.typ_of_source_type ret_type in
   let ty = Llvm.function_type (llvm_of_sig_typ ret_t) param_types in
-  let fn = Llvm.define_function name ty the_module in
+  let fn =
+    match Llvm.lookup_function name the_module with
+    | Some fn -> fn
+    | None -> Llvm.declare_function name ty the_module
+  in
   (* add zeroext to bool return and bool parameters *)
   if ret_t = Bool then Llvm.add_function_attr fn zext_attr Llvm.AttrIndex.Return;
   List.iteri
@@ -178,6 +182,14 @@ and codegen_func_def ret_type name params body =
       if Ast.typ_of_source_type vt = Bool then
         Llvm.add_function_attr fn zext_attr (Llvm.AttrIndex.Param i))
     params;
+  (fn, ty)
+
+and codegen_func_decl ret_type name params =
+  ignore (codegen_func_sig ret_type name params)
+
+and codegen_func_def ret_type name params body =
+  let fn, ty = codegen_func_sig ret_type name params in
+  let entry = Llvm.append_block context "entry" fn in
   (* clear scope for each function. no global variables atm *)
   Hashtbl.clear locals;
   (* allocate each param on the stack and store the incoming value, so params
@@ -186,13 +198,13 @@ and codegen_func_def ret_type name params body =
     (fun i (ptype, pname) ->
       let param = Llvm.param fn i in
       Llvm.set_value_name pname param;
-      Llvm.position_at_end (Llvm.entry_block fn) builder;
+      Llvm.position_at_end entry builder;
       let t = Ast.typ_of_source_type ptype in
       let ptr = Llvm.build_alloca (llvm_of_typ t) pname builder in
       emit_store t param ptr;
       Hashtbl.replace locals pname ptr)
     params;
-  Llvm.position_at_end (Llvm.entry_block fn) builder;
+  Llvm.position_at_end entry builder;
   List.iter codegen_stmt body;
   if not (block_terminated ()) then
     if Llvm.return_type ty = Llvm.void_type context then
@@ -218,6 +230,8 @@ and codegen_stmt = function
         List.map (fun (vt, fname) -> (fname, Ast.typ_of_source_type vt)) fields
       in
       codegen_struct_def tag resolved
+  | FuncDecl { ret_type; name; params; _ } ->
+      codegen_func_decl ret_type name params
   | FuncDef { ret_type; name; params; body; _ } ->
       codegen_func_def ret_type name params body
   | ReturnStmt (_, Some e) ->
@@ -267,7 +281,14 @@ let codegen_program (stmts : checked stmt list) : unit =
     List.fold_left collect_builtin_stmt [] stmts
     |> List.sort_uniq String.compare
   in
-  List.iter (fun name -> ignore (ensure_builtin_decl name)) builtins;
+  List.iter (fun name -> ignore (ensure_function_declared name)) builtins;
+  List.iter
+    (function
+      | FuncDecl { ret_type; name; params; _ }
+      | FuncDef { ret_type; name; params; _ } ->
+          codegen_func_decl ret_type name params
+      | _ -> ())
+    stmts;
   List.iter codegen_stmt stmts
 
 let emit_ir () = Llvm.string_of_llmodule the_module [@coverage off]

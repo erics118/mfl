@@ -6,7 +6,7 @@ open Parser_types
 
 let looks_like_definition st =
   match st.cur_tok with
-  | TokTypedefKw | TokStructKw -> true
+  | TokTypedefKw | TokStructKw | TokExternKw -> true
   | tok when is_type_keyword tok -> true
   | TokIdent _ -> (
       match Lexer.peek_token st.lex with
@@ -35,8 +35,9 @@ let rec parse_statement st =
   | TokForKw -> parse_for st
   | TokDoKw -> parse_do_while st
   | TokTypedefKw -> parse_typedef st
+  | TokExternKw -> parse_declaration ~is_extern:true st
   | TokStructKw -> parse_struct_or_var st
-  | _ when looks_like_definition st -> parse_declaration st
+  | _ when looks_like_definition st -> parse_declaration ~is_extern:false st
   | TokSemicolon ->
       consume st TokSemicolon;
       EmptyStmt pos
@@ -178,7 +179,7 @@ and parse_struct_or_var st =
           consume st TokSemicolon;
           VarDef { pos; source_type; name; init = None }
       | TokAssign -> parse_var_def_tail st pos base_type name
-      | TokLParen -> parse_func_def_tail st pos base_type name
+      | TokLParen -> parse_func_tail st pos base_type name ~is_extern:false
       | _ -> raise (Parse_error (cur_pos st, "expected ';', '=', '(', or '['")))
 
 and parse_typedef st =
@@ -248,20 +249,33 @@ and parse_var_def_tail st pos source_type name =
   consume st TokSemicolon;
   VarDef { pos; source_type; name; init = Some init }
 
-and parse_func_def_tail st pos ret_type name =
+and parse_func_tail st pos ret_type name ~is_extern =
   consume st TokLParen;
   let params = parse_rparen_list st parse_param in
   consume st TokRParen;
-  consume st TokLBrace;
-  let body = parse_scoped_compound_stmt st in
-  FuncDef { pos; ret_type; name; params; body }
+  begin match st.cur_tok with
+  (* function declaration *)
+  | TokSemicolon ->
+      consume st TokSemicolon;
+      FuncDecl { pos; ret_type; name; params; is_extern }
+  (* function definition *)
+  | TokLBrace ->
+      if is_extern then
+        raise (Parse_error (cur_pos st, "extern function cannot have a body"));
+      consume st TokLBrace;
+      let body = parse_scoped_compound_stmt st in
+      FuncDef { pos; ret_type; name; params; body }
+  (* neither, so error *)
+  | _ -> raise (Parse_error (cur_pos st, "expected ';' or '{'"))
+  end
 
 and parse_array_def_tail st pos source_type name =
   let source_type = parse_array_suffix st source_type in
   consume st TokSemicolon;
   VarDef { pos; source_type; name; init = None }
 
-and parse_declaration st =
+and parse_declaration ~is_extern st =
+  if is_extern then consume st TokExternKw;
   let pos = cur_pos st in
   let var_ty = parse_type_name st in
   let name = consume_identifier st in
@@ -270,12 +284,15 @@ and parse_declaration st =
       (* if see =, then expect a init value *)
       parse_var_def_tail st pos var_ty name
   | TokLParen ->
-      (* if see (, then expect a function definition *)
-      parse_func_def_tail st pos var_ty name
+      (* if see (, then expect a function declaration or definition *)
+      parse_func_tail st pos var_ty name ~is_extern
   | TokLBracket ->
       (* if see [, then expect array definition *)
       parse_array_def_tail st pos var_ty name
   | TokSemicolon ->
+      if is_extern then
+        (* todo: support extern variable later *)
+        raise (Parse_error (cur_pos st, "extern can only declare a function"));
       (* if see ;, then end the declaration *)
       consume st TokSemicolon;
       VarDef { pos; source_type = var_ty; name; init = None }
