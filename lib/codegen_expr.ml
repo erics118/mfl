@@ -203,7 +203,7 @@ and codegen_expr (e : checked expr) : Llvm.llvalue =
       (* bool literals produce i1 for computation *)
       Llvm.const_int bool_type (if b then 1 else 0)
   | CharLiteral (Checked _, c) -> Llvm.const_int char_type c
-  | StringLiteral _ -> failwith "todo impl string codegen"
+  | StringLiteral (_, s) -> codegen_string s
   | BinaryOp (Checked _, And, lhs, rhs) -> codegen_and_binop lhs rhs
   | BinaryOp (Checked _, Or, lhs, rhs) -> codegen_or_binop lhs rhs
   | BinaryOp (Checked _, op, lhs, rhs) ->
@@ -312,6 +312,7 @@ and array_base_ptr (e : checked expr) : Llvm.llvalue =
       (* use alloca ptr directly, bypassing emit_load *)
       match e with
       | VarRef (_, name) -> Hashtbl.find locals name
+      | StringLiteral _ -> codegen_expr e
       | _ -> assert false [@coverage off])
   | Ptr _ -> codegen_expr e
   | _ -> assert false [@coverage off]
@@ -483,14 +484,41 @@ and codegen_cast to_t e =
   if from_t = to_t then
     (* already the same type, we don't need to do anything *)
     v
-  else if to_t = Bool then
-    (* convert everything to bool *)
-    codegen_bool_cast v from_t
-  else if
-    (is_pointer_type from_t && is_pointer_type to_t)
-    || (is_integer_type from_t && is_pointer_type to_t)
-    || (is_pointer_type from_t && is_integer_type to_t)
-  then
-    (* for pointer related casts *)
-    codegen_pointer_cast v from_t to_t
-  else codegen_arithmetic_cast v from_t to_t
+  else
+    match (from_t, to_t) with
+    | Array (elem_t, _), Ptr elem_t' when elem_t = elem_t' ->
+        (* arrays already decay to pointers in expression codegen *)
+        v
+    | _ ->
+        if to_t = Bool then
+          (* convert everything to bool *)
+          codegen_bool_cast v from_t
+        else if
+          (is_pointer_type from_t && is_pointer_type to_t)
+          || (is_integer_type from_t && is_pointer_type to_t)
+          || (is_pointer_type from_t && is_integer_type to_t)
+        then
+          (* for pointer related casts *)
+          codegen_pointer_cast v from_t to_t
+        else codegen_arithmetic_cast v from_t to_t
+
+and codegen_string s =
+  (* get a list of the bytes, and append the null terminator *)
+  let bytes = Array.of_list (List.map (Llvm.const_int char_type) (s @ [ 0 ])) in
+  let ty = Llvm.array_type char_type (Array.length bytes) in
+  let name =
+    let n = !string_literal_counter in
+    incr string_literal_counter;
+    Printf.sprintf ".str.%d" n
+  in
+  (* c string literals have static storage duration so we have to turn them into
+     private global constants, rather than alloca *)
+  let global =
+    Llvm.define_global name (Llvm.const_array char_type bytes) the_module
+  in
+  Llvm.set_linkage Llvm.Linkage.Private global;
+  Llvm.set_global_constant true global;
+  Llvm.set_unnamed_addr true global;
+  let zero = Llvm.const_int int_type 0 in
+  (* the value of the expression is just a pointer to the first character *)
+  Llvm.build_gep ty global [| zero; zero |] "str" builder

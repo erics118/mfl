@@ -46,6 +46,9 @@ let rec sizeof_typ = function
 (* maps variable names to their alloca ptr within the current function *)
 let locals : (string, Llvm.llvalue) Hashtbl.t = Hashtbl.create 16
 
+(* unique suffix for private string literal globals *)
+let string_literal_counter = ref 0
+
 (* stack of (continue_bb, break_bb) for the each of the enclosing loops *)
 let loop_stack : (Llvm.llbasicblock * Llvm.llbasicblock) Stack.t =
   Stack.create ()
