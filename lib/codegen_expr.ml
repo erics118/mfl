@@ -3,11 +3,27 @@ open Codegen_context
 open Typechecker_types
 
 let rec codegen_binop operand_typ op lhs rhs =
+  match operand_typ with
+  | Float | Double -> codegen_float_binop op lhs rhs
+  | _ -> codegen_int_and_ptr_binop operand_typ op lhs rhs
+
+and codegen_float_binop op lhs rhs =
   let lv = codegen_expr lhs in
   let rv = codegen_expr rhs in
-  (match operand_typ with
-  | Float | Double -> assert false [@coverage off]
-  | _ -> ());
+  match op with
+  | Equal -> Llvm.build_fcmp Llvm.Fcmp.Oeq lv rv "eqtmp" builder
+  | Neq ->
+      (* use Une b/c NaN != x is true *)
+      Llvm.build_fcmp Llvm.Fcmp.Une lv rv "neqtmp" builder
+  | Less -> Llvm.build_fcmp Llvm.Fcmp.Olt lv rv "lttmp" builder
+  | Leq -> Llvm.build_fcmp Llvm.Fcmp.Ole lv rv "letmp" builder
+  | Greater -> Llvm.build_fcmp Llvm.Fcmp.Ogt lv rv "gttmp" builder
+  | Geq -> Llvm.build_fcmp Llvm.Fcmp.Oge lv rv "getmp" builder
+  | _ -> assert false [@coverage off]
+
+and codegen_int_and_ptr_binop operand_typ op lhs rhs =
+  let lv = codegen_expr lhs in
+  let rv = codegen_expr rhs in
   let signed = is_signed operand_typ in
   match op with
   | Add -> (

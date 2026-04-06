@@ -302,13 +302,21 @@ let test_comparison _ =
   check_typ Bool (bi Less (i 1) (i 2));
   check_typ Bool (bi Leq (i 1) (i 2));
   check_typ Bool (bi Greater (i 2) (i 1));
-  check_typ Bool (bi Geq (i 2) (i 1))
+  check_typ Bool (bi Geq (i 2) (i 1));
+  check_typ Bool (bi Less (f 1.0) (f 2.0));
+  check_typ Bool (bi Leq (d 1.0) (d 2.0));
+  check_typ Bool (bi Greater (f 2.0) (d 1.0));
+  check_typ Bool (bi Geq (i 2) (f 1.0))
 
 let test_equality _ =
   check_typ Bool (bi Equal (i 1) (i 1));
   check_typ Bool (bi Neq (i 1) (i 2));
   check_typ Bool (bi Equal (b true) (b false));
-  check_typ Bool (bi Neq (b true) (b true))
+  check_typ Bool (bi Neq (b true) (b true));
+  check_typ Bool (bi Equal (f 1.0) (f 1.0));
+  check_typ Bool (bi Neq (d 1.0) (d 2.0));
+  check_typ Bool (bi Equal (i 1) (f 1.0));
+  check_typ Bool (bi Neq (f 1.0) (d 2.0))
 
 let test_logical _ =
   check_typ Bool (bi And (b true) (b false));
