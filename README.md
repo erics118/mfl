@@ -7,7 +7,7 @@ subset of C implemented in OCaml, compiled to LLVM IR
 **types**
 - [x] `int`, `bool`, `void`
 - [x] `char`, `short`, `long`, `long long`, unsigned variants
-- [ ] `float`, `double`
+- [x] `float`, `double`, `long double`
 - [x] pointer types: `int *p`
 - [x] array types: `int a[10]`
 - [x] `struct` (named, anonymous, typedef-ed)
@@ -44,6 +44,7 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [x] string escape sequences: `\n`, `\t`, `\0`, `\\`, `\"`, `\xNN`
 - [ ] hex/octal/float literals: `0xFF`, `0777`, `3.14`
 - [ ] integer suffixes: `42UL`, `1LL`
+- [x] floating point suffixes: `3.14f`, `2.71828L`
 
 **statements**
 - [x] variable declarations with initializer: `int x = 0`
