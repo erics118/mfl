@@ -1279,6 +1279,142 @@ let test_variadic_func_call _ =
   | _ -> assert_failure "expected array variadic arg to decay to char*"
   end
 
+let test_subscript _ =
+  let env =
+    env_with [ ("arr", Array (Int, 4)); ("pc", Ptr Char); ("vp", Ptr Void) ]
+  in
+  (* array subscript gives element type *)
+  check_typ ~env Int (Subscript (p, !"arr", i 0));
+  (* pointer subscript gives element type *)
+  check_typ ~env Char (Subscript (p, !"pc", i 1));
+  (* long index is valid *)
+  check_typ ~env Int (Subscript (p, !"arr", il 0));
+  (* subscript result is an lvalue and can be assigned to *)
+  check_typ ~env Int (Assign (p, Subscript (p, !"arr", i 0), i 99));
+  (* non-integer index fails *)
+  check_err ~env "operator '*': invalid operand type 'float'"
+    (Subscript (p, !"arr", f 1.0));
+  (* void pointer subscript fails *)
+  check_err ~env "operator '*': invalid operand type 'void*'"
+    (Subscript (p, !"vp", i 0));
+  (* subscript on a plain non-pointer type fails *)
+  check_err "operator '*': invalid operand type 'int'" (Subscript (p, i 0, i 0))
+
+let test_sizeof _ =
+  (* SizeofType: all primitive types return Long *)
+  check_typ Long (SizeofType (p, VInt));
+  check_typ Long (SizeofType (p, VChar));
+  check_typ Long (SizeofType (p, VBool));
+  check_typ Long (SizeofType (p, VLong));
+  check_typ Long (SizeofType (p, VPtr VInt));
+  check_typ Long (SizeofType (p, VArray (VChar, 3)));
+  (* SizeofExpr: expression type is always Long regardless of operand type *)
+  check_typ Long (SizeofExpr (p, i 1));
+  check_typ Long (SizeofExpr (p, b true));
+  let penv = env_with [ ("px", Ptr Int) ] in
+  check_typ ~env:penv Long (SizeofExpr (p, !"px"));
+  (* SizeofType on a struct type *)
+  let senv =
+    let env = default_env () in
+    Hashtbl.add env.structs "Foo" [ ("x", Int) ];
+    env
+  in
+  check_typ ~env:senv Long (SizeofType (p, VStruct "Foo"));
+  (* SizeofExpr does not decay array: inner node retains array type *)
+  begin match
+    typecheck_expr
+      (env_with [ ("arr", Array (Char, 3)) ])
+      (SizeofExpr (p, !"arr"))
+  with
+  | SizeofExpr (Checked (_, Long), inner) ->
+      assert_equal ~printer:string_of_typ (Array (Char, 3)) (expr_typ inner)
+  | _ -> assert_failure "expected sizeof array to preserve array type"
+  end
+
+let test_struct_def _ =
+  (* StructDef registers the struct in env.structs *)
+  let env = default_env () in
+  ignore
+    (typecheck_stmt env
+       (StructDef
+          {
+            pos = dummy_pos;
+            tag = "Point";
+            fields = [ (VInt, "x"); (VInt, "y") ];
+            var_name = None;
+          }));
+  begin match lookup_struct env "Point" with
+  | Some [ ("x", Int); ("y", Int) ] -> ()
+  | _ -> assert_failure "expected struct Point with fields x:int, y:int"
+  end;
+  (* var_name also declares a variable of the struct type *)
+  let env2 = default_env () in
+  ignore
+    (typecheck_stmt env2
+       (StructDef
+          {
+            pos = dummy_pos;
+            tag = "Vec2";
+            fields = [ (VFloat, "x"); (VFloat, "y") ];
+            var_name = Some "v";
+          }));
+  begin match lookup_var env2 "v" with
+  | Some t -> assert_equal ~printer:string_of_typ (Struct "Vec2") t
+  | None ->
+      assert_failure
+        "expected variable v declared after StructDef with var_name"
+  end
+
+let test_member_access _ =
+  let env =
+    let env = env_with [ ("pt", Struct "Point") ] in
+    Hashtbl.add env.structs "Point" [ ("x", Int); ("y", Int) ];
+    env
+  in
+  (* field access gives the declared field type *)
+  check_typ ~env Int (MemberAccess (p, !"pt", "x"));
+  check_typ ~env Int (MemberAccess (p, !"pt", "y"));
+  (* field can be used as an lvalue in assignment *)
+  check_typ ~env Int (Assign (p, MemberAccess (p, !"pt", "x"), i 42));
+  (* accessing a non-struct type fails *)
+  check_err "member access on non-struct type 'int'"
+    (MemberAccess (p, i 1, "x"));
+  (* accessing a non-existent field fails *)
+  check_err ~env "struct 'Point' has no field 'z'"
+    (MemberAccess (p, !"pt", "z"))
+
+let test_return_typecheck _ =
+  (* return outside a function always fails *)
+  check_stmt_err "return statement outside of a function" (ret (i 1));
+  check_stmt_err "return statement outside of a function" ret_void;
+  (* return void from void function succeeds *)
+  let void_env = { (default_env ()) with return_typ = Some Void } in
+  begin match typecheck_stmt void_env ret_void with
+  | ReturnStmt (_, None) -> ()
+  | _ -> assert_failure "expected void return to succeed"
+  end;
+  (* return expr in void function fails *)
+  check_stmt_err ~env:void_env "expected type 'void' but got 'int'" (ret (i 1));
+  (* return correct type succeeds *)
+  let int_env = { (default_env ()) with return_typ = Some Int } in
+  begin match typecheck_stmt int_env (ret (i 0)) with
+  | ReturnStmt (_, Some e) ->
+      assert_equal ~printer:string_of_typ Int (expr_typ e)
+  | _ -> assert_failure "expected int return to succeed"
+  end;
+  (* return wrong type fails: pointer is not implicitly convertible to int *)
+  let ptr_env = { (env_with [ ("p", Ptr Int) ]) with return_typ = Some Int } in
+  check_stmt_err ~env:ptr_env "expected type 'int' but got 'int*'" (ret !"p");
+  (* return with no value in non-void function fails *)
+  check_stmt_err ~env:int_env "expected type 'int' but got 'void'" ret_void
+
+let test_var_scope _ =
+  (* a variable defined inside a CompoundStmt is not visible outside *)
+  let env = default_env () in
+  ignore
+    (typecheck_stmt env (CompoundStmt (dummy_pos, [ var_def VInt "inner" ])));
+  assert_equal None (lookup_var env "inner")
+
 let tests =
   "typechecker"
   >::: [
@@ -1336,6 +1472,12 @@ let tests =
          "variadic_func_call" >:: test_variadic_func_call;
          "incdec" >:: test_incdec;
          "incdec_errors" >:: test_incdec_errors;
+         "subscript" >:: test_subscript;
+         "sizeof" >:: test_sizeof;
+         "struct_def" >:: test_struct_def;
+         "member_access" >:: test_member_access;
+         "return_typecheck" >:: test_return_typecheck;
+         "var_scope" >:: test_var_scope;
        ]
 
 let _ = run_test_tt_main tests
