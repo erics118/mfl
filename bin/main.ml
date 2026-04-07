@@ -7,6 +7,13 @@ let read_file path =
   close_in ic;
   content
 
+let preprocess ~include_dirs path content =
+  match Preprocessor.preprocess ~include_dirs ~file:path content with
+  | s -> s
+  | exception Preprocessor.Preprocess_error ({ line; col }, msg) ->
+      Printf.eprintf "%s:%d:%d: preprocessor error: %s\n" path line col msg;
+      exit 1
+
 let parse_with_errors path content =
   match Parser.parse content with
   | s -> s
@@ -17,7 +24,7 @@ let parse_with_errors path content =
       Printf.eprintf "%s:%d:%d: parse error: %s\n" path line col msg;
       exit 1
 
-let parse_source path =
+let parse_source ~include_dirs path =
   let content =
     match read_file path with
     | s -> s
@@ -25,7 +32,7 @@ let parse_source path =
         Printf.eprintf "io error: %s\n" msg;
         exit 1
   in
-  let stmt = parse_with_errors path content in
+  let stmt = parse_with_errors path (preprocess ~include_dirs path content) in
   match stmt with
   | Ast.CompoundStmt (_, stmts) -> stmts
   | _ -> [ stmt ]
@@ -38,12 +45,12 @@ let typecheck stmts =
         (Typechecker.string_of_type_error e);
       exit 1
 
-let run_ir input =
-  let stmts = parse_source input |> typecheck in
+let run_ir ~include_dirs input =
+  let stmts = parse_source ~include_dirs input |> typecheck in
   Codegen.codegen_program stmts;
   print_string (Codegen.emit_ir ())
 
-let run_format input =
+let run_format ~include_dirs input =
   let content =
     match read_file input with
     | s -> s
@@ -51,11 +58,11 @@ let run_format input =
         Printf.eprintf "io error: %s\n" msg;
         exit 1
   in
-  let stmt = parse_with_errors input content in
+  let stmt = parse_with_errors input (preprocess ~include_dirs input content) in
   print_string (Pretty.pp_stmt stmt ^ "\n")
 
-let run_run input =
-  let stmts = parse_source input |> typecheck in
+let run_run ~include_dirs input =
+  let stmts = parse_source ~include_dirs input |> typecheck in
   Codegen.codegen_program stmts;
   let ir = Codegen.emit_ir () in
   let ir_file = Filename.temp_file "mfl" ".ll" in
@@ -77,22 +84,25 @@ let run_run input =
   exit run_exit
 
 let usage_msg =
-  {|Usage: mfl <command> <input-file>
+  {|Usage: mfl <command> [-I <dir>] <input-file>
 Commands:
-    ir      Emit LLVM IR
-    format  Pretty-print the source
-    run     Compile and execute|}
+    ir        Emit LLVM IR
+    format    Pretty-print the source
+    run       Compile and execute|}
 
 let () =
-  if Array.length Sys.argv < 3 then (
-    prerr_endline usage_msg;
-    exit 1);
-  let cmd = Sys.argv.(1) in
-  let input = Sys.argv.(2) in
+  let cmd, include_dirs, input =
+    match Sys.argv with
+    | [| _; cmd; "-I"; dir; file |] -> (cmd, [ dir; "include" ], file)
+    | [| _; cmd; file |] -> (cmd, [ "include" ], file)
+    | _ ->
+        prerr_endline usage_msg;
+        exit 1
+  in
   match cmd with
-  | "ir" -> run_ir input
-  | "format" -> run_format input
-  | "run" -> run_run input
+  | "ir" -> run_ir ~include_dirs input
+  | "format" -> run_format ~include_dirs input
+  | "run" -> run_run ~include_dirs input
   | _ ->
       Printf.eprintf "mfl: unknown command '%s'\n\n%s\n" cmd usage_msg;
       exit 1

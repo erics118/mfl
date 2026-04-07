@@ -3,6 +3,7 @@
  (public_name mfl)
  (modules
   ast
+  preprocessor
   codegen_context
   codegen_expr
   codegen_stmt

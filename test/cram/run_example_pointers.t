@@ -1,4 +1,4 @@
-  $ dune exec mfl -- run ../../examples/pointers.mfl
+  $ dune exec mfl -- run -I ../../include ../../examples/pointers.mfl
   42
   43
   99

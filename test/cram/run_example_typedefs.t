@@ -1,2 +1,2 @@
-  $ dune exec mfl -- run ../../examples/typedefs.mfl
+  $ dune exec mfl -- run -I ../../include ../../examples/typedefs.mfl
   10

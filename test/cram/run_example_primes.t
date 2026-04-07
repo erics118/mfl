@@ -1,4 +1,4 @@
-  $ dune exec mfl -- run ../../examples/primes.mfl
+  $ dune exec mfl -- run -I ../../include ../../examples/primes.mfl
   2
   3
   5

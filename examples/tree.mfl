@@ -1,5 +1,5 @@
-extern int printf(char* fmt, ...);
-void *malloc(long size);
+#include <stdio.h>
+#include <stdlib.h>
 
 // binary search tree
 typedef struct Node {

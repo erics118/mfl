@@ -1,4 +1,4 @@
-  $ dune exec mfl -- run ../../examples/fibonacci.mfl
+  $ dune exec mfl -- run -I ../../include ../../examples/fibonacci.mfl
   0
   1
   1

@@ -1,4 +1,4 @@
-  $ dune exec mfl -- run ../../examples/tree.mfl
+  $ dune exec mfl -- run -I ../../include ../../examples/tree.mfl
   1
   2
   3

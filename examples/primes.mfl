@@ -1,4 +1,4 @@
-extern int printf(char* fmt, ...);
+#include <stdio.h>
 
 int main() {
     for (int n = 2; n < 100; ++n) {
