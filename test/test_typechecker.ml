@@ -51,11 +51,45 @@ let post_dec e = PostDec (p, e)
 
 (* noop function call, used to get a void type *)
 let noop = "noop" $ []
+
+(* statement constructors that fill in dummy_pos and common defaults *)
+let empty = EmptyStmt dummy_pos
+let ret e = ReturnStmt (dummy_pos, Some e)
+let ret_void = ReturnStmt (dummy_pos, None)
+
+let var_def ?(init = None) vt name =
+  VarDef { pos = dummy_pos; source_type = vt; name; init }
+
+let func_def ?(is_variadic = false) rt name params body =
+  FuncDef { pos = dummy_pos; ret_type = rt; name; params; is_variadic; body }
+
+let func_decl ?(is_variadic = false) ?(is_extern = false) rt name params =
+  FuncDecl
+    { pos = dummy_pos; ret_type = rt; name; params; is_variadic; is_extern }
+
+let if_ ?(else_ = None) cond body =
+  If { pos = dummy_pos; cond; then_body = body; else_body = else_ }
+
+let while_ cond body = WhileLoop { pos = dummy_pos; cond; body }
+let do_while_ body cond = DoWhileLoop { pos = dummy_pos; body; cond }
+
+let for_ ?(cond = None) ?(incr = None) init body =
+  ForLoop { pos = dummy_pos; init; cond; incr; body }
+
 let env_with vars = { (default_env ()) with vars = [ make_tbl vars ] }
 
 let env_with_funcs funcs =
   {
     (default_env ()) with
+    funcs =
+      make_tbl
+        (funcs @ [ ("noop", { params = []; ret = Void; is_variadic = false }) ]);
+  }
+
+let env_with_all vars funcs =
+  {
+    (default_env ()) with
+    vars = [ make_tbl vars ];
     funcs =
       make_tbl
         (funcs @ [ ("noop", { params = []; ret = Void; is_variadic = false }) ]);
@@ -171,32 +205,16 @@ let test_type_error_strings _ =
 
 let test_stmt_fallthrough_helpers _ =
   assert_bool "return does not fall through"
-    (not (stmt_can_fall_through (ReturnStmt (dummy_pos, None))));
-  assert_bool "empty stmt falls through"
-    (stmt_can_fall_through (EmptyStmt dummy_pos));
+    (not (stmt_can_fall_through ret_void));
+  assert_bool "empty stmt falls through" (stmt_can_fall_through empty);
   assert_bool "if without else falls through"
-    (stmt_can_fall_through
-       (If
-          {
-            pos = dummy_pos;
-            cond = b true;
-            then_body = ReturnStmt (dummy_pos, Some (i 1));
-            else_body = None;
-          }));
+    (stmt_can_fall_through (if_ (b true) (ret (i 1))));
   assert_bool "both return branches do not fall through"
     (not
        (stmt_can_fall_through
-          (If
-             {
-               pos = dummy_pos;
-               cond = b true;
-               then_body = ReturnStmt (dummy_pos, Some (i 1));
-               else_body = Some (ReturnStmt (dummy_pos, Some (i 2)));
-             })));
+          (if_ ~else_:(Some (ret (i 2))) (b true) (ret (i 1)))));
   assert_bool "stmt list stops at first non-fallthrough"
-    (not
-       (stmts_can_fall_through
-          [ ReturnStmt (dummy_pos, Some (i 1)); EmptyStmt dummy_pos ]))
+    (not (stmts_can_fall_through [ ret (i 1); empty ]))
 
 let test_literals _ =
   check_typ Int (i 0);
@@ -247,28 +265,14 @@ let test_float _ =
   | _ -> assert_failure "expected int-to-float assignment cast"
   end;
   begin match
-    typecheck_stmt (default_env ())
-      (VarDef
-         {
-           pos = dummy_pos;
-           source_type = VFloat;
-           name = "f";
-           init = Some (i 1);
-         })
+    typecheck_stmt (default_env ()) (var_def ~init:(Some (i 1)) VFloat "f")
   with
   | VarDef { source_type = VFloat; init = Some init; _ } ->
       assert_equal ~printer:string_of_typ Float (expr_typ init)
   | _ -> assert_failure "expected float var def"
   end;
   begin match
-    typecheck_stmt (default_env ())
-      (VarDef
-         {
-           pos = dummy_pos;
-           source_type = VDouble;
-           name = "d";
-           init = Some (f 1.0);
-         })
+    typecheck_stmt (default_env ()) (var_def ~init:(Some (f 1.0)) VDouble "d")
   with
   | VarDef { source_type = VDouble; init = Some init; _ } ->
       assert_equal ~printer:string_of_typ Double (expr_typ init)
@@ -276,13 +280,7 @@ let test_float _ =
   end;
   begin match
     typecheck_stmt (default_env ())
-      (VarDef
-         {
-           pos = dummy_pos;
-           source_type = VLongDouble;
-           name = "ld";
-           init = Some (d 1.0);
-         })
+      (var_def ~init:(Some (d 1.0)) VLongDouble "ld")
   with
   | VarDef { source_type = VLongDouble; init = Some init; _ } ->
       assert_equal ~printer:string_of_typ LongDouble (expr_typ init)
@@ -320,62 +318,28 @@ let test_float _ =
   | _ -> assert_failure "expected long double arg cast"
   end;
   begin match
-    typecheck_stmt (default_env ())
-      (FuncDef
-         {
-           pos = dummy_pos;
-           ret_type = VFloat;
-           name = "rf";
-           params = [];
-           is_variadic = false;
-           body = [ ReturnStmt (dummy_pos, Some (i 1)) ];
-         })
+    typecheck_stmt (default_env ()) (func_def VFloat "rf" [] [ ret (i 1) ])
   with
   | FuncDef { ret_type = VFloat; _ } -> ()
   | _ -> assert_failure "expected float return function"
   end;
   begin match
     typecheck_stmt (default_env ())
-      (FuncDef
-         {
-           pos = dummy_pos;
-           ret_type = VFloat;
-           name = "rf_cast";
-           params = [];
-           is_variadic = false;
-           body = [ ReturnStmt (dummy_pos, Some (d 1.0)) ];
-         })
+      (func_def VFloat "rf_cast" [] [ ret (d 1.0) ])
   with
   | FuncDef { body = [ ReturnStmt (_, Some value) ]; _ } ->
       assert_implicit_cast_to Float value
   | _ -> assert_failure "expected float return cast"
   end;
   begin match
-    typecheck_stmt (default_env ())
-      (FuncDef
-         {
-           pos = dummy_pos;
-           ret_type = VDouble;
-           name = "rd";
-           params = [];
-           is_variadic = false;
-           body = [ ReturnStmt (dummy_pos, Some (f 1.0)) ];
-         })
+    typecheck_stmt (default_env ()) (func_def VDouble "rd" [] [ ret (f 1.0) ])
   with
   | FuncDef { ret_type = VDouble; _ } -> ()
   | _ -> assert_failure "expected double return function"
   end;
   begin match
     typecheck_stmt (default_env ())
-      (FuncDef
-         {
-           pos = dummy_pos;
-           ret_type = VLongDouble;
-           name = "rld";
-           params = [];
-           is_variadic = false;
-           body = [ ReturnStmt (dummy_pos, Some (d 1.0)) ];
-         })
+      (func_def VLongDouble "rld" [] [ ret (d 1.0) ])
   with
   | FuncDef { ret_type = VLongDouble; _ } -> ()
   | _ -> assert_failure "expected long double return function"
@@ -728,14 +692,7 @@ let test_array_decay_stmts _ =
   let arr_env = env_with [ ("arr", Array (Char, 3)); ("vp", Ptr Void) ] in
   (* var init: char* p2 = arr decays *)
   begin match
-    typecheck_stmt arr_env
-      (VarDef
-         {
-           pos = dummy_pos;
-           source_type = VPtr VChar;
-           name = "p2";
-           init = Some !"arr";
-         })
+    typecheck_stmt arr_env (var_def ~init:(Some !"arr") (VPtr VChar) "p2")
   with
   | VarDef { init = Some init; _ } -> assert_implicit_cast_to (Ptr Char) init
   | _ -> assert_failure "expected array var init to decay to char*"
@@ -743,14 +700,7 @@ let test_array_decay_stmts _ =
   (* var init: void* vp2 = arr -- array decays to char*, then converts to
      void* *)
   begin match
-    typecheck_stmt arr_env
-      (VarDef
-         {
-           pos = dummy_pos;
-           source_type = VPtr VVoid;
-           name = "vp2";
-           init = Some !"arr";
-         })
+    typecheck_stmt arr_env (var_def ~init:(Some !"arr") (VPtr VVoid) "vp2")
   with
   | VarDef { init = Some init; _ } -> assert_implicit_cast_to (Ptr Void) init
   | _ -> assert_failure "expected array var init to decay and convert to void*"
@@ -785,7 +735,7 @@ let test_array_decay_stmts _ =
       return_typ = Some (Ptr Void);
     }
   in
-  begin match typecheck_stmt fn_env (ReturnStmt (dummy_pos, Some !"arr")) with
+  begin match typecheck_stmt fn_env (ret !"arr") with
   | ReturnStmt (_, Some ret_e) -> assert_implicit_cast_to (Ptr Void) ret_e
   | _ -> assert_failure "expected return array to decay and convert to void*"
   end;
@@ -802,13 +752,7 @@ let test_array_decay_stmts _ =
   (* wrong element type: int arr[3] cannot decay to char* *)
   let int_arr_env = env_with [ ("iarr", Array (Int, 3)) ] in
   check_stmt_err ~env:int_arr_env "expected type 'char*' but got 'int*'"
-    (VarDef
-       {
-         pos = dummy_pos;
-         source_type = VPtr VChar;
-         name = "p";
-         init = Some !"iarr";
-       })
+    (var_def ~init:(Some !"iarr") (VPtr VChar) "p")
 
 let test_ternary_errors _ =
   (* void is not a scalar condition *)
@@ -980,20 +924,15 @@ let test_implicit_casts _ =
 
 let test_pointers _ =
   let env =
-    {
-      (env_with
-         [
-           ("x", Int);
-           ("y", Int);
-           ("px", Ptr Int);
-           ("py", Ptr Int);
-           ("pp", Ptr (Ptr Int));
-         ])
-      with
-      funcs =
-        make_tbl
-          [ ("load", { params = [ Ptr Int ]; ret = Int; is_variadic = false }) ];
-    }
+    env_with_all
+      [
+        ("x", Int);
+        ("y", Int);
+        ("px", Ptr Int);
+        ("py", Ptr Int);
+        ("pp", Ptr (Ptr Int));
+      ]
+      [ ("load", { params = [ Ptr Int ]; ret = Int; is_variadic = false }) ]
   in
   check_typ ~env (Ptr Int) (un AddrOf !"x");
   check_typ ~env Int (un Deref !"px");
@@ -1083,26 +1022,21 @@ let test_pointer_arithmetic_errors _ =
   ()
 
 let test_void_ptr _ =
-  let env = env_with [ ("p", Ptr Int); ("vp", Ptr Void); ("n", Int) ] in
-  let env_funcs =
-    {
-      (env_with [ ("p", Ptr Int); ("vp", Ptr Void) ]) with
-      funcs =
-        make_tbl
-          [
-            ( "take_vp",
-              { params = [ Ptr Void ]; ret = Void; is_variadic = false } );
-            ("take_p", { params = [ Ptr Int ]; ret = Void; is_variadic = false });
-            ("noop", { params = []; ret = Void; is_variadic = false });
-          ];
-    }
+  let env =
+    env_with_all
+      [ ("p", Ptr Int); ("vp", Ptr Void); ("n", Int) ]
+      [
+        ("take_vp", { params = [ Ptr Void ]; ret = Void; is_variadic = false });
+        ("take_p", { params = [ Ptr Int ]; ret = Void; is_variadic = false });
+        ("noop", { params = []; ret = Void; is_variadic = false });
+      ]
   in
   (* void* to/from T* implicit conversion in assignment *)
   check_typ ~env (Ptr Void) ("vp" := !"p");
   check_typ ~env (Ptr Int) ("p" := !"vp");
   (* void* <-> T* implicit conversion in function arguments *)
-  check_typ ~env:env_funcs Void ("take_vp" $ [ !"p" ]);
-  check_typ ~env:env_funcs Void ("take_p" $ [ !"vp" ]);
+  check_typ ~env Void ("take_vp" $ [ !"p" ]);
+  check_typ ~env Void ("take_p" $ [ !"vp" ]);
   (* void* arithmetic is rejected *)
   check_err ~env "operator '+': type mismatch between 'void*' and 'int'"
     (bi Add !"vp" !"n");
@@ -1148,33 +1082,24 @@ let test_stmt_conditions _ =
   (* any scalar can be used as a condition in control flow stmts *)
   let ok s = ignore (typecheck_stmt (default_env ()) s) in
   let ok_env env s = ignore (typecheck_stmt env s) in
-  let e = EmptyStmt dummy_pos in
-  ok (If { pos = dummy_pos; cond = i 1; then_body = e; else_body = None });
-  ok (If { pos = dummy_pos; cond = f 1.0; then_body = e; else_body = None });
-  ok (If { pos = dummy_pos; cond = d 0.0; then_body = e; else_body = None });
-  ok (WhileLoop { pos = dummy_pos; cond = i 1; body = e });
-  ok (DoWhileLoop { pos = dummy_pos; body = e; cond = i 1 });
-  ok
-    (ForLoop
-       { pos = dummy_pos; init = e; cond = Some (i 1); incr = None; body = e });
+  ok (if_ (i 1) empty);
+  ok (if_ (f 1.0) empty);
+  ok (if_ (d 0.0) empty);
+  ok (while_ (i 1) empty);
+  ok (do_while_ empty (i 1));
+  ok (for_ ~cond:(Some (i 1)) empty empty);
   let arr_env = env_with [ ("arr", Array (Char, 3)) ] in
-  ok_env arr_env
-    (If { pos = dummy_pos; cond = !"arr"; then_body = e; else_body = None });
-  ok_env arr_env (WhileLoop { pos = dummy_pos; cond = !"arr"; body = e });
-  ok_env arr_env (DoWhileLoop { pos = dummy_pos; body = e; cond = !"arr" });
-  ok_env arr_env
-    (ForLoop
-       { pos = dummy_pos; init = e; cond = Some !"arr"; incr = None; body = e });
+  ok_env arr_env (if_ !"arr" empty);
+  ok_env arr_env (while_ !"arr" empty);
+  ok_env arr_env (do_while_ empty !"arr");
+  ok_env arr_env (for_ ~cond:(Some !"arr") empty empty);
   (* void is not scalar, so void conditions are still rejected *)
+  check_stmt_err "condition must be 'bool' but got 'void'" (if_ noop empty);
+  check_stmt_err "condition must be 'bool' but got 'void'" (while_ noop empty);
   check_stmt_err "condition must be 'bool' but got 'void'"
-    (If { pos = dummy_pos; cond = noop; then_body = e; else_body = None });
+    (do_while_ empty noop);
   check_stmt_err "condition must be 'bool' but got 'void'"
-    (WhileLoop { pos = dummy_pos; cond = noop; body = e });
-  check_stmt_err "condition must be 'bool' but got 'void'"
-    (DoWhileLoop { pos = dummy_pos; body = e; cond = noop });
-  check_stmt_err "condition must be 'bool' but got 'void'"
-    (ForLoop
-       { pos = dummy_pos; init = e; cond = Some noop; incr = None; body = e })
+    (for_ ~cond:(Some noop) empty empty)
 
 let test_break_continue _ =
   (* break and continue are valid inside loops *)
@@ -1187,11 +1112,7 @@ let test_break_continue _ =
   | _ -> assert_failure "expected ContinueStmt"
 
 let test_var_type_resolution _ =
-  let check vt =
-    ignore
-      (typecheck_stmt (default_env ())
-         (VarDef { pos = dummy_pos; source_type = vt; name = "x"; init = None }))
-  in
+  let check vt = ignore (typecheck_stmt (default_env ()) (var_def vt "x")) in
   check VBool;
   check VChar;
   check VSChar;
@@ -1207,9 +1128,7 @@ let test_var_type_resolution _ =
   check (VPtr VInt);
   check (VPtr (VPtr VInt));
   (* VNamed with an unknown name must raise UnknownType *)
-  check_stmt_err "unknown type 'Foo'"
-    (VarDef
-       { pos = dummy_pos; source_type = VNamed "Foo"; name = "x"; init = None })
+  check_stmt_err "unknown type 'Foo'" (var_def (VNamed "Foo") "x")
 
 let test_typedefs _ =
   let env =
@@ -1231,15 +1150,7 @@ let test_typedefs _ =
   | Typedef { existing_type = VInt; alias = "myint"; _ } -> ()
   | _ -> assert_failure "expected checked typedef"
   end;
-  ignore
-    (typecheck_stmt env
-       (VarDef
-          {
-            pos = dummy_pos;
-            source_type = VNamed "myint";
-            name = "x";
-            init = None;
-          }));
+  ignore (typecheck_stmt env (var_def (VNamed "myint") "x"));
   ignore
     (typecheck_stmt env
        (Typedef
@@ -1253,13 +1164,7 @@ let test_typedefs _ =
     typecheck_stmt
       (let env = default_env () in
        { env with typedefs = [ make_tbl [ ("arr", VArray (VInt, 10)) ] ] })
-      (VarDef
-         {
-           pos = dummy_pos;
-           source_type = VNamed "arr";
-           name = "xs";
-           init = None;
-         })
+      (var_def (VNamed "arr") "xs")
   with
   | VarDef { name = "xs"; source_type = VArray (VInt, 10); init = None; _ } ->
       ()
@@ -1280,14 +1185,7 @@ let test_typedef_scope _ =
                   alias = "myint";
                 };
             ] )));
-  check_stmt_err "unknown type 'myint'"
-    (VarDef
-       {
-         pos = dummy_pos;
-         source_type = VNamed "myint";
-         name = "x";
-         init = None;
-       })
+  check_stmt_err "unknown type 'myint'" (var_def (VNamed "myint") "x")
 
 let test_typedef_cycle _ =
   let env =
@@ -1297,9 +1195,7 @@ let test_typedef_cycle _ =
       typedefs = [ make_tbl [ ("a", VNamed "b"); ("b", VNamed "a") ] ];
     }
   in
-  check_stmt_err ~env "unknown type 'a'"
-    (VarDef
-       { pos = dummy_pos; source_type = VNamed "a"; name = "x"; init = None })
+  check_stmt_err ~env "unknown type 'a'" (var_def (VNamed "a") "x")
 
 let test_array_param_decay _ =
   let env =
@@ -1308,15 +1204,7 @@ let test_array_param_decay _ =
   in
   match
     typecheck_stmt env
-      (FuncDef
-         {
-           pos = dummy_pos;
-           ret_type = VInt;
-           name = "sum";
-           params = [ (VNamed "numbers", "values") ];
-           is_variadic = false;
-           body = [ ReturnStmt (dummy_pos, Some (i 0)) ];
-         })
+      (func_def VInt "sum" [ (VNamed "numbers", "values") ] [ ret (i 0) ])
   with
   | FuncDef { params = [ (VPtr VInt, "values") ]; _ } -> ()
   | _ -> assert_failure "expected array parameter to decay to int*"
@@ -1328,41 +1216,16 @@ let test_break_continue_errors _ =
 
 let test_missing_return _ =
   check_stmt_err "control reaches end of non-void function 'f'"
-    (FuncDef
-       {
-         pos = dummy_pos;
-         ret_type = VInt;
-         name = "f";
-         params = [];
-         is_variadic = false;
-         body = [ EmptyStmt dummy_pos ];
-       });
+    (func_def VInt "f" [] [ empty ]);
   ignore
     (typecheck_stmt (default_env ())
-       (FuncDef
-          {
-            pos = dummy_pos;
-            ret_type = VInt;
-            name = "f";
-            params = [];
-            is_variadic = false;
-            body =
-              [
-                If
-                  {
-                    pos = dummy_pos;
-                    cond = b true;
-                    then_body = ReturnStmt (dummy_pos, Some (i 1));
-                    else_body = Some (ReturnStmt (dummy_pos, Some (i 2)));
-                  };
-              ];
-          }))
+       (func_def VInt "f" []
+          [ if_ ~else_:(Some (ret (i 2))) (b true) (ret (i 1)) ]))
 
 let test_typecheck_program _ =
   let program =
     [
-      VarDef
-        { pos = dummy_pos; source_type = VInt; name = "x"; init = Some (i 1) };
+      var_def ~init:(Some (i 1)) VInt "x";
       ExprStmt (dummy_pos, FuncCall (p, "printint", [ !"x" ]));
     ]
   in
@@ -1376,15 +1239,7 @@ let test_typecheck_program _ =
 let test_func_decl _ =
   begin match
     typecheck_stmt (default_env ())
-      (FuncDecl
-         {
-           pos = dummy_pos;
-           ret_type = VInt;
-           name = "puts";
-           params = [ (VPtr VChar, "s") ];
-           is_variadic = false;
-           is_extern = true;
-         })
+      (func_decl ~is_extern:true VInt "puts" [ (VPtr VChar, "s") ])
   with
   | FuncDecl
       { ret_type = VInt; params = [ (VPtr VChar, "s") ]; is_extern = true; _ }
@@ -1394,15 +1249,7 @@ let test_func_decl _ =
   let env = default_env () in
   ignore
     (typecheck_stmt env
-       (FuncDecl
-          {
-            pos = dummy_pos;
-            ret_type = VInt;
-            name = "puts";
-            params = [ (VPtr VChar, "s") ];
-            is_variadic = false;
-            is_extern = true;
-          }));
+       (func_decl ~is_extern:true VInt "puts" [ (VPtr VChar, "s") ]));
   check_typ ~env Int ("puts" $ [ StringLiteral (p, [ 104; 105 ]) ])
 
 let test_variadic_func_call _ =
