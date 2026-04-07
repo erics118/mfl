@@ -1,18 +1,20 @@
+extern int printf(char* fmt, ...);
+
 int main() {
     int x = 10;
     int* p = &x;
     int* q = p + 3;
-    printint((int)(q - p));
+    printf("%d\n", (int)(q - p));
 
     char c = 0;
     char* cp = &c;
     char* cq = cp + 7;
-    printint((int)(cq - cp));
+    printf("%d\n", (int)(cq - cp));
 
     long* lp = (long*)p;
     long* lq = lp + 2;
-    printint((int)(lq - lp));
+    printf("%d\n", (int)(lq - lp));
 
     int* r = q - 2;
-    printint((int)(r - p));
+    printf("%d\n", (int)(r - p));
 }

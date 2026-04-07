@@ -75,21 +75,7 @@ let zext_attr = Llvm.create_enum_attr context "zeroext" 0L
 let ensure_function_declared name =
   match Llvm.lookup_function name the_module with
   | Some fn -> fn
-  | None -> begin
-      match name with
-      | "printint" ->
-          let ty = Llvm.function_type void_type [| int_type |] in
-          Llvm.declare_function name ty the_module
-      | "printbool" ->
-          let ty = Llvm.function_type void_type [| bool_type |] in
-          let fn = Llvm.declare_function name ty the_module in
-          Llvm.add_function_attr fn zext_attr (Llvm.AttrIndex.Param 0);
-          fn
-      | "malloc" ->
-          let ty = Llvm.function_type pointer_type [| long_type |] in
-          Llvm.declare_function name ty the_module
-      | _ -> failwith ("undefined function: " ^ name)
-    end
+  | None -> failwith ("undefined function: " ^ name)
 
 (* convert a typechecker typ to an llvm type *)
 let rec llvm_of_typ = function

@@ -2,63 +2,6 @@ open Ast
 open Codegen_context
 open Codegen_expr
 
-let builtin_names = [ "printint"; "printbool"; "malloc" ]
-let is_builtin name = List.mem name builtin_names
-
-let rec collect_builtin_expr acc = function
-  | IntLiteral _
-  | FloatLiteral _
-  | DoubleLiteral _
-  | LongDoubleLiteral _
-  | BoolLiteral _
-  | CharLiteral _
-  | StringLiteral _
-  | VarRef _
-  | SizeofType _ -> acc
-  | UnaryOp (_, _, e)
-  | PreInc (_, e)
-  | PreDec (_, e)
-  | PostInc (_, e)
-  | PostDec (_, e)
-  | Cast (_, _, e)
-  | ImplicitCast (_, _, e)
-  | SizeofExpr (_, e) -> collect_builtin_expr acc e
-  | BinaryOp (_, _, lhs, rhs)
-  | Assign (_, lhs, rhs)
-  | CompoundAssign (_, _, lhs, rhs)
-  | Subscript (_, lhs, rhs) ->
-      let acc = collect_builtin_expr acc lhs in
-      collect_builtin_expr acc rhs
-  | Ternary (_, c, t, e) ->
-      let acc = collect_builtin_expr acc c in
-      let acc = collect_builtin_expr acc t in
-      collect_builtin_expr acc e
-  | MemberAccess (_, e, _) -> collect_builtin_expr acc e
-  | FuncCall (_, name, args) ->
-      let acc = if is_builtin name then name :: acc else acc in
-      List.fold_left collect_builtin_expr acc args
-
-let rec collect_builtin_stmt acc = function
-  | ExprStmt (_, e) -> collect_builtin_expr acc e
-  | ReturnStmt (_, None) | BreakStmt _ | ContinueStmt _ | EmptyStmt _ -> acc
-  | ReturnStmt (_, Some e) | VarDef { init = Some e; _ } ->
-      collect_builtin_expr acc e
-  | VarDef { init = None; _ } | Typedef _ | StructDef _ | FuncDecl _ -> acc
-  | CompoundStmt (_, stmts) -> List.fold_left collect_builtin_stmt acc stmts
-  | FuncDef { body; _ } -> List.fold_left collect_builtin_stmt acc body
-  | If { cond; then_body; else_body; _ } ->
-      let acc = collect_builtin_expr acc cond in
-      let acc = collect_builtin_stmt acc then_body in
-      Option.fold ~none:acc ~some:(collect_builtin_stmt acc) else_body
-  | WhileLoop { cond; body; _ } | DoWhileLoop { cond; body; _ } ->
-      let acc = collect_builtin_expr acc cond in
-      collect_builtin_stmt acc body
-  | ForLoop { init; cond; incr; body; _ } ->
-      let acc = collect_builtin_stmt acc init in
-      let acc = Option.fold ~none:acc ~some:(collect_builtin_expr acc) cond in
-      let acc = Option.fold ~none:acc ~some:(collect_builtin_expr acc) incr in
-      collect_builtin_stmt acc body
-
 let rec codegen_if cond then_body else_body =
   let c = codegen_expr cond in
   let fn = Llvm.block_parent (Llvm.insertion_block builder) in
@@ -283,11 +226,6 @@ and codegen_stmt = function
   | DoWhileLoop { body; cond; _ } -> codegen_do_while_loop body cond
 
 let codegen_program (stmts : checked stmt list) : unit =
-  let builtins =
-    List.fold_left collect_builtin_stmt [] stmts
-    |> List.sort_uniq String.compare
-  in
-  List.iter (fun name -> ignore (ensure_function_declared name)) builtins;
   List.iter
     (function
       | FuncDecl { ret_type; name; params; is_variadic; _ }

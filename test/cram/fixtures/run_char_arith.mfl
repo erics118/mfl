@@ -1,22 +1,24 @@
+extern int printf(char* fmt, ...);
+
 int main() {
     char a = 127;
     a++;
-    printint((int)a);
+    printf("%d\n", (int)a);
 
     unsigned char b = 200;
-    printint((int)b);
+    printf("%d\n", (int)b);
 
     unsigned char c = 255;
     c++;
-    printint((int)c);
+    printf("%d\n", (int)c);
 
     char d = -1;
-    printint((int)d);
+    printf("%d\n", (int)d);
 
     unsigned char e = 255;
-    printint((int)e);
+    printf("%d\n", (int)e);
 
     char f = -128;
     f--;
-    printint((int)f);
+    printf("%d\n", (int)f);
 }

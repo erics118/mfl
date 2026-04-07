@@ -1,4 +1,5 @@
 extern int printf(char* fmt, ...);
+void *malloc(long size);
 
 // binary search tree
 typedef struct Node {
@@ -11,7 +12,7 @@ typedef struct Node {
 void inorder(Node* n) {
     if (n == 0) return;
     inorder(n->left);
-    printint(n->val);
+    printf("%d\n", n->val);
     inorder(n->right);
 }
 
@@ -67,7 +68,7 @@ int main() {
 
     inorder(n4);
 
-    printint(sum(n4));
+    printf("%d\n", sum(n4));
 
-    printint(height(n4));
+    printf("%d\n", height(n4));
 }

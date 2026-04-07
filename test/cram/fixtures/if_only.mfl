@@ -1,6 +1,8 @@
+extern int printf(char* fmt, ...);
+
 int main() {
     int x = 5;
     if (x > 3) {
-        printint(x);
+        printf("%d\n", x);
     }
 }

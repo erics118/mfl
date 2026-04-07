@@ -1,3 +1,5 @@
+extern int printf(char* fmt, ...);
+
 struct Small {
     int x;
     int y;
@@ -9,7 +11,7 @@ struct Big {
 };
 
 int main() {
-    printint(sizeof(struct Small));
-    printint(sizeof(struct Big));
+    printf("%d\n", sizeof(struct Small));
+    printf("%d\n", sizeof(struct Big));
     return 0;
 }

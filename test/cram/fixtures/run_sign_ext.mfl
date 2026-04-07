@@ -1,14 +1,16 @@
+extern int printf(char* fmt, ...);
+
 int main() {
     char sc = -1;
     int si = sc;
-    printint(si);
+    printf("%d\n", si);
     unsigned char uc = 255;
     int ui = uc;
-    printint(ui);
+    printf("%d\n", ui);
     short ss = -1;
     int ssi = ss;
-    printint(ssi);
+    printf("%d\n", ssi);
     unsigned short us = 65535;
     int usi = us;
-    printint(usi);
+    printf("%d\n", usi);
 }

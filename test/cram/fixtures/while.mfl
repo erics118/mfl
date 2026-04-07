@@ -1,7 +1,9 @@
+extern int printf(char* fmt, ...);
+
 int main() {
     int i = 10;
     while (i > 0) {
         i = i - 1;
-        printint(i);
+        printf("%d\n", i);
     }
 }

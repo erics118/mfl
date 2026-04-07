@@ -315,8 +315,7 @@ let test_returns _ =
   roundtrip "int add(int a, int b) {\n    return a + b;\n}";
   roundtrip "bool is_ok() {\n    return true;\n}";
   roundtrip "int add(int a, int b) {\n    int x = a + b;\n    return x;\n}";
-  roundtrip "void say_hi() {}";
-  roundtrip "void print_it(int x) {\n    printint(x);\n}"
+  roundtrip "void say_hi() {}"
 
 let test_function_calls _ =
   roundtrip "foo();";

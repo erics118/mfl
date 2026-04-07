@@ -1,14 +1,16 @@
+extern int printf(char* fmt, ...);
+
 int main() {
     char a = 100;
     char b = 100;
     int sum = a + b;
-    printint(sum);
+    printf("%d\n", sum);
     unsigned char ua = 200;
     unsigned char ub = 200;
     int usum = ua + ub;
-    printint(usum);
+    printf("%d\n", usum);
     short sa = 30000;
     short sb = 10000;
     int ssum = sa + sb;
-    printint(ssum);
+    printf("%d\n", ssum);
 }

@@ -116,8 +116,8 @@ dune exec mfl -- ir program.mfl
 # pretty-print source
 dune exec mfl -- format program.mfl
 
-# link with runtime and produce a binary
-dune exec mfl -- ir program.mfl | clang -Wno-override-module -x ir - runtime/runtime.c -o program
+# compile and produce a binary
+dune exec mfl -- ir program.mfl | clang -w -x ir - -o program
 
 # run a binary
 ./program

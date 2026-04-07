@@ -1,10 +1,12 @@
+extern int printf(char* fmt, ...);
+
 int main() {
-    printint(-7 / 2);
-    printint(7 / -2);
-    printint(-7 / -2);
-    printint(-7 % 3);
-    printint(7 % -3);
-    printint(-7 % -3);
-    printint(100 / 10);
-    printint(100 % 10);
+    printf("%d\n", -7 / 2);
+    printf("%d\n", 7 / -2);
+    printf("%d\n", -7 / -2);
+    printf("%d\n", -7 % 3);
+    printf("%d\n", 7 % -3);
+    printf("%d\n", -7 % -3);
+    printf("%d\n", 100 / 10);
+    printf("%d\n", 100 % 10);
 }

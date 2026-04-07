@@ -1222,20 +1222,6 @@ let test_missing_return _ =
        (func_def VInt "f" []
           [ if_ ~else_:(Some (ret (i 2))) (b true) (ret (i 1)) ]))
 
-let test_typecheck_program _ =
-  let program =
-    [
-      var_def ~init:(Some (i 1)) VInt "x";
-      ExprStmt (dummy_pos, FuncCall (p, "printint", [ !"x" ]));
-    ]
-  in
-  match typecheck_program program with
-  | [
-   VarDef { name = "x"; init = Some init; _ };
-   ExprStmt (_, FuncCall (Checked (_, Void), "printint", [ VarRef (_, "x") ]));
-  ] -> assert_equal ~printer:string_of_typ Int (expr_typ init)
-  | _ -> assert_failure "expected typed program using stdlib printint"
-
 let test_func_decl _ =
   begin match
     typecheck_stmt (default_env ())
@@ -1467,7 +1453,6 @@ let tests =
          "break_continue" >:: test_break_continue;
          "break_continue_errors" >:: test_break_continue_errors;
          "missing_return" >:: test_missing_return;
-         "typecheck_program" >:: test_typecheck_program;
          "func_decl" >:: test_func_decl;
          "variadic_func_call" >:: test_variadic_func_call;
          "incdec" >:: test_incdec;

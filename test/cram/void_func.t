@@ -2,14 +2,16 @@
   ; ModuleID = 'mfl'
   source_filename = "mfl"
   
-  declare void @printint(i32)
+  @.str.0 = private unnamed_addr constant [4 x i8] c"%d\0A\00"
+  
+  declare i32 @printf(ptr, ...)
   
   define void @greet(i32 %x) {
   entry:
     %x1 = alloca i32, align 4
     store i32 %x, ptr %x1, align 4
     %x2 = load i32, ptr %x1, align 4
-    call void @printint(i32 %x2)
+    %calltmp = call i32 (ptr, ...) @printf(ptr @.str.0, i32 %x2)
     ret void
   }
   

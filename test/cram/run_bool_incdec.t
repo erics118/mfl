@@ -1,5 +1,5 @@
   $ dune exec mfl -- run fixtures/run_bool_incdec.mfl
-  true
-  true
-  false
-  true
+  1
+  1
+  0
+  1

@@ -1,3 +1,5 @@
+extern int printf(char* fmt, ...);
+
 int main() {
     int i = 0;
     while (true) {
@@ -15,7 +17,7 @@ int main() {
         }
         sum = sum + j;
     }
-    printint(i);
-    printint(sum);
+    printf("%d\n", i);
+    printf("%d\n", sum);
     return 0;
 }

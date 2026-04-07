@@ -1,7 +1,9 @@
+extern int printf(char* fmt, ...);
+
 int main() {
     int i;
     for (i = 0; i < 3; ++i) {
-        printint(i);
+        printf("%d\n", i);
     }
     for (int j = 0;; ++j) {
         if (j >= 3) {

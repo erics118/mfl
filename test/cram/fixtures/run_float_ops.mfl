@@ -1,22 +1,24 @@
+extern int printf(char* fmt, ...);
+
 int main() {
     float f = 1.5f;
     double d = 2.25;
 
-    printint((int)(f + 2));
-    printint((int)(d - f));
-    printint((int)(f * d));
-    printint((int)(d / 0.5));
+    printf("%d\n", (int)(f + 2));
+    printf("%d\n", (int)(d - f));
+    printf("%d\n", (int)(f * d));
+    printf("%d\n", (int)(d / 0.5));
 
-    printbool(f < d);
-    printbool(f == 1.5f);
-    printbool((bool)f);
-    printbool((bool)0.0);
+    printf("%d\n", f < d);
+    printf("%d\n", f == 1.5f);
+    printf("%d\n", (bool)f);
+    printf("%d\n", (bool)0.0);
 
     float x = 1.0f;
-    printint((int)(++x));
-    printint((int)x);
+    printf("%d\n", (int)(++x));
+    printf("%d\n", (int)x);
 
     double y = 2.0;
-    printint((int)(y++));
-    printint((int)y);
+    printf("%d\n", (int)(y++));
+    printf("%d\n", (int)y);
 }

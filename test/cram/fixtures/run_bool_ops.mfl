@@ -1,21 +1,23 @@
+extern int printf(char* fmt, ...);
+
 int main() {
-    printbool((bool)0);
-    printbool((bool)1);
-    printbool((bool)42);
-    printbool((bool)(-1));
-    printbool(1 == 1);
-    printbool(1 == 2);
-    printbool(1 != 2);
-    printbool(3 > 2);
-    printbool(2 > 3);
+    printf("%d\n", (bool)0);
+    printf("%d\n", (bool)1);
+    printf("%d\n", (bool)42);
+    printf("%d\n", (bool)(-1));
+    printf("%d\n", 1 == 1);
+    printf("%d\n", 1 == 2);
+    printf("%d\n", 1 != 2);
+    printf("%d\n", 3 > 2);
+    printf("%d\n", 2 > 3);
 
     bool t = true;
     bool f = false;
-    printbool(t && t);
-    printbool(t && f);
-    printbool(f && t);
-    printbool(f || t);
-    printbool(f || f);
-    printbool(!t);
-    printbool(!f);
+    printf("%d\n", t && t);
+    printf("%d\n", t && f);
+    printf("%d\n", f && t);
+    printf("%d\n", f || t);
+    printf("%d\n", f || f);
+    printf("%d\n", !t);
+    printf("%d\n", !f);
 }

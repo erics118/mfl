@@ -1,18 +1,20 @@
+extern int printf(char* fmt, ...);
+
 int main() {
     int x = 5;
     int y = x++;
-    printint(y);
-    printint(x);
+    printf("%d\n", y);
+    printf("%d\n", x);
     x = 5;
     int z = ++x;
-    printint(z);
-    printint(x);
+    printf("%d\n", z);
+    printf("%d\n", x);
     int a = 3;
     int b = a--;
-    printint(b);
-    printint(a);
+    printf("%d\n", b);
+    printf("%d\n", a);
     a = 3;
     int c = --a;
-    printint(c);
-    printint(a);
+    printf("%d\n", c);
+    printf("%d\n", a);
 }

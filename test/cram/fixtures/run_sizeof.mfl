@@ -1,3 +1,5 @@
+extern int printf(char* fmt, ...);
+
 int main() {
     int x;
     char c;
@@ -5,14 +7,14 @@ int main() {
     int* p;
     int arr[3];
 
-    printint(sizeof x);
-    printint(sizeof c);
-    printint(sizeof b);
-    printint(sizeof p);
-    printint(sizeof arr);
-    printint(sizeof(int));
-    printint(sizeof(char));
-    printint(sizeof(bool));
-    printint(sizeof(int*));
+    printf("%d\n", sizeof x);
+    printf("%d\n", sizeof c);
+    printf("%d\n", sizeof b);
+    printf("%d\n", sizeof p);
+    printf("%d\n", sizeof arr);
+    printf("%d\n", sizeof(int));
+    printf("%d\n", sizeof(char));
+    printf("%d\n", sizeof(bool));
+    printf("%d\n", sizeof(int*));
     return 0;
 }

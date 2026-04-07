@@ -3,10 +3,10 @@
   0
   3
   4
-  true
-  true
-  true
-  false
+  1
+  1
+  1
+  0
   2
   2
   2

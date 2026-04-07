@@ -2,7 +2,10 @@
   ; ModuleID = 'mfl'
   source_filename = "mfl"
   
-  declare void @printint(i32)
+  @.str.0 = private unnamed_addr constant [4 x i8] c"%d\0A\00"
+  @.str.1 = private unnamed_addr constant [4 x i8] c"%d\0A\00"
+  
+  declare i32 @printf(ptr, ...)
   
   define i32 @main() {
   entry:
@@ -53,9 +56,9 @@
   
   while_after5:                                     ; preds = %while_cond3
     %i16 = load i32, ptr %i, align 4
-    call void @printint(i32 %i16)
+    %calltmp = call i32 (ptr, ...) @printf(ptr @.str.0, i32 %i16)
     %sum17 = load i32, ptr %sum, align 4
-    call void @printint(i32 %sum17)
+    %calltmp18 = call i32 (ptr, ...) @printf(ptr @.str.1, i32 %sum17)
     ret i32 0
   
   then10:                                           ; preds = %while_body4

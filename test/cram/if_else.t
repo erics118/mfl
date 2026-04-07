@@ -2,7 +2,10 @@
   ; ModuleID = 'mfl'
   source_filename = "mfl"
   
-  declare void @printint(i32)
+  @.str.0 = private unnamed_addr constant [4 x i8] c"%d\0A\00"
+  @.str.1 = private unnamed_addr constant [4 x i8] c"%d\0A\00"
+  
+  declare i32 @printf(ptr, ...)
   
   define i32 @main() {
   entry:
@@ -14,11 +17,11 @@
   
   then:                                             ; preds = %entry
     %x2 = load i32, ptr %x, align 4
-    call void @printint(i32 %x2)
+    %calltmp = call i32 (ptr, ...) @printf(ptr @.str.0, i32 %x2)
     br label %merge
   
   else:                                             ; preds = %entry
-    call void @printint(i32 0)
+    %calltmp3 = call i32 (ptr, ...) @printf(ptr @.str.1, i32 0)
     br label %merge
   
   merge:                                            ; preds = %else, %then

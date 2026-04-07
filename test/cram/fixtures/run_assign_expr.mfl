@@ -1,18 +1,20 @@
+extern int printf(char* fmt, ...);
+
 int main() {
     int x = 0;
     int y = (x = 42);
-    printint(y);
-    printint(x);
+    printf("%d\n", y);
+    printf("%d\n", x);
     int a = 0;
     int b = 0;
     a = b = 10;
-    printint(a);
-    printint(b);
+    printf("%d\n", a);
+    printf("%d\n", b);
     int n = 5;
     if (n = 0) {
-        printint(1);
+        printf("%d\n", 1);
     } else {
-        printint(0);
+        printf("%d\n", 0);
     }
-    printint(n);
+    printf("%d\n", n);
 }

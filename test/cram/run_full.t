@@ -1,3 +1,3 @@
   $ dune exec mfl -- run fixtures/full.mfl
-  false
+  0
   4

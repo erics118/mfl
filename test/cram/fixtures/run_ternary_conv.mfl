@@ -1,10 +1,12 @@
+extern int printf(char* fmt, ...);
+
 int main() {
     char c = -1;
     int result = 1 ? c : 100;
-    printint(result);
+    printf("%d\n", result);
     int result2 = 0 ? 100 : c;
-    printint(result2);
+    printf("%d\n", result2);
     int big = 100000;
     int result3 = 1 ? big : c;
-    printint(result3);
+    printf("%d\n", result3);
 }

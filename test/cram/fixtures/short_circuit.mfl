@@ -1,5 +1,7 @@
+extern int printf(char* fmt, ...);
+
 bool side(int n) {
-    printint(n);
+    printf("%d\n", n);
     return true;
 }
 

@@ -1,17 +1,19 @@
+extern int printf(char* fmt, ...);
+
 int main() {
     bool a = false;
     a++;
-    printbool(a);
+    printf("%d\n", a);
 
     bool b = true;
     b++;
-    printbool(b);
+    printf("%d\n", b);
 
     bool c = true;
     c--;
-    printbool(c);
+    printf("%d\n", c);
 
     bool d = false;
     d--;
-    printbool(d);
+    printf("%d\n", d);
 }

@@ -1,3 +1,5 @@
+extern int printf(char* fmt, ...);
+
 int main() {
     int arr1 = 10;
     int arr2 = 20;
@@ -6,11 +8,11 @@ int main() {
     int* orig = p;
     p++;
     long diff = p - orig;
-    printint((int)diff);
+    printf("%d\n", (int)diff);
     p++;
     diff = p - orig;
-    printint((int)diff);
+    printf("%d\n", (int)diff);
     p--;
     diff = p - orig;
-    printint((int)diff);
+    printf("%d\n", (int)diff);
 }

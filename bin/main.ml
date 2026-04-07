@@ -60,17 +60,12 @@ let run_run input =
   let ir = Codegen.emit_ir () in
   let ir_file = Filename.temp_file "mfl" ".ll" in
   let bin_file = Filename.temp_file "mfl" "" in
-  let runtime = "runtime/runtime.c" in
-  if not (Sys.file_exists runtime) then (
-    Printf.eprintf "mfl: runtime not found\n";
-    exit 1);
   let oc = open_out ir_file in
   output_string oc ir;
   close_out oc;
   let clang_exit =
     Sys.command
-      (Printf.sprintf "clang -Wno-override-module %s %s -o %s"
-         (Filename.quote ir_file) (Filename.quote runtime)
+      (Printf.sprintf "clang -w %s -o %s" (Filename.quote ir_file)
          (Filename.quote bin_file))
   in
   Sys.remove ir_file;

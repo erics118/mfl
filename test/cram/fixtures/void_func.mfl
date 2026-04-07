@@ -1,5 +1,7 @@
+extern int printf(char* fmt, ...);
+
 void greet(int x) {
-    printint(x);
+    printf("%d\n", x);
 }
 
 int main() {

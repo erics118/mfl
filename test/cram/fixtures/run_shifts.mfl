@@ -1,16 +1,18 @@
+extern int printf(char* fmt, ...);
+
 int main() {
     int x = -8;
-    printint(x >> 1);
-    printint(x >> 2);
-    printint(-1 >> 31);
-    printint(1 << 10);
-    printint(1 << 30);
+    printf("%d\n", x >> 1);
+    printf("%d\n", x >> 2);
+    printf("%d\n", -1 >> 31);
+    printf("%d\n", 1 << 10);
+    printf("%d\n", 1 << 30);
 
     unsigned int u = 2147483648;
-    printint((int)(u >> 1));
-    printint((int)(u >> 31));
+    printf("%d\n", (int)(u >> 1));
+    printf("%d\n", (int)(u >> 31));
 
     unsigned int a = 255;
-    printint((int)(a << 8));
-    printint((int)(a << 16));
+    printf("%d\n", (int)(a << 8));
+    printf("%d\n", (int)(a << 16));
 }

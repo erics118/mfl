@@ -2,7 +2,9 @@
   ; ModuleID = 'mfl'
   source_filename = "mfl"
   
-  declare void @printint(i32)
+  @.str.0 = private unnamed_addr constant [4 x i8] c"%d\0A\00"
+  
+  declare i32 @printf(ptr, ...)
   
   define i32 @main() {
   entry:
@@ -26,7 +28,7 @@
   
   for_body:                                         ; preds = %for_cond
     %i2 = load i32, ptr %i, align 4
-    call void @printint(i32 %i2)
+    %calltmp = call i32 (ptr, ...) @printf(ptr @.str.0, i32 %i2)
     br label %for_incr
   
   for_after:                                        ; preds = %for_cond
