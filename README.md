@@ -10,7 +10,11 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [x] `float`, `double`, `long double`
 - [x] pointer types: `int *p`
 - [x] array types: `int a[10]`
+- [ ] multidimensional arrays: `int a[3][4]`
+- [ ] variable-length arrays: `int a[n]`
+- [ ] flexible array members: `struct { int n; int data[]; }`
 - [x] `struct` (named, anonymous, typedef-ed)
+- [ ] bit fields: `struct { unsigned int x : 4; }`
 - [ ] `union`
 - [ ] `enum`
 - [x] `typedef`
@@ -47,9 +51,13 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [x] simple float literals: `3.14`
 - [ ] exponent float literals: `1e-9`
 - [x] floating point suffixes: `3.14f`, `2.71828L`
+- [ ] compound literals: `(int[]){1, 2, 3}`, `(struct Point){1, 2}`
 
 **statements**
 - [x] variable declarations with initializer: `int x = 0`
+- [ ] aggregate initializers: `int a[] = {1, 2}`, `struct Point p = {1, 2}`
+- [ ] string-to-array initialization: `char s[] = "hello"`
+- [ ] designated initializers: `struct Point p = {.x = 1, .y = 2}`, `int a[5] = {[2] = 7}`
 - [x] `if`/`else`
 - [x] `while`, `for`
 - [x] `return`
@@ -68,15 +76,21 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [x] implicit `return 0` for `main`, implicit `ret void` for void functions
 - [x] forward declarations: `int foo(int x);`
 - [x] `extern` declarations
-- [x] variadic functions: `va_list`, `va_start`, `va_end`
+- [x] variadic functions declarations: `extern int printf(char* fmt, ...);`
+- [ ] variadic function definitions: `va_list`, `va_start`, `va_arg`, `va_end`
 - [ ] `(void)` parameter list: `void foo(void)` vs `void foo()`
+- [ ] `inline` functions: `inline int square(int x)`
 
 **scoping**
 - [x] function scope
 - [x] block scoping
 - [ ] global variables
-- [ ] `static` local variables
-- [ ] `static`, `const`, `extern`, `volatile` qualifiers
+- [ ] `static` qualifier
+- [ ] `const` qualifier
+- [ ] `extern` qualifier for variables
+- [x] `extern` qualifier for functions
+- [ ] `volatile` qualifier
+- [ ] `restrict` qualifier
 
 **types**
 - [x] array-to-pointer decay: `int a[10]; int *p = a`
