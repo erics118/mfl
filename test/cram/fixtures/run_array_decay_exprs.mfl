@@ -1,0 +1,28 @@
+extern int printf(char* fmt, ...);
+
+int main() {
+    char yes[4];
+    yes[0] = 'y';
+    yes[1] = 'e';
+    yes[2] = 's';
+    yes[3] = '\0';
+
+    char no[3];
+    no[0] = 'n';
+    no[1] = 'o';
+    no[2] = '\0';
+
+    char* fallback = "fallback";
+
+    if (yes)
+        printf("cond-array\n");
+    if ("ab" && fallback)
+        printf("logical-string\n");
+
+    printf("%s\n", 1 ? "ab" : "");
+    printf("%s\n", 0 ? yes : fallback);
+    printf("%s\n", 1 ? yes : fallback);
+    printf("%d\n", yes != 0);
+    printf("%d\n", ("ab" != 0) && (yes != 0));
+    printf("%d\n", (1 ? no : fallback) != 0);
+}

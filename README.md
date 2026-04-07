@@ -39,7 +39,7 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [x] subscript `a[i]`
 - [x] member access `s.x`, `s->x`
 - [x] char literals: `'a'`
-- [ ] string literals: `"hello"`
+- [x] string literals: `"hello"`
 - [ ] adjacent string literal concatenation: `"foo" "bar"`
 - [x] string escape sequences: `\n`, `\t`, `\0`, `\\`, `\"`, `\xNN`
 - [ ] hex/octal literals: `0xFF`, `0777`
@@ -66,9 +66,9 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [x] definitions and calls with parameters
 - [x] `int`, `bool`, `void` return types
 - [x] implicit `return 0` for `main`, implicit `ret void` for void functions
-- [ ] forward declarations: `int foo(int x);`
-- [ ] `extern` declarations
-- [ ] variadic functions: `va_list`, `va_start`, `va_end`
+- [x] forward declarations: `int foo(int x);`
+- [x] `extern` declarations
+- [x] variadic functions: `va_list`, `va_start`, `va_end`
 - [ ] `(void)` parameter list: `void foo(void)` vs `void foo()`
 
 **scoping**

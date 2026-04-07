@@ -62,8 +62,17 @@ let implicit_cast pos to_t (e : checked expr) : checked expr =
     (* different type, need a cast *)
     ImplicitCast (Checked (pos, to_t), to_t, e)
 
+(** [decay_expr pos e] decays [e] to a pointer if [e] is an array, otherwise
+    does nothing *)
+let decay_expr pos (e : checked expr) : checked expr =
+  match expr_typ e with
+  | Array (t, _) -> implicit_cast pos (Ptr t) e
+  | _ -> e
+
 (** coerce conditional to bool *)
 let coerce_cond pos (e : checked expr) : checked expr =
+  (* value context, so we decay *)
+  let e = decay_expr pos e in
   let t = expr_typ e in
   if t = Bool then e
   else if is_scalar_type t then implicit_cast pos Bool e
@@ -105,15 +114,7 @@ let can_assign_cast from_t to_t =
   then
     (* we can explicitly cast to/from void* *)
     true
-  else
-    match (from_t, to_t) with
-    | Array (t, _), Ptr t2 ->
-        (* array decays to pointer to its element type *)
-        t = t2
-    | _ ->
-        (* otherwise, only integer-to-integer assignment conversions are
-           currently allowed *)
-        is_arithmetic_type from_t && is_arithmetic_type to_t
+  else is_arithmetic_type from_t && is_arithmetic_type to_t
 
 (** the integer constant 0 can be implicitly converted to any pointer type *)
 let is_null_ptr_constant = function
@@ -122,6 +123,8 @@ let is_null_ptr_constant = function
 
 (** apply "conversion as if by assignment" *)
 let cast_expr pos to_t (e : checked expr) : checked expr =
+  (* value context, so we decay *)
+  let e = decay_expr pos e in
   let from_t = expr_typ e in
   if can_assign_cast from_t to_t then
     (* assign cast *)
@@ -145,9 +148,9 @@ let promote_integer pos (e : checked expr) : checked expr =
 
 (** default argument promotion, used by variadic calls *)
 let default_arg_promotion pos e =
+  (* value context, so we decay *)
+  let e = decay_expr pos e in
   match expr_typ e with
-  (* decay arrays to pointers *)
-  | Array (t, _) -> implicit_cast pos (Ptr t) e
   (* cast float to double *)
   | Float -> implicit_cast pos Double e
   (* promote to int *)
@@ -375,6 +378,9 @@ and typecheck_binary_op env ann op lhs rhs =
   let pos = pos_of ann in
   let lhs = typecheck_expr env lhs in
   let rhs = typecheck_expr env rhs in
+  (* value context, so we decay *)
+  let lhs = decay_expr pos lhs in
+  let rhs = decay_expr pos rhs in
   let lt = expr_typ lhs in
   let rt = expr_typ rhs in
   match op with
@@ -416,33 +422,40 @@ and typecheck_var_ref env ann x =
 and typecheck_unary_op env ann op e =
   let pos = pos_of ann in
   let e = typecheck_expr env e in
-  let t = expr_typ e in
   match op with
   | AddrOf ->
+      (* not a value context, no decay *)
+      let t = expr_typ e in
       (* ensure is a lvalue *)
       assert_lvalue pos e;
       UnaryOp (Checked (pos, Ptr t), op, e)
-  | Deref -> begin
-      (* ensure only deref a pointer *)
-      match t with
-      | Ptr tt when tt <> Void ->
-          (* ensure the pointer is not void *)
-          UnaryOp (Checked (pos, tt), op, e)
-      | t -> raise (Type_error (pos, UnaryTypeMismatch (op, t)))
-    end
-  | Neg ->
-      if not (is_arithmetic_type t) then
-        raise (Type_error (pos, UnaryTypeMismatch (op, t)));
-      let e = if is_integer_type t then promote_integer pos e else e in
-      UnaryOp (Checked (pos, expr_typ e), op, e)
-  | Compl ->
-      if not (is_integer_type t) then
-        raise (Type_error (pos, UnaryTypeMismatch (op, t)));
-      let e = promote_integer pos e in
-      UnaryOp (Checked (pos, expr_typ e), op, e)
-  | Not ->
-      let t = check_unary pos op t in
-      UnaryOp (Checked (pos, t), op, e)
+  | _ -> (
+      (* for other unary operators, we decay the array to a pointer *)
+      let e = decay_expr pos e in
+      let t = expr_typ e in
+      match op with
+      | Deref -> begin
+          (* ensure only deref a pointer *)
+          match t with
+          | Ptr tt when tt <> Void ->
+              (* ensure the pointer is not void *)
+              UnaryOp (Checked (pos, tt), op, e)
+          | t -> raise (Type_error (pos, UnaryTypeMismatch (op, t)))
+        end
+      | Neg ->
+          if not (is_arithmetic_type t) then
+            raise (Type_error (pos, UnaryTypeMismatch (op, t)));
+          let e = if is_integer_type t then promote_integer pos e else e in
+          UnaryOp (Checked (pos, expr_typ e), op, e)
+      | Compl ->
+          if not (is_integer_type t) then
+            raise (Type_error (pos, UnaryTypeMismatch (op, t)));
+          let e = promote_integer pos e in
+          UnaryOp (Checked (pos, expr_typ e), op, e)
+      | Not ->
+          let t = check_unary pos op t in
+          UnaryOp (Checked (pos, t), op, e)
+      | AddrOf -> assert false [@coverage off])
 
 and typecheck_ternary_op env ann cond then_e else_e =
   let pos = pos_of ann in
@@ -465,8 +478,10 @@ and typecheck_ternary_op env ann cond then_e else_e =
     let else_e = implicit_cast pos common_t else_e in
     Ternary (Checked (pos, common_t), cond, then_e, else_e)
   else
-    (* for non-arithmetic types, require exact match *)
-    let t = check_ternary pos then_t else_t in
+    (* otherwise, pointer types, so we decay *)
+    let then_e = decay_expr pos then_e in
+    let else_e = decay_expr pos else_e in
+    let t = check_ternary pos (expr_typ then_e) (expr_typ else_e) in
     Ternary (Checked (pos, t), cond, then_e, else_e)
 
 and typecheck_func_call env ann f args =

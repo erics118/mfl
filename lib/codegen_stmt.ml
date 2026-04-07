@@ -172,8 +172,7 @@ and codegen_func_sig ret_type name params is_variadic =
   let ty =
     if is_variadic then
       Llvm.var_arg_function_type (llvm_of_sig_typ ret_t) param_types
-    else
-      Llvm.function_type (llvm_of_sig_typ ret_t) param_types
+    else Llvm.function_type (llvm_of_sig_typ ret_t) param_types
   in
   let fn =
     match Llvm.lookup_function name the_module with

@@ -32,6 +32,7 @@ let f x = FloatLiteral (p, x)
 let d x = DoubleLiteral (p, x)
 let ld x = LongDoubleLiteral (p, x)
 let b b = BoolLiteral (p, b)
+let s bytes = StringLiteral (p, bytes)
 let bi op l r = BinaryOp (p, op, l, r)
 let un op e = UnaryOp (p, op, e)
 let tern cond then_e else_e = Ternary (p, cond, then_e, else_e)
@@ -648,6 +649,167 @@ let test_ternary _ =
   | _ -> assert_failure "expected arithmetic ternary conversion"
   end
 
+let test_array_decay_exprs _ =
+  let env =
+    env_with
+      [ ("a2", Array (Char, 2)); ("a3", Array (Char, 3)); ("p", Ptr Char) ]
+  in
+  begin match typecheck_expr env (tern (b true) !"a2" !"a3") with
+  | Ternary (Checked (_, Ptr Char), _, then_e, else_e) ->
+      assert_implicit_cast_to (Ptr Char) then_e;
+      assert_implicit_cast_to (Ptr Char) else_e
+  | _ -> assert_failure "expected array ternary to decay to char*"
+  end;
+  begin match typecheck_expr env (tern (b true) !"a2" !"p") with
+  | Ternary (Checked (_, Ptr Char), _, then_e, else_e) ->
+      assert_implicit_cast_to (Ptr Char) then_e;
+      assert_equal ~printer:string_of_typ (Ptr Char) (expr_typ else_e)
+  | _ -> assert_failure "expected array/pointer ternary to have char* type"
+  end;
+  begin match typecheck_expr env (bi Equal !"a2" !"a3") with
+  | BinaryOp (Checked (_, Bool), Equal, lhs, rhs) ->
+      assert_implicit_cast_to (Ptr Char) lhs;
+      assert_implicit_cast_to (Ptr Char) rhs
+  | _ -> assert_failure "expected array equality to decay both sides"
+  end;
+  begin match typecheck_expr env (bi Neq !"a2" !"p") with
+  | BinaryOp (Checked (_, Bool), Neq, lhs, rhs) ->
+      assert_implicit_cast_to (Ptr Char) lhs;
+      assert_equal ~printer:string_of_typ (Ptr Char) (expr_typ rhs)
+  | _ -> assert_failure "expected array/pointer equality to decay array side"
+  end;
+  begin match typecheck_expr env (bi Less !"a2" !"a3") with
+  | BinaryOp (Checked (_, Bool), Less, lhs, rhs) ->
+      assert_implicit_cast_to (Ptr Char) lhs;
+      assert_implicit_cast_to (Ptr Char) rhs
+  | _ -> assert_failure "expected array comparison to decay both sides"
+  end;
+  begin match
+    typecheck_expr (default_env ()) (bi Equal (s [ 97 ]) (s [ 97; 98 ]))
+  with
+  | BinaryOp (Checked (_, Bool), Equal, lhs, rhs) ->
+      assert_implicit_cast_to (Ptr Char) lhs;
+      assert_implicit_cast_to (Ptr Char) rhs
+  | _ ->
+      assert_failure
+        "expected different-length string literal comparison to decay both \
+         sides"
+  end;
+  begin match typecheck_expr env (un Not !"a2") with
+  | UnaryOp (Checked (_, Bool), Not, operand) ->
+      assert_implicit_cast_to (Ptr Char) operand
+  | _ -> assert_failure "expected unary ! to decay arrays to pointers"
+  end;
+  begin match typecheck_expr env (bi And !"a2" !"p") with
+  | BinaryOp (Checked (_, Bool), And, lhs, rhs) ->
+      assert_implicit_cast_to Bool lhs;
+      assert_implicit_cast_to Bool rhs
+  | _ -> assert_failure "expected logical && to accept decayed array operands"
+  end;
+  (* arr + 1: array decays to char*, enabling pointer arithmetic *)
+  begin match typecheck_expr env (bi Add !"a2" (i 1)) with
+  | BinaryOp (Checked (_, Ptr Char), Add, lhs, _) ->
+      assert_implicit_cast_to (Ptr Char) lhs
+  | _ -> assert_failure "expected arr + 1 to decay arr and give char*"
+  end;
+  (* &arr: AddrOf skips decay, giving pointer-to-array not pointer-to-pointer *)
+  begin match typecheck_expr env (un AddrOf !"a2") with
+  | UnaryOp (Checked (_, Ptr (Array (Char, 2))), AddrOf, _) -> ()
+  | _ ->
+      assert_failure
+        "expected &arr to give pointer-to-array not pointer-to-pointer"
+  end;
+  (* ternary with incompatible array types: both decay but int* != char* *)
+  let env2 = env_with [ ("ai", Array (Int, 3)); ("ac", Array (Char, 3)) ] in
+  check_err ~env:env2 "expected type 'int*' but got 'char*'"
+    (tern (b true) !"ai" !"ac")
+
+let test_array_decay_stmts _ =
+  let arr_env = env_with [ ("arr", Array (Char, 3)); ("vp", Ptr Void) ] in
+  (* var init: char* p2 = arr decays *)
+  begin match
+    typecheck_stmt arr_env
+      (VarDef
+         {
+           pos = dummy_pos;
+           source_type = VPtr VChar;
+           name = "p2";
+           init = Some !"arr";
+         })
+  with
+  | VarDef { init = Some init; _ } -> assert_implicit_cast_to (Ptr Char) init
+  | _ -> assert_failure "expected array var init to decay to char*"
+  end;
+  (* var init: void* vp2 = arr -- array decays to char*, then converts to
+     void* *)
+  begin match
+    typecheck_stmt arr_env
+      (VarDef
+         {
+           pos = dummy_pos;
+           source_type = VPtr VVoid;
+           name = "vp2";
+           init = Some !"arr";
+         })
+  with
+  | VarDef { init = Some init; _ } -> assert_implicit_cast_to (Ptr Void) init
+  | _ -> assert_failure "expected array var init to decay and convert to void*"
+  end;
+  (* assign: vp = arr decays to char*, then converts to void* *)
+  begin match typecheck_expr arr_env ("vp" := !"arr") with
+  | Assign (Checked (_, Ptr Void), _, rhs) ->
+      assert_implicit_cast_to (Ptr Void) rhs
+  | _ -> assert_failure "expected array assign to void* to decay and convert"
+  end;
+  (* func call: char* and void* params both accept array args *)
+  let call_env =
+    let e = env_with [ ("arr", Array (Char, 3)) ] in
+    Hashtbl.add e.funcs "f_char"
+      { params = [ Ptr Char ]; ret = Void; is_variadic = false };
+    Hashtbl.add e.funcs "f_void"
+      { params = [ Ptr Void ]; ret = Void; is_variadic = false };
+    e
+  in
+  begin match typecheck_expr call_env ("f_char" $ [ !"arr" ]) with
+  | FuncCall (_, _, [ arg ]) -> assert_implicit_cast_to (Ptr Char) arg
+  | _ -> assert_failure "expected array arg to char* param to decay"
+  end;
+  begin match typecheck_expr call_env ("f_void" $ [ !"arr" ]) with
+  | FuncCall (_, _, [ arg ]) -> assert_implicit_cast_to (Ptr Void) arg
+  | _ -> assert_failure "expected array arg to void* param to decay and convert"
+  end;
+  (* return: array decays then converts to void* return type *)
+  let fn_env =
+    {
+      (env_with [ ("arr", Array (Char, 3)) ]) with
+      return_typ = Some (Ptr Void);
+    }
+  in
+  begin match typecheck_stmt fn_env (ReturnStmt (dummy_pos, Some !"arr")) with
+  | ReturnStmt (_, Some ret_e) -> assert_implicit_cast_to (Ptr Void) ret_e
+  | _ -> assert_failure "expected return array to decay and convert to void*"
+  end;
+  (* sizeof: array is not decayed, full array size is preserved *)
+  begin match
+    typecheck_expr
+      (env_with [ ("arr", Array (Char, 3)) ])
+      (SizeofExpr (p, !"arr"))
+  with
+  | SizeofExpr (Checked (_, Long), inner) ->
+      assert_equal ~printer:string_of_typ (Array (Char, 3)) (expr_typ inner)
+  | _ -> assert_failure "expected sizeof array to not decay"
+  end;
+  (* wrong element type: int arr[3] cannot decay to char* *)
+  let int_arr_env = env_with [ ("iarr", Array (Int, 3)) ] in
+  check_stmt_err ~env:int_arr_env "expected type 'char*' but got 'int*'"
+    (VarDef
+       {
+         pos = dummy_pos;
+         source_type = VPtr VChar;
+         name = "p";
+         init = Some !"iarr";
+       })
+
 let test_ternary_errors _ =
   (* void is not a scalar condition *)
   check_err "condition must be 'bool' but got 'void'" (tern noop (i 1) (i 2));
@@ -985,6 +1147,7 @@ let test_pointer_errors _ =
 let test_stmt_conditions _ =
   (* any scalar can be used as a condition in control flow stmts *)
   let ok s = ignore (typecheck_stmt (default_env ()) s) in
+  let ok_env env s = ignore (typecheck_stmt env s) in
   let e = EmptyStmt dummy_pos in
   ok (If { pos = dummy_pos; cond = i 1; then_body = e; else_body = None });
   ok (If { pos = dummy_pos; cond = f 1.0; then_body = e; else_body = None });
@@ -994,6 +1157,14 @@ let test_stmt_conditions _ =
   ok
     (ForLoop
        { pos = dummy_pos; init = e; cond = Some (i 1); incr = None; body = e });
+  let arr_env = env_with [ ("arr", Array (Char, 3)) ] in
+  ok_env arr_env
+    (If { pos = dummy_pos; cond = !"arr"; then_body = e; else_body = None });
+  ok_env arr_env (WhileLoop { pos = dummy_pos; cond = !"arr"; body = e });
+  ok_env arr_env (DoWhileLoop { pos = dummy_pos; body = e; cond = !"arr" });
+  ok_env arr_env
+    (ForLoop
+       { pos = dummy_pos; init = e; cond = Some !"arr"; incr = None; body = e });
   (* void is not scalar, so void conditions are still rejected *)
   check_stmt_err "condition must be 'bool' but got 'void'"
     (If { pos = dummy_pos; cond = noop; then_body = e; else_body = None });
@@ -1246,6 +1417,19 @@ let test_variadic_func_call _ =
   with
   | FuncCall (_, _, [ _; ImplicitCast (Checked (_, Double), _, _) ]) -> ()
   | _ -> assert_failure "expected float variadic arg to promote to double"
+  end;
+  (* array variable as variadic arg: decays to char* *)
+  let env2 =
+    let e = env_with [ ("arr", Array (Char, 3)) ] in
+    Hashtbl.add e.funcs "printf"
+      { params = [ Ptr Char ]; ret = Int; is_variadic = true };
+    e
+  in
+  begin match
+    typecheck_expr env2 ("printf" $ [ StringLiteral (p, [ 37; 115 ]); !"arr" ])
+  with
+  | FuncCall (_, _, [ _; ImplicitCast (Checked (_, Ptr Char), _, _) ]) -> ()
+  | _ -> assert_failure "expected array variadic arg to decay to char*"
   end
 
 let tests =
@@ -1277,6 +1461,8 @@ let tests =
          "func_call" >:: test_func_call;
          "func_call_errors" >:: test_func_call_errors;
          "ternary" >:: test_ternary;
+         "array_decay_exprs" >:: test_array_decay_exprs;
+         "array_decay_stmts" >:: test_array_decay_stmts;
          "ternary_errors" >:: test_ternary_errors;
          "var_type_resolution" >:: test_var_type_resolution;
          "typedefs" >:: test_typedefs;
