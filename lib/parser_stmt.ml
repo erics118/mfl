@@ -98,6 +98,10 @@ and parse_param st =
 and parse_func_params st =
   match st.cur_tok with
   | TokRParen -> ([], false)
+  (* (void) means no parameters, same as () *)
+  | TokVoidKw when Lexer.peek_token st.lex = TokRParen ->
+      advance st;
+      ([], false)
   | _ ->
       let rec loop rev_params =
         match st.cur_tok with
