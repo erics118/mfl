@@ -178,13 +178,33 @@ and parse_conditional_expr st =
       Ternary (Parsed pos, cond, then_e, else_e)
   | _ -> cond
 
+and compound_assign_op_of_tok = function
+  | TokPlusAssign -> Some Add
+  | TokMinusAssign -> Some Sub
+  | TokStarAssign -> Some Mul
+  | TokSlashAssign -> Some Div
+  | TokPercentAssign -> Some Mod
+  | TokAmpAssign -> Some BitAnd
+  | TokPipeAssign -> Some BitOr
+  | TokCaretAssign -> Some BitXor
+  | TokLtLtAssign -> Some LShift
+  | TokGtGtAssign -> Some RShift
+  | _ -> None
+
 and parse_expr (st : state) : parsed expr =
   let pos = cur_pos st in
   let e = parse_conditional_expr st in
-  (* after parsing the full expression, check for a assign token *)
+  (* after parsing the full expression, check for assign tokens *)
   match st.cur_tok with
   | TokAssign ->
       consume st TokAssign;
       let value = parse_expr st in
       Assign (Parsed pos, e, value)
-  | _ -> e
+  | tok -> begin
+      match compound_assign_op_of_tok tok with
+      | Some op ->
+          advance st;
+          let value = parse_expr st in
+          CompoundAssign (Parsed pos, op, e, value)
+      | None -> e
+    end

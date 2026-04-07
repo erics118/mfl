@@ -23,8 +23,10 @@ let rec collect_builtin_expr acc = function
   | Cast (_, _, e)
   | ImplicitCast (_, _, e)
   | SizeofExpr (_, e) -> collect_builtin_expr acc e
-  | BinaryOp (_, _, lhs, rhs) | Assign (_, lhs, rhs) | Subscript (_, lhs, rhs)
-    ->
+  | BinaryOp (_, _, lhs, rhs)
+  | Assign (_, lhs, rhs)
+  | CompoundAssign (_, _, lhs, rhs)
+  | Subscript (_, lhs, rhs) ->
       let acc = collect_builtin_expr acc lhs in
       collect_builtin_expr acc rhs
   | Ternary (_, c, t, e) ->

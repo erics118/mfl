@@ -209,6 +209,7 @@ let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
   | Ternary (ann, cond, t, e) -> typecheck_ternary_op env ann cond t e
   | FuncCall (ann, f, args) -> typecheck_func_call env ann f args
   | Assign (ann, x, e) -> typecheck_assign env ann x e
+  | CompoundAssign (ann, op, x, e) -> typecheck_compound_assign env ann op x e
   | PreInc (ann, e) ->
       typecheck_incdec env ann `Pre `Inc e (fun a x -> PreInc (a, x))
   | PreDec (ann, e) ->
@@ -547,6 +548,47 @@ and typecheck_assign env ann lhs rhs =
   let rhs_t = expr_typ rhs in
   if rhs_t <> lhs_t then raise (Type_error (pos, TypeMismatch (lhs_t, rhs_t)));
   Assign (Checked (pos, lhs_t), lhs, rhs)
+
+(* we need to duplicate the logic bc otherwise it requires more refactoring *)
+and typecheck_compound_assign env ann op lhs rhs =
+  let pos = pos_of ann in
+  let lhs = typecheck_expr env lhs in
+  (* lhs must be a lvalue *)
+  assert_lvalue pos lhs;
+  let lhs_t = expr_typ lhs in
+  let rhs = typecheck_expr env rhs in
+  let rhs = decay_expr pos rhs in
+  let rhs_t = expr_typ rhs in
+  let err () =
+    raise (Type_error (pos, BinaryTypeMismatch (op, lhs_t, rhs_t)))
+  in
+  let rhs =
+    match op with
+    | LShift | RShift ->
+        (* both must be integer types; promote rhs *)
+        if not (is_integer_type lhs_t && is_integer_type rhs_t) then err ();
+        promote_integer pos rhs
+    | Add | Sub ->
+        (* arithmetic, or ptr += int / ptr -= int *)
+        if is_pointer_type lhs_t then begin
+          if lhs_t = Ptr Void || not (is_integer_type rhs_t) then err ();
+          rhs
+        end
+        else begin
+          if not (is_arithmetic_type lhs_t && is_arithmetic_type rhs_t) then
+            err ();
+          implicit_cast pos lhs_t rhs
+        end
+    | Mul | Div ->
+        if not (is_arithmetic_type lhs_t && is_arithmetic_type rhs_t) then
+          err ();
+        implicit_cast pos lhs_t rhs
+    | BitAnd | BitOr | BitXor | Mod ->
+        if not (is_integer_type lhs_t && is_integer_type rhs_t) then err ();
+        implicit_cast pos lhs_t rhs
+    | _ -> assert false [@coverage off]
+  in
+  CompoundAssign (Checked (pos, lhs_t), op, lhs, rhs)
 
 and typecheck_subscript env ann a i =
   let pos = pos_of ann in

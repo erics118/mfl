@@ -54,6 +54,11 @@ let next_token st =
       advance st;
       advance st;
       TokBangEq
+  | Some '<' when peek2 st = Some '<' && peek3 st = Some '=' ->
+      advance st;
+      advance st;
+      advance st;
+      TokLtLtAssign
   | Some '<' when peek2 st = Some '<' ->
       advance st;
       advance st;
@@ -62,6 +67,11 @@ let next_token st =
       advance st;
       advance st;
       TokLtEq
+  | Some '>' when peek2 st = Some '>' && peek3 st = Some '=' ->
+      advance st;
+      advance st;
+      advance st;
+      TokGtGtAssign
   | Some '>' when peek2 st = Some '>' ->
       advance st;
       advance st;
@@ -74,10 +84,18 @@ let next_token st =
       advance st;
       advance st;
       TokAmpAmp
+  | Some '&' when peek2 st = Some '=' ->
+      advance st;
+      advance st;
+      TokAmpAssign
   | Some '|' when peek2 st = Some '|' ->
       advance st;
       advance st;
       TokPipePipe
+  | Some '|' when peek2 st = Some '=' ->
+      advance st;
+      advance st;
+      TokPipeAssign
   | Some '!' ->
       advance st;
       TokBang
@@ -88,6 +106,10 @@ let next_token st =
       advance st;
       advance st;
       TokPlusPlus
+  | Some '+' when peek2 st = Some '=' ->
+      advance st;
+      advance st;
+      TokPlusAssign
   | Some '-' when peek2 st = Some '-' ->
       advance st;
       advance st;
@@ -96,6 +118,10 @@ let next_token st =
       advance st;
       advance st;
       TokArrow
+  | Some '-' when peek2 st = Some '=' ->
+      advance st;
+      advance st;
+      TokMinusAssign
   | Some '+' ->
       advance st;
       TokPlus
@@ -112,12 +138,24 @@ let next_token st =
   | Some '.' ->
       advance st;
       TokDot
+  | Some '*' when peek2 st = Some '=' ->
+      advance st;
+      advance st;
+      TokStarAssign
   | Some '*' ->
       advance st;
       TokStar
+  | Some '/' when peek2 st = Some '=' ->
+      advance st;
+      advance st;
+      TokSlashAssign
   | Some '/' ->
       advance st;
       TokSlash
+  | Some '%' when peek2 st = Some '=' ->
+      advance st;
+      advance st;
+      TokPercentAssign
   | Some '%' ->
       advance st;
       TokPercent
@@ -133,6 +171,10 @@ let next_token st =
   | Some '|' ->
       advance st;
       TokPipe
+  | Some '^' when peek2 st = Some '=' ->
+      advance st;
+      advance st;
+      TokCaretAssign
   | Some '^' ->
       advance st;
       TokCaret

@@ -191,6 +191,16 @@ let is_type_keyword = function
   | TokDot
   | TokArrow
   | TokEllipsis
+  | TokPlusAssign
+  | TokMinusAssign
+  | TokStarAssign
+  | TokSlashAssign
+  | TokPercentAssign
+  | TokAmpAssign
+  | TokPipeAssign
+  | TokCaretAssign
+  | TokLtLtAssign
+  | TokGtGtAssign
   | TokEof -> false
 
 let is_type_token st =

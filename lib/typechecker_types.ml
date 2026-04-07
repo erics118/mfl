@@ -110,6 +110,7 @@ let expr_typ : checked expr -> typ = function
   | Ternary (ann, _, _, _)
   | FuncCall (ann, _, _)
   | Assign (ann, _, _)
+  | CompoundAssign (ann, _, _, _)
   | PreInc (ann, _)
   | PreDec (ann, _)
   | PostInc (ann, _)

@@ -72,6 +72,9 @@ let rec pp_expr_aux : type a. ?parent_prec:int -> a expr -> string =
       Printf.sprintf "%s(%s)" name args_str
   | Assign (_, e, value) ->
       Printf.sprintf "%s = %s" (pp_expr_aux e) (pp_expr_aux value)
+  | CompoundAssign (_, op, e, value) ->
+      Printf.sprintf "%s %s= %s" (pp_expr_aux e) (string_of_op op)
+        (pp_expr_aux value)
   | PreInc (_, e) -> "++" ^ pp_expr_aux e
   | PreDec (_, e) -> "--" ^ pp_expr_aux e
   (* postfix binds tighter than any prefix operator, so any prefix-op operand

@@ -62,6 +62,16 @@ type token =
   | TokMinusMinus  (** [--] *)
   (* assignment *)
   | TokAssign  (** [=] *)
+  | TokPlusAssign  (** [+=] *)
+  | TokMinusAssign  (** [-=] *)
+  | TokStarAssign  (** [*=] *)
+  | TokSlashAssign  (** [/=] *)
+  | TokPercentAssign  (** [%=] *)
+  | TokAmpAssign  (** [&=] *)
+  | TokPipeAssign  (** [|=] *)
+  | TokCaretAssign  (** [^=] *)
+  | TokLtLtAssign  (** [<<=] *)
+  | TokGtGtAssign  (** [>>=] *)
   (* punctuation *)
   | TokLParen  (** [ ( ] *)
   | TokRParen  (** [ ) ] *)
@@ -140,6 +150,16 @@ let string_of_token = function
   | TokMinusMinus -> "--"
   (* assignment *)
   | TokAssign -> "="
+  | TokPlusAssign -> "+="
+  | TokMinusAssign -> "-="
+  | TokStarAssign -> "*="
+  | TokSlashAssign -> "/="
+  | TokPercentAssign -> "%="
+  | TokAmpAssign -> "&="
+  | TokPipeAssign -> "|="
+  | TokCaretAssign -> "^="
+  | TokLtLtAssign -> "<<="
+  | TokGtGtAssign -> ">>="
   (* punctuation *)
   | TokLParen -> "("
   | TokRParen -> ")"

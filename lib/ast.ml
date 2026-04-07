@@ -237,6 +237,8 @@ type 'a expr =
   | Ternary : 'a ann * 'a expr * 'a expr * 'a expr -> 'a expr
   | FuncCall : 'a ann * string * 'a expr list -> 'a expr
   | Assign : 'a ann * 'a expr * 'a expr -> 'a expr
+  | CompoundAssign : 'a ann * op * 'a expr * 'a expr -> 'a expr
+      (** [lhs op= rhs], and lhs is only evaluated once *)
   | PreInc : 'a ann * 'a expr -> 'a expr
   | PreDec : 'a ann * 'a expr -> 'a expr
   | PostInc : 'a ann * 'a expr -> 'a expr

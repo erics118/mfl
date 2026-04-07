@@ -2,14 +2,16 @@ open Ast
 open Codegen_context
 open Typechecker_types
 
+(* calls the helper functions, which take values instead of exprs, because
+   compound assignment operation requires values *)
 let rec codegen_binop operand_typ op lhs rhs =
-  match operand_typ with
-  | Float | Double | LongDouble -> codegen_float_binop op lhs rhs
-  | _ -> codegen_int_and_ptr_binop operand_typ op lhs rhs
-
-and codegen_float_binop op lhs rhs =
   let lv = codegen_expr lhs in
   let rv = codegen_expr rhs in
+  match operand_typ with
+  | Float | Double | LongDouble -> codegen_float_binop op lv rv
+  | _ -> codegen_int_and_ptr_binop (expr_type lhs) (expr_type rhs) op lv rv
+
+and codegen_float_binop op lv rv =
   match op with
   | Add -> Llvm.build_fadd lv rv "addtmp" builder
   | Sub -> Llvm.build_fsub lv rv "subtmp" builder
@@ -25,13 +27,11 @@ and codegen_float_binop op lhs rhs =
   | Geq -> Llvm.build_fcmp Llvm.Fcmp.Oge lv rv "getmp" builder
   | _ -> assert false [@coverage off]
 
-and codegen_int_and_ptr_binop operand_typ op lhs rhs =
-  let lv = codegen_expr lhs in
-  let rv = codegen_expr rhs in
-  let signed = is_signed operand_typ in
+and codegen_int_and_ptr_binop lhs_t rhs_t op lv rv =
+  let signed = is_signed lhs_t in
   match op with
   | Add -> (
-      match (expr_type lhs, expr_type rhs) with
+      match (lhs_t, rhs_t) with
       | Ptr t, _ ->
           (* ptr + int: ptr is lv, index is rv *)
           Llvm.build_gep (llvm_of_typ t) lv [| rv |] "addtmp" builder
@@ -40,7 +40,7 @@ and codegen_int_and_ptr_binop operand_typ op lhs rhs =
           Llvm.build_gep (llvm_of_typ t) rv [| lv |] "addtmp" builder
       | _ -> Llvm.build_add lv rv "addtmp" builder)
   | Sub -> (
-      match (expr_type lhs, expr_type rhs) with
+      match (lhs_t, rhs_t) with
       | Ptr t, Ptr _ ->
           (* ptr - ptr: calculate ptrdiff with ptrtoint then sub *)
           let li = Llvm.build_ptrtoint lv long_type "ptrdiffl" builder in
@@ -232,9 +232,21 @@ and codegen_expr (e : checked expr) : Llvm.llvalue =
       codegen_func_call ret_t name args
   | Assign (Checked _, e, value) ->
       let ptr = lvalue_ptr e in
-      let v = codegen_expr value in
-      emit_store (expr_type value) v ptr;
-      v (* return the computation value, not memory value *)
+      let result = codegen_expr value in
+      emit_store (expr_type value) result ptr;
+      result (* return the computation value, not memory value *)
+  | CompoundAssign (Checked (_, lhs_t), op, lhs_e, rhs_e) ->
+      (* compute the values first *)
+      let ptr = lvalue_ptr lhs_e in
+      let lv = emit_load lhs_t ptr "lhs" in
+      let rv = codegen_expr rhs_e in
+      let result =
+        match lhs_t with
+        | Float | Double | LongDouble -> codegen_float_binop op lv rv
+        | _ -> codegen_int_and_ptr_binop lhs_t (expr_type rhs_e) op lv rv
+      in
+      emit_store lhs_t result ptr;
+      result
   | PreInc (Checked _, e) -> codegen_incdec e `Inc `Pre
   | PreDec (Checked _, e) -> codegen_incdec e `Dec `Pre
   | PostInc (Checked _, e) -> codegen_incdec e `Inc `Post
