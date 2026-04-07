@@ -1,4 +1,4 @@
-  $ dune exec mfl -- run fixtures/run_bool_ops.mfl
+  $ mfl run fixtures/run_bool_ops.mfl
   0
   1
   1

@@ -1,3 +1,3 @@
-  $ dune exec mfl -- run fixtures/div_zero_guard.mfl
+  $ mfl run fixtures/div_zero_guard.mfl
   1
   0

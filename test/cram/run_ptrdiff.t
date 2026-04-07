@@ -1,4 +1,4 @@
-  $ dune exec mfl -- run fixtures/run_ptrdiff.mfl
+  $ mfl run fixtures/run_ptrdiff.mfl
   3
   7
   2

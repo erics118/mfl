@@ -1,4 +1,4 @@
-  $ dune exec mfl -- run fixtures/run_unsigned_arith.mfl
+  $ mfl run fixtures/run_unsigned_arith.mfl
   0
   -1
   0

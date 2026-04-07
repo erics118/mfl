@@ -1,4 +1,4 @@
-  $ dune exec mfl -- ir fixtures/bitwise.mfl
+  $ mfl ir fixtures/bitwise.mfl
   ; ModuleID = 'mfl'
   source_filename = "mfl"
   

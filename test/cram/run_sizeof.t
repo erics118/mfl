@@ -1,4 +1,4 @@
-  $ dune exec mfl -- run fixtures/run_sizeof.mfl
+  $ mfl run fixtures/run_sizeof.mfl
   4
   1
   1

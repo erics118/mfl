@@ -1,4 +1,4 @@
-  $ dune exec mfl -- run fixtures/run_shifts.mfl
+  $ mfl run fixtures/run_shifts.mfl
   -4
   -2
   -1

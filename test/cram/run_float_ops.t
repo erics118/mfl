@@ -1,4 +1,4 @@
-  $ dune exec mfl -- run fixtures/run_float_ops.mfl
+  $ mfl run fixtures/run_float_ops.mfl
   3
   0
   3

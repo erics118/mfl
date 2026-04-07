@@ -1,3 +1,3 @@
-  $ dune exec mfl -- run fixtures/struct_typedef.mfl
+  $ mfl run fixtures/struct_typedef.mfl
   7
   8

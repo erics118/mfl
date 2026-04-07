@@ -1,4 +1,4 @@
-  $ dune exec mfl -- run fixtures/run_casts.mfl
+  $ mfl run fixtures/run_casts.mfl
   44
   -44
   -31072

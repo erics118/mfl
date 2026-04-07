@@ -1,4 +1,4 @@
-  $ dune exec mfl -- ir fixtures/for.mfl
+  $ mfl ir fixtures/for.mfl
   ; ModuleID = 'mfl'
   source_filename = "mfl"
   

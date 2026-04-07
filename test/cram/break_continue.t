@@ -1,4 +1,4 @@
-  $ dune exec mfl -- ir fixtures/break_continue.mfl
+  $ mfl ir fixtures/break_continue.mfl
   ; ModuleID = 'mfl'
   source_filename = "mfl"
   

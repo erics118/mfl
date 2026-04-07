@@ -1,1 +1,1 @@
-  $ dune exec mfl -- run fixtures/float.mfl
+  $ mfl run fixtures/float.mfl

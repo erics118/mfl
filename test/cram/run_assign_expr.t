@@ -1,4 +1,4 @@
-  $ dune exec mfl -- run fixtures/run_assign_expr.mfl
+  $ mfl run fixtures/run_assign_expr.mfl
   42
   42
   10

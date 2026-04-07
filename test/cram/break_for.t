@@ -1,5 +1,5 @@
 
-  $ dune exec mfl -- ir fixtures/break_for.mfl
+  $ mfl ir fixtures/break_for.mfl
   ; ModuleID = 'mfl'
   source_filename = "mfl"
   

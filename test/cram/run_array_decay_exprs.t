@@ -1,4 +1,4 @@
-  $ dune exec mfl -- run fixtures/run_array_decay_exprs.mfl
+  $ mfl run fixtures/run_array_decay_exprs.mfl
   cond-array
   logical-string
   ab

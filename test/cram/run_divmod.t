@@ -1,4 +1,4 @@
-  $ dune exec mfl -- run fixtures/run_divmod.mfl
+  $ mfl run fixtures/run_divmod.mfl
   -3
   -3
   3

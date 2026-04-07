@@ -1,2 +1,2 @@
-  $ dune exec mfl -- run fixtures/void_func.mfl
+  $ mfl run fixtures/void_func.mfl
   42

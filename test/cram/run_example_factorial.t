@@ -1,3 +1,3 @@
-  $ dune exec mfl -- run -I ../../include ../../examples/factorial.mfl
+  $ mfl run -I ../../include ../../examples/factorial.mfl
   3628800
 

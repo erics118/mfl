@@ -1,4 +1,4 @@
-  $ dune exec mfl -- run fixtures/run_incdec_vals.mfl
+  $ mfl run fixtures/run_incdec_vals.mfl
   5
   6
   6

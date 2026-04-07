@@ -1,3 +1,3 @@
-  $ dune exec mfl -- run fixtures/short_circuit.mfl
+  $ mfl run fixtures/short_circuit.mfl
   3
   4
