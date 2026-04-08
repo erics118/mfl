@@ -103,7 +103,7 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [x] `/* */` block comments
 
 **preprocessor**
-- [ ] `#include`
+- [x] `#include`
 - [ ] `#define` / `#undef` — object-like and function-like macros
 - [ ] `#` stringification and `##` token pasting
 - [ ] variadic macros: `#define log(...) __VA_ARGS__`
@@ -169,6 +169,7 @@ resources:
 - https://mapping-high-level-constructs-to-llvm-ir.readthedocs.io/en/latest/
 - https://github.com/DoctorWkt/acwj
 - a lot of cppreference
+- c preprocessor: https://gcc.gnu.org/onlinedocs/cpp/
 
 gadt:
 - https://ocaml.org/manual/5.4/gadts-tutorial.html
