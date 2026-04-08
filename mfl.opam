@@ -12,6 +12,8 @@ bug-reports: "https://github.com/username/reponame/issues"
 depends: [
   "dune" {>= "3.20"}
   "ocaml"
+  "llvm"
+  "ounit2" {with-test}
   "odoc" {with-doc}
 ]
 build: [

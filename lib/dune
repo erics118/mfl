@@ -18,6 +18,7 @@
   parser_types
   parser
   pretty
+  optimize
   typechecker_env
   typechecker_error
   typechecker_expr

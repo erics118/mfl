@@ -19,7 +19,10 @@
  (name mfl)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends ocaml)
+ (depends
+  ocaml
+  llvm
+  (ounit2 :with-test))
  (tags
   ("add topics" "to describe" your project)))
 

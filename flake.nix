@@ -39,6 +39,7 @@
             NIX_CFLAGS_COMPILE = "-Wno-override-module";
             OCAMLRUNPARAM = "b,v=61";
             packages = with pkgs; [
+              clang
               ocaml
               opam
               dune_3
