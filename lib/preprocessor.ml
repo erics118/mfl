@@ -30,12 +30,36 @@ let rec handle_include env ~file ~line_no rest buf =
   let len = String.length rest in
   if len < 2 then
     raise (Preprocess_error (make_pos line_no, "malformed #include"));
-  let system_style = rest.[0] = '<' && rest.[len - 1] = '>' in
-  let local_style = rest.[0] = '"' && rest.[len - 1] = '"' in
-  if not (system_style || local_style) then
-    raise (Preprocess_error (make_pos line_no, "malformed #include"));
-  let name = String.sub rest 1 (len - 2) in
-  (* for quoted includes, also search relative to the file *)
+  (* first determine delimiter style from opening char *)
+  let close_char, local_style =
+    match rest.[0] with
+    | '<' -> ('>', false)
+    | '"' -> ('"', true)
+    | _ -> raise (Preprocess_error (make_pos line_no, "malformed #include"))
+  in
+  (* find the closing delimiter *)
+  let close_pos =
+    match String.index_from_opt rest 1 close_char with
+    | None ->
+        raise
+          (Preprocess_error
+             (make_pos line_no, "unterminated filename in #include"))
+    | Some i -> i
+  in
+  let name = String.sub rest 1 (close_pos - 1) in
+  if String.length name = 0 then
+    raise (Preprocess_error (make_pos line_no, "empty filename in #include"));
+  (* error if non-whitespace follows the delimiter *)
+  (* todo: we should allow comments, or treat comments like whitespace and
+     remove them from the ast entirely *)
+  let after =
+    String.trim (String.sub rest (close_pos + 1) (len - close_pos - 1))
+  in
+  if String.length after > 0 then
+    raise
+      (Preprocess_error
+         (make_pos line_no, "detected extra tokens after #include filename"));
+  (* for quoted includes, also search relative to the current file *)
   let search_dirs =
     if local_style then Filename.dirname file :: env.include_dirs
     else env.include_dirs
@@ -48,7 +72,13 @@ let rec handle_include env ~file ~line_no rest buf =
   | Some path ->
       let content = read_file path in
       let expanded = process_file env ~file:path content in
-      Buffer.add_string buf expanded
+      Buffer.add_string buf expanded;
+      (* the line after #include is always a separate line, even if the included
+         file lacks a final newline *)
+      if
+        String.length expanded > 0
+        && expanded.[String.length expanded - 1] <> '\n'
+      then Buffer.add_char buf '\n'
 
 (* dispatch on directive name. will add #define, etc later *)
 and handle_directive env ~file ~line_no name rest buf =
