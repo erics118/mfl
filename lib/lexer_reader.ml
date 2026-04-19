@@ -20,7 +20,7 @@ let rec skip_whitespace_and_comments st =
       match peek st with
       | None ->
           (* reached end of file, error *)
-          raise (Lex_error (tok_pos st, "unterminated block comment"))
+          lex_error st "unterminated block comment"
       | Some '*' when peek2 st = Some '/' ->
           (* stop if is comment terminator *)
           advance st;
@@ -41,9 +41,7 @@ let finish_decimal_float_literal st start =
   let invalid_literal () =
     advance_while is_alnum st;
     let literal = String.sub st.input start (st.pos - start) in
-    raise
-      (Lex_error
-         (tok_pos st, Printf.sprintf "invalid numeric literal '%s'" literal))
+    lex_error st (Printf.sprintf "invalid numeric literal '%s'" literal)
   in
   let read_literal () = String.sub st.input start (st.pos - start) in
   let suffix =
@@ -80,9 +78,7 @@ let read_number st =
   let invalid_literal () =
     advance_while is_alnum st;
     let literal = String.sub st.input start (st.pos - start) in
-    raise
-      (Lex_error
-         (tok_pos st, Printf.sprintf "invalid numeric literal '%s'" literal))
+    lex_error st (Printf.sprintf "invalid numeric literal '%s'" literal)
   in
   let read_int_suffix () =
     match (peek st, peek2 st) with
@@ -154,11 +150,9 @@ let read_hex_escape_sequence st =
   let start = st.pos in
   advance_while is_hex st;
   let digits = String.sub st.input start (st.pos - start) in
-  if String.length digits = 0 then
-    raise (Lex_error (tok_pos st, "empty hex escape sequence"));
+  if String.length digits = 0 then lex_error st "empty hex escape sequence";
   let hex_val = int_of_string ("0x" ^ digits) in
-  if hex_val > 255 then
-    raise (Lex_error (tok_pos st, "hex escape out of range"));
+  if hex_val > 255 then lex_error st "hex escape out of range";
   hex_val
 
 let read_escape_sequence st =
@@ -185,7 +179,7 @@ let read_escape_sequence st =
         | Some c -> Printf.sprintf "unrecognized escape sequence '\\%c'" c
         | None -> "unrecognized escape sequence at end of input"
       in
-      raise (Lex_error (tok_pos st, msg))
+      lex_error st msg
 
 let read_string st =
   let bytes = ref [] in
@@ -202,14 +196,13 @@ let read_string st =
         bytes := value :: !bytes;
         loop ()
     (* bad characters *)
-    | Some ('\n' | '\r' | '\000') ->
-        raise (Lex_error (tok_pos st, "invalid string literal"))
+    | Some ('\n' | '\r' | '\000') -> lex_error st "invalid string literal"
     (* normal characters *)
     | Some c ->
         advance st;
         bytes := Char.code c :: !bytes;
         loop ()
-    | None -> raise (Lex_error (tok_pos st, "unterminated string literal"))
+    | None -> lex_error st "unterminated string literal"
   in
   loop ()
 
@@ -222,13 +215,13 @@ let read_char st =
         (* normal character value *)
         advance st;
         Char.code c
-    | _ -> raise (Lex_error (tok_pos st, "invalid character literal"))
+    | _ -> lex_error st "invalid character literal"
   in
   match peek st with
   | Some '\'' ->
       advance st;
       TokChar value
-  | _ -> raise (Lex_error (tok_pos st, "expected closing '\''"))
+  | _ -> lex_error st "expected closing '\''"
 
 let read_ident st =
   let start = st.pos in

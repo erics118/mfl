@@ -96,7 +96,7 @@ let unsigned_counterpart = function
   | Bool | Float | Double | LongDouble | Ptr _ | Array (_, _) | Struct _ | Void
     -> invalid_arg "unsigned counterpart"
 
-let expr_typ : checked expr -> typ = function
+let of_checked_expr (f : _ ann -> 'a) : checked expr -> 'a = function
   | IntLiteral (ann, _, _)
   | FloatLiteral (ann, _)
   | DoubleLiteral (ann, _)
@@ -120,4 +120,7 @@ let expr_typ : checked expr -> typ = function
   | ImplicitCast (ann, _, _)
   | SizeofExpr (ann, _)
   | SizeofType (ann, _)
-  | MemberAccess (ann, _, _) -> typ_of ann
+  | MemberAccess (ann, _, _) -> f ann
+
+let expr_typ = of_checked_expr typ_of
+let expr_pos = of_checked_expr pos_of

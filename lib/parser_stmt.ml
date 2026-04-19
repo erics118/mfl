@@ -51,7 +51,7 @@ and parse_compound_stmt st rev_stmts =
   | TokRBrace ->
       consume st TokRBrace;
       List.rev rev_stmts
-  | TokEof -> raise (Parse_error (cur_pos st, "expected '}'"))
+  | TokEof -> parse_error st "expected '}'"
   | _ ->
       let stmt = parse_statement st in
       parse_compound_stmt st (stmt :: rev_stmts)
@@ -110,7 +110,7 @@ and parse_func_params st =
             advance st;
             match st.cur_tok with
             | TokRParen -> (List.rev rev_params, true)
-            | _ -> raise (Parse_error (cur_pos st, "expected ')'"))
+            | _ -> parse_error st "expected ')'"
           end
         (* normal *)
         | _ -> begin
@@ -120,7 +120,7 @@ and parse_func_params st =
                 consume st TokComma;
                 loop (param :: rev_params)
             | TokRParen -> (List.rev (param :: rev_params), false)
-            | _ -> raise (Parse_error (cur_pos st, "expected ',' or ')'"))
+            | _ -> parse_error st "expected ',' or ')'"
           end
       in
       loop []
@@ -132,9 +132,7 @@ and parse_array_suffix st source_type =
     | TokInt (n, _) ->
         advance st;
         n
-    | _ ->
-        raise
-          (Parse_error (cur_pos st, "array size must be a constant integer"))
+    | _ -> parse_error st "array size must be a constant integer"
   in
   consume st TokRBracket;
   VArray (source_type, sz)
@@ -147,7 +145,7 @@ and parse_struct_body st =
     | TokRBrace ->
         consume st TokRBrace;
         List.rev acc
-    | TokEof -> raise (Parse_error (cur_pos st, "expected '}'"))
+    | TokEof -> parse_error st "expected '}'"
     | _ ->
         let field_type = parse_type_name st in
         let field_name = consume_identifier st in
@@ -182,7 +180,7 @@ and parse_struct_or_var st =
           let var_name = consume_identifier st in
           consume st TokSemicolon;
           StructDef { pos; tag; fields; var_name = Some var_name }
-      | _ -> raise (Parse_error (cur_pos st, "expected ';' or variable name")))
+      | _ -> parse_error st "expected ';' or variable name")
   | TokSemicolon ->
       (* struct Tag; - forward declaration, no-op *)
       consume st TokSemicolon;
@@ -211,7 +209,7 @@ and parse_struct_or_var st =
           VarDef { pos; source_type; name; init = None }
       | TokAssign -> parse_var_def_tail st pos base_type name
       | TokLParen -> parse_func_tail st pos base_type name ~is_extern:false
-      | _ -> raise (Parse_error (cur_pos st, "expected ';', '=', '(', or '['")))
+      | _ -> parse_error st "expected ';', '=', '(', or '['")
 
 and parse_typedef st =
   let pos = cur_pos st in
@@ -233,7 +231,7 @@ and parse_typedef st =
             else
               (* typedef struct Tag Alias; references existing struct *)
               (Some tag_name, None)
-        | _ -> raise (Parse_error (cur_pos st, "expected struct tag or '{'"))
+        | _ -> parse_error st "expected struct tag or '{'"
       in
       (* count number of ptr stars before the alias *)
       let num_stars =
@@ -291,13 +289,12 @@ and parse_func_tail st pos ret_type name ~is_extern =
       FuncDecl { pos; ret_type; name; params; is_extern; is_variadic }
   (* function definition *)
   | TokLBrace ->
-      if is_extern then
-        raise (Parse_error (cur_pos st, "extern function cannot have a body"));
+      if is_extern then parse_error st "extern function cannot have a body";
       consume st TokLBrace;
       let body = parse_scoped_compound_stmt st in
       FuncDef { pos; ret_type; name; params; is_variadic; body }
   (* neither, so error *)
-  | _ -> raise (Parse_error (cur_pos st, "expected ';' or '{'"))
+  | _ -> parse_error st "expected ';' or '{'"
   end
 
 and parse_array_def_tail st pos source_type name =
@@ -323,11 +320,11 @@ and parse_declaration ~is_extern st =
   | TokSemicolon ->
       if is_extern then
         (* todo: support extern variable later *)
-        raise (Parse_error (cur_pos st, "extern can only declare a function"));
+        parse_error st "extern can only declare a function";
       (* if see ;, then end the declaration *)
       consume st TokSemicolon;
       VarDef { pos; source_type = var_ty; name; init = None }
-  | _ -> raise (Parse_error (cur_pos st, "expected '='"))
+  | _ -> parse_error st "expected '='"
 
 and parse_if st =
   let pos = cur_pos st in
@@ -385,8 +382,7 @@ and parse_for st =
 let parse (input : string) : parsed stmt =
   let st = create (Lexer.create input) in
   advance st;
-  if st.cur_tok = TokEof then
-    raise (Parse_error (cur_pos st, "unexpected end of input"))
+  if st.cur_tok = TokEof then parse_error st "unexpected end of input"
   else
     let program_pos = cur_pos st in
     let rec parse_statements rev_stmts =

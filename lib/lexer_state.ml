@@ -1,5 +1,6 @@
 (** raised on invalid input *)
-exception Lex_error of Ast.pos * string
+let lex_error_at pos msg =
+  Diagnostic.raise_error (Diagnostic.make Diagnostic.Lexer pos msg)
 
 type state = {
   input : string;
@@ -30,6 +31,7 @@ let advance st =
     token, after whitespace was skipped *)
 let tok_pos st = Ast.{ line = st.tok_line; col = st.tok_col }
 
+let lex_error st msg = lex_error_at (tok_pos st) msg
 let is_digit c = c >= '0' && c <= '9'
 let is_alpha c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c = '_'
 let is_alnum c = is_digit c || is_alpha c

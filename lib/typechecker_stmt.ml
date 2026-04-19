@@ -39,10 +39,10 @@ let rec typecheck_stmt (env : env) (stmt : parsed stmt) : checked stmt =
       (* trivial *)
       EmptyStmt pos
   | BreakStmt pos ->
-      if not env.in_loop then raise (Type_error (pos, BreakOutsideLoop));
+      if not env.in_loop then type_error pos BreakOutsideLoop;
       BreakStmt pos
   | ContinueStmt pos ->
-      if not env.in_loop then raise (Type_error (pos, ContinueOutsideLoop));
+      if not env.in_loop then type_error pos ContinueOutsideLoop;
       ContinueStmt pos
   | ExprStmt (pos, e) ->
       (* we can just check the inner expr *)
@@ -90,20 +90,20 @@ and typecheck_return env pos e =
   (* if return type is None, that means we are returning outside a function *)
   let ret =
     match env.return_typ with
-    | None -> raise (Type_error (pos, ReturnOutsideFunction))
+    | None -> type_error pos ReturnOutsideFunction
     | Some t -> t
   in
   match e with
   | None ->
       (* if the return value is also void, good *)
-      if ret <> Void then raise (Type_error (pos, TypeMismatch (ret, Void)));
+      if ret <> Void then type_error pos (TypeMismatch (ret, Void));
       ReturnStmt (pos, None)
   | Some e ->
       (* ensure that return value is equal to ret, the correct return type *)
       let e = typecheck_expr env e in
-      let e = cast_expr pos ret e in
+      let e = cast_expr_at pos ret e in
       let t = expr_typ e in
-      if t <> ret then raise (Type_error (pos, TypeMismatch (ret, t)));
+      if t <> ret then type_error pos (TypeMismatch (ret, t));
       ReturnStmt (pos, Some e)
 
 and typecheck_var_def env pos source_type name init =
@@ -114,11 +114,10 @@ and typecheck_var_def env pos source_type name init =
     | None -> None
     | Some init -> begin
         let init = typecheck_expr env init in
-        let init = cast_expr pos var_t init in
+        let init = cast_expr_at pos var_t init in
         let init_t = expr_typ init in
         (* ensure init has the right type *)
-        if var_t <> init_t then
-          raise (Type_error (pos, TypeMismatch (var_t, init_t)));
+        if var_t <> init_t then type_error pos (TypeMismatch (var_t, init_t));
         Some init
       end
   in
@@ -198,7 +197,7 @@ and typecheck_func_def env pos ret_type name params body =
     params;
   let body = List.map (typecheck_stmt fn_env) body in
   if ret_t <> Void && name <> "main" && stmts_can_fall_through body then
-    raise (Type_error (pos, MissingReturn name));
+    type_error pos (MissingReturn name);
   FuncDef
     {
       pos;
@@ -211,7 +210,7 @@ and typecheck_func_def env pos ret_type name params body =
 
 and typecheck_if env pos cond then_body else_body =
   let cond = typecheck_expr env cond in
-  let cond = coerce_cond pos cond in
+  let cond = coerce_cond_at pos cond in
   (* recursively typecheck then_body *)
   let then_body = typecheck_stmt env then_body in
   (* recursively typecheck else_body is Some *)
@@ -220,7 +219,7 @@ and typecheck_if env pos cond then_body else_body =
 
 and typecheck_while env pos cond body =
   let cond = typecheck_expr env cond in
-  let cond = coerce_cond pos cond in
+  let cond = coerce_cond_at pos cond in
   let body = typecheck_stmt { env with in_loop = true } body in
   WhileLoop { pos; cond; body }
 
@@ -233,7 +232,7 @@ and typecheck_for env pos init cond incr body =
   begin match cond with
   | None -> ForLoop { pos; init; cond = None; incr; body }
   | Some cond ->
-      let cond = coerce_cond pos cond in
+      let cond = coerce_cond_at pos cond in
       (* incr can be anything, we don't need to check its type *)
       ForLoop { pos; init; cond = Some cond; incr; body }
   end
@@ -241,5 +240,5 @@ and typecheck_for env pos init cond incr body =
 and typecheck_do_while env pos body cond =
   let body = typecheck_stmt { env with in_loop = true } body in
   let cond = typecheck_expr env cond in
-  let cond = coerce_cond pos cond in
+  let cond = coerce_cond_at pos cond in
   DoWhileLoop { pos; body; cond }

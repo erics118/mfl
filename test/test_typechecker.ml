@@ -140,19 +140,23 @@ let expected_promoted_type t =
 let check_typ ?(env = default_env ()) expected e =
   match typecheck_expr env e with
   | result -> assert_equal ~printer:string_of_typ expected (expr_typ result)
-  | exception Type_error (_, err) -> assert_failure (string_of_type_error err)
+  | exception Diagnostic.Raised { stage; message; _ } ->
+      assert_equal Diagnostic.Typechecker stage;
+      assert_failure message
 
 let check_err ?(env = default_env ()) expected_err e =
   match typecheck_expr env e with
-  | _ -> assert_failure "expected Type_error"
-  | exception Type_error (_, err) ->
-      assert_equal ~printer:Fun.id expected_err (string_of_type_error err)
+  | _ -> assert_failure "expected diagnostic"
+  | exception Diagnostic.Raised { stage; message; _ } ->
+      assert_equal Diagnostic.Typechecker stage;
+      assert_equal ~printer:Fun.id expected_err message
 
 let check_stmt_err ?(env = default_env ()) expected_err s =
   match typecheck_stmt env s with
-  | _ -> assert_failure "expected Type_error"
-  | exception Type_error (_, err) ->
-      assert_equal ~printer:Fun.id expected_err (string_of_type_error err)
+  | _ -> assert_failure "expected diagnostic"
+  | exception Diagnostic.Raised { stage; message; _ } ->
+      assert_equal Diagnostic.Typechecker stage;
+      assert_equal ~printer:Fun.id expected_err message
 
 let assert_implicit_cast_to expected = function
   | ImplicitCast (Checked (_, t), _, _) ->

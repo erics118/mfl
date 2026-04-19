@@ -13,8 +13,10 @@ let roundtrip expected = check expected expected
 
 let fails err input =
   match Parser.parse input with
-  | _ -> assert_failure (Printf.sprintf "expected Parse_error for: %s" input)
-  | exception Parser.Parse_error (_, m) -> assert_equal ~printer:Fun.id err m
+  | _ -> assert_failure (Printf.sprintf "expected diagnostic for: %s" input)
+  | exception Diagnostic.Raised { stage; message; _ } ->
+      assert_equal Diagnostic.Parser stage;
+      assert_equal ~printer:Fun.id err message
 
 let assert_top_level_pos expected_line expected_col input =
   match Parser.parse input with

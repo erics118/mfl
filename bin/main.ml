@@ -7,22 +7,19 @@ let read_file path =
   close_in ic;
   content
 
-let preprocess ~include_dirs path content =
-  match Preprocessor.preprocess ~include_dirs ~file:path content with
-  | s -> s
-  | exception Preprocessor.Preprocess_error ({ line; col }, msg) ->
-      Printf.eprintf "%s:%d:%d: preprocessor error: %s\n" path line col msg;
+let with_diagnostic ~file f =
+  match f () with
+  | result -> result
+  | exception Diagnostic.Raised diagnostic ->
+      prerr_endline (Diagnostic.to_string ~default_file:file diagnostic);
       exit 1
 
+let preprocess ~include_dirs path content =
+  with_diagnostic ~file:path (fun () ->
+      Preprocessor.preprocess ~include_dirs ~file:path content)
+
 let parse_with_errors path content =
-  match Parser.parse content with
-  | s -> s
-  | exception Lexer.Lex_error ({ line; col }, msg) ->
-      Printf.eprintf "%s:%d:%d: lexical error: %s\n" path line col msg;
-      exit 1
-  | exception Parser.Parse_error ({ line; col }, msg) ->
-      Printf.eprintf "%s:%d:%d: parse error: %s\n" path line col msg;
-      exit 1
+  with_diagnostic ~file:path (fun () -> Parser.parse content)
 
 let parse_source ~include_dirs path =
   let content =
@@ -37,16 +34,11 @@ let parse_source ~include_dirs path =
   | Ast.CompoundStmt (_, stmts) -> stmts
   | _ -> [ stmt ]
 
-let typecheck stmts =
-  match Typechecker.typecheck_program stmts with
-  | s -> s
-  | exception Typechecker.Type_error ({ line; col }, e) ->
-      Printf.eprintf "%d:%d: type error: %s\n" line col
-        (Typechecker.string_of_type_error e);
-      exit 1
+let typecheck ~file stmts =
+  with_diagnostic ~file (fun () -> Typechecker.typecheck_program stmts)
 
 let run_ir ~include_dirs input =
-  let stmts = parse_source ~include_dirs input |> typecheck in
+  let stmts = parse_source ~include_dirs input |> typecheck ~file:input in
   Codegen.codegen_program stmts;
   print_string (Codegen.emit_ir ())
 
@@ -62,7 +54,7 @@ let run_format ~include_dirs input =
   print_string (Pretty.pp_stmt stmt ^ "\n")
 
 let run_run ~include_dirs input =
-  let stmts = parse_source ~include_dirs input |> typecheck in
+  let stmts = parse_source ~include_dirs input |> typecheck ~file:input in
   Codegen.codegen_program stmts;
   let ir = Codegen.emit_ir () in
   let ir_file = Filename.temp_file "mfl" ".ll" in

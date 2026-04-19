@@ -182,9 +182,7 @@ let next_token st =
   | Some '\'' -> read_char st
   | Some c when is_digit c -> read_number st
   | Some c when is_alpha c -> read_ident st
-  | Some c ->
-      raise
-        (Lex_error (tok_pos st, Printf.sprintf "unexpected character '%c'" c))
+  | Some c -> lex_error st (Printf.sprintf "unexpected character '%c'" c)
 
 (** [peek_token st] returns the next token without consuming it
     @raise Lex_error on invalid input *)

@@ -20,8 +20,6 @@ type type_error =
   | NotAStruct of typ  (** member access on a non-struct type *)
   | NoSuchField of string * string  (** struct tag, field name *)
 
-exception Type_error of pos * type_error
-
 let string_of_type_error = function
   | UnknownType name -> Printf.sprintf "unknown type '%s'" name
   | UnboundVariable x -> Printf.sprintf "unbound variable '%s'" x
@@ -66,3 +64,7 @@ let string_of_type_error = function
   | NoSuchField (tag, field) ->
       Printf.sprintf "struct '%s' has no field '%s'" (display_struct_tag tag)
         field
+
+let type_error pos err =
+  Diagnostic.raise_error
+    (Diagnostic.make Diagnostic.Typechecker pos (string_of_type_error err))

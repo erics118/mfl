@@ -9,10 +9,10 @@ open Typechecker_env
 let resolve_source_type env pos source_type =
   let rec go seen = function
     | VNamed name -> begin
-        if List.mem name seen then raise (Type_error (pos, UnknownType name));
+        if List.mem name seen then type_error pos (UnknownType name);
         match lookup_typedef env name with
         | Some vt -> go (name :: seen) vt
-        | None -> raise (Type_error (pos, UnknownType name))
+        | None -> type_error pos (UnknownType name)
       end
     | VStruct tag ->
         (* don't require struct to be defined here; pointers to incomplete
@@ -30,10 +30,10 @@ let assert_lvalue (pos : pos) (e : checked expr) : unit =
   | UnaryOp (_, Deref, _) -> ()
   | Subscript _ -> ()
   | MemberAccess _ -> ()
-  | _ -> raise (Type_error (pos, NotLvalue))
+  | _ -> type_error pos NotLvalue
 
 let check_binary pos op lt rt =
-  let err () = raise (Type_error (pos, BinaryTypeMismatch (op, lt, rt))) in
+  let err () = type_error pos (BinaryTypeMismatch (op, lt, rt)) in
   match op with
   | Add | Sub | Mul | Div | Mod | BitAnd | BitOr | BitXor | LShift | RShift ->
       if is_integer_type lt && lt = rt then lt else err ()
@@ -45,7 +45,7 @@ let check_binary pos op lt rt =
       else err ()
 
 let check_unary pos op t =
-  let err () = raise (Type_error (pos, UnaryTypeMismatch (op, t))) in
+  let err () = type_error pos (UnaryTypeMismatch (op, t)) in
   match op with
   | Not -> if is_scalar_type t then Bool else err ()
   | Neg -> if is_arithmetic_type t then t else err ()
@@ -53,7 +53,7 @@ let check_unary pos op t =
   | AddrOf | Deref -> assert false
 
 (** insert an implicit cast node unless the type already matches *)
-let implicit_cast pos to_t (e : checked expr) : checked expr =
+let implicit_cast_at pos to_t (e : checked expr) : checked expr =
   let from_t = expr_typ e in
   if from_t = to_t then
     (* same type, no cast needed *)
@@ -62,26 +62,33 @@ let implicit_cast pos to_t (e : checked expr) : checked expr =
     (* different type, need a cast *)
     ImplicitCast (Checked (pos, to_t), to_t, e)
 
+let implicit_cast to_t (e : checked expr) : checked expr =
+  implicit_cast_at (expr_pos e) to_t e
+
 (** [decay_expr pos e] decays [e] to a pointer if [e] is an array, otherwise
     does nothing *)
-let decay_expr pos (e : checked expr) : checked expr =
+let decay_expr_at pos (e : checked expr) : checked expr =
   match expr_typ e with
-  | Array (t, _) -> implicit_cast pos (Ptr t) e
+  | Array (t, _) -> implicit_cast_at pos (Ptr t) e
   | _ -> e
 
+let decay_expr (e : checked expr) : checked expr = decay_expr_at (expr_pos e) e
+
 (** coerce conditional to bool *)
-let coerce_cond pos (e : checked expr) : checked expr =
+let coerce_cond_at pos (e : checked expr) : checked expr =
   (* value context, so we decay *)
-  let e = decay_expr pos e in
+  let e = decay_expr_at pos e in
   let t = expr_typ e in
   if t = Bool then e
-  else if is_scalar_type t then implicit_cast pos Bool e
-  else raise (Type_error (pos, CondNotBool t))
+  else if is_scalar_type t then implicit_cast_at pos Bool e
+  else type_error pos (CondNotBool t)
+
+let coerce_cond (e : checked expr) : checked expr =
+  coerce_cond_at (expr_pos e) e
 
 (** two branches must have the same type *)
 let check_ternary pos then_t else_t =
-  if then_t <> else_t then
-    raise (Type_error (pos, TypeMismatch (then_t, else_t)));
+  if then_t <> else_t then type_error pos (TypeMismatch (then_t, else_t));
   then_t
 
 (** if we can cast to a different scalar type *)
@@ -122,39 +129,46 @@ let is_null_ptr_constant = function
   | _ -> false
 
 (** apply "conversion as if by assignment" *)
-let cast_expr pos to_t (e : checked expr) : checked expr =
+let cast_expr_at pos to_t (e : checked expr) : checked expr =
   (* value context, so we decay *)
-  let e = decay_expr pos e in
+  let e = decay_expr_at pos e in
   let from_t = expr_typ e in
   if can_assign_cast from_t to_t then
     (* assign cast *)
-    implicit_cast pos to_t e
+    implicit_cast_at pos to_t e
   else if is_pointer_type to_t && is_null_ptr_constant e then
     (* 0, ie NULL, can convert to any pointer type *)
-    implicit_cast pos to_t e
-  else raise (Type_error (pos, TypeMismatch (to_t, from_t)))
+    implicit_cast_at pos to_t e
+  else type_error pos (TypeMismatch (to_t, from_t))
+
+let cast_expr to_t (e : checked expr) : checked expr =
+  cast_expr_at (expr_pos e) to_t e
 
 (** integer promotions used by unary and binary integer operators *)
-let promote_integer pos (e : checked expr) : checked expr =
+let promote_integer_at pos (e : checked expr) : checked expr =
   let t = expr_typ e in
   (* it must be an integer type *)
   assert (is_integer_type t);
   if integer_rank t < integer_rank Int then
     (* if the rank is lower than int, cast it to int *)
-    implicit_cast pos Int e
+    implicit_cast_at pos Int e
   else
     (* otherwise, leave it *)
     e
 
+let promote_integer (e : checked expr) : checked expr =
+  promote_integer_at (expr_pos e) e
+
 (** default argument promotion, used by variadic calls *)
-let default_arg_promotion pos e =
+let default_arg_promotion e =
+  let pos = expr_pos e in
   (* value context, so we decay *)
-  let e = decay_expr pos e in
+  let e = decay_expr_at pos e in
   match expr_typ e with
   (* cast float to double *)
-  | Float -> implicit_cast pos Double e
+  | Float -> implicit_cast_at pos Double e
   (* promote to int *)
-  | t when is_integer_type t -> promote_integer pos e
+  | t when is_integer_type t -> promote_integer_at pos e
   (* other types are unchanged *)
   | _ -> e
 
@@ -225,7 +239,7 @@ let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
       let e = typecheck_expr env e in
       let from_t = expr_typ e in
       if not (can_explicit_cast from_t to_t) then
-        raise (Type_error (pos, InvalidCast (from_t, to_t)));
+        type_error pos (InvalidCast (from_t, to_t));
       Cast (Checked (pos, to_t), source_type_of_typ to_t, e)
   | MemberAccess (ann, lhs, field) ->
       let pos = pos_of ann in
@@ -233,17 +247,17 @@ let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
       let tag =
         match expr_typ lhs with
         | Struct tag -> tag
-        | t -> raise (Type_error (pos, NotAStruct t))
+        | t -> type_error pos (NotAStruct t)
       in
       let fields =
         match lookup_struct env tag with
         | Some fs -> fs
-        | None -> raise (Type_error (pos, UnknownType ("struct " ^ tag)))
+        | None -> type_error pos (UnknownType ("struct " ^ tag))
       in
       let field_t =
         match List.assoc_opt field fields with
         | Some t -> t
-        | None -> raise (Type_error (pos, NoSuchField (tag, field)))
+        | None -> type_error pos (NoSuchField (tag, field))
       in
       MemberAccess (Checked (pos, field_t), lhs, field)
   | ImplicitCast (_ann, _ty, _e) -> assert false
@@ -291,9 +305,9 @@ and typecheck_logical_binop pos op lhs rhs =
   let rt = expr_typ rhs in
   (* scalar operands coerce to bool *)
   if not (is_scalar_type lt && is_scalar_type rt) then
-    raise (Type_error (pos, BinaryTypeMismatch (op, lt, rt)));
-  let lhs' = implicit_cast pos Bool lhs in
-  let rhs' = implicit_cast pos Bool rhs in
+    type_error pos (BinaryTypeMismatch (op, lt, rt));
+  let lhs' = implicit_cast_at pos Bool lhs in
+  let rhs' = implicit_cast_at pos Bool rhs in
   BinaryOp (Checked (pos, Bool), op, lhs', rhs')
 
 and typecheck_pointer_binop pos op lhs rhs =
@@ -302,33 +316,30 @@ and typecheck_pointer_binop pos op lhs rhs =
   match op with
   | (Equal | Neq) when is_null_ptr_constant rhs ->
       (* ptr == 0 or ptr != 0: cast 0 to the pointer type *)
-      BinaryOp (Checked (pos, Bool), op, lhs, implicit_cast pos lt rhs)
+      BinaryOp (Checked (pos, Bool), op, lhs, implicit_cast_at pos lt rhs)
   | (Equal | Neq) when is_null_ptr_constant lhs ->
       (* 0 == ptr or 0 != ptr: cast 0 to pointer type *)
-      BinaryOp (Checked (pos, Bool), op, implicit_cast pos rt lhs, rhs)
+      BinaryOp (Checked (pos, Bool), op, implicit_cast_at pos rt lhs, rhs)
   | Less | Leq | Greater | Geq | Equal | Neq ->
       (* comparisons between pointers *)
-      if lt <> rt then raise (Type_error (pos, BinaryTypeMismatch (op, lt, rt)));
+      if lt <> rt then type_error pos (BinaryTypeMismatch (op, lt, rt));
       BinaryOp (Checked (pos, Bool), op, lhs, rhs)
   | Add when is_pointer_type lt && is_integer_type rt ->
       (* ptr + int or int + ptr, reject void* *)
-      if lt = Ptr Void then
-        raise (Type_error (pos, BinaryTypeMismatch (op, lt, rt)));
+      if lt = Ptr Void then type_error pos (BinaryTypeMismatch (op, lt, rt));
       BinaryOp (Checked (pos, lt), op, lhs, rhs)
   | Add when is_integer_type lt && is_pointer_type rt ->
       (* ptr + int or int + ptr, reject void* *)
-      if rt = Ptr Void then
-        raise (Type_error (pos, BinaryTypeMismatch (op, lt, rt)));
+      if rt = Ptr Void then type_error pos (BinaryTypeMismatch (op, lt, rt));
       BinaryOp (Checked (pos, rt), op, lhs, rhs)
   | Sub when is_pointer_type lt && is_integer_type rt ->
       (* ptr - int, reject void* *)
-      if lt = Ptr Void then
-        raise (Type_error (pos, BinaryTypeMismatch (op, lt, rt)));
+      if lt = Ptr Void then type_error pos (BinaryTypeMismatch (op, lt, rt));
       BinaryOp (Checked (pos, lt), op, lhs, rhs)
   | Sub ->
       (* ptr - ptr: types must match; void* - void* is rejected *)
       if lt = Ptr Void || rt = Ptr Void || lt <> rt then
-        raise (Type_error (pos, BinaryTypeMismatch (op, lt, rt)));
+        type_error pos (BinaryTypeMismatch (op, lt, rt));
       BinaryOp (Checked (pos, Long), op, lhs, rhs)
   | _ -> assert false [@coverage off]
 
@@ -338,9 +349,9 @@ and typecheck_shift_binop pos op lhs rhs =
   let rt = expr_typ rhs in
   (* shifts must be between ints *)
   if not (is_integer_type lt && is_integer_type rt) then
-    raise (Type_error (pos, BinaryTypeMismatch (op, lt, rt)));
-  let lhs' = promote_integer pos lhs in
-  let rhs' = promote_integer pos rhs in
+    type_error pos (BinaryTypeMismatch (op, lt, rt));
+  let lhs' = promote_integer_at pos lhs in
+  let rhs' = promote_integer_at pos rhs in
   BinaryOp (Checked (pos, expr_typ lhs'), op, lhs', rhs')
 
 (** &, |, % between ints. allows implicit casts *)
@@ -348,12 +359,12 @@ and typecheck_integer_binop pos op lhs rhs =
   let lt = expr_typ lhs in
   let rt = expr_typ rhs in
   if not (is_integer_type lt && is_integer_type rt) then
-    raise (Type_error (pos, BinaryTypeMismatch (op, lt, rt)));
-  let lhs' = if is_integer_type lt then promote_integer pos lhs else lhs in
-  let rhs' = if is_integer_type rt then promote_integer pos rhs else rhs in
+    type_error pos (BinaryTypeMismatch (op, lt, rt));
+  let lhs' = if is_integer_type lt then promote_integer_at pos lhs else lhs in
+  let rhs' = if is_integer_type rt then promote_integer_at pos rhs else rhs in
   let common_t = common_integer_type (expr_typ lhs') (expr_typ rhs') in
-  let lhs' = implicit_cast pos common_t lhs' in
-  let rhs' = implicit_cast pos common_t rhs' in
+  let lhs' = implicit_cast_at pos common_t lhs' in
+  let rhs' = implicit_cast_at pos common_t rhs' in
   BinaryOp (Checked (pos, common_t), op, lhs', rhs')
 
 (* +, -, *, /, and cmp operators between arithmetic types *)
@@ -362,12 +373,12 @@ and typecheck_arithmetic_binop pos op lhs rhs =
   let rt = expr_typ rhs in
   (* operations must be between two arithmetic types *)
   if not (is_arithmetic_type lt && is_arithmetic_type rt) then
-    raise (Type_error (pos, BinaryTypeMismatch (op, lt, rt)));
-  let lhs' = if is_integer_type lt then promote_integer pos lhs else lhs in
-  let rhs' = if is_integer_type rt then promote_integer pos rhs else rhs in
+    type_error pos (BinaryTypeMismatch (op, lt, rt));
+  let lhs' = if is_integer_type lt then promote_integer_at pos lhs else lhs in
+  let rhs' = if is_integer_type rt then promote_integer_at pos rhs else rhs in
   let common_t = common_arithmetic_type (expr_typ lhs') (expr_typ rhs') in
-  let lhs' = implicit_cast pos common_t lhs' in
-  let rhs' = implicit_cast pos common_t rhs' in
+  let lhs' = implicit_cast_at pos common_t lhs' in
+  let rhs' = implicit_cast_at pos common_t rhs' in
   let t =
     match op with
     | Less | Leq | Greater | Geq | Equal | Neq -> Bool
@@ -380,8 +391,8 @@ and typecheck_binary_op env ann op lhs rhs =
   let lhs = typecheck_expr env lhs in
   let rhs = typecheck_expr env rhs in
   (* value context, so we decay *)
-  let lhs = decay_expr pos lhs in
-  let rhs = decay_expr pos rhs in
+  let lhs = decay_expr_at pos lhs in
+  let rhs = decay_expr_at pos rhs in
   let lt = expr_typ lhs in
   let rt = expr_typ rhs in
   match op with
@@ -416,7 +427,7 @@ and typecheck_var_ref env ann x =
   let t =
     match lookup_var env x with
     | Some t -> t
-    | None -> raise (Type_error (pos, UnboundVariable x))
+    | None -> type_error pos (UnboundVariable x)
   in
   VarRef (Checked (pos, t), x)
 
@@ -432,7 +443,7 @@ and typecheck_unary_op env ann op e =
       UnaryOp (Checked (pos, Ptr t), op, e)
   | _ -> (
       (* for other unary operators, we decay the array to a pointer *)
-      let e = decay_expr pos e in
+      let e = decay_expr_at pos e in
       let t = expr_typ e in
       match op with
       | Deref -> begin
@@ -441,17 +452,17 @@ and typecheck_unary_op env ann op e =
           | Ptr tt when tt <> Void ->
               (* ensure the pointer is not void *)
               UnaryOp (Checked (pos, tt), op, e)
-          | t -> raise (Type_error (pos, UnaryTypeMismatch (op, t)))
+          | t -> type_error pos (UnaryTypeMismatch (op, t))
         end
       | Neg ->
           if not (is_arithmetic_type t) then
-            raise (Type_error (pos, UnaryTypeMismatch (op, t)));
-          let e = if is_integer_type t then promote_integer pos e else e in
+            type_error pos (UnaryTypeMismatch (op, t));
+          let e = if is_integer_type t then promote_integer_at pos e else e in
           UnaryOp (Checked (pos, expr_typ e), op, e)
       | Compl ->
           if not (is_integer_type t) then
-            raise (Type_error (pos, UnaryTypeMismatch (op, t)));
-          let e = promote_integer pos e in
+            type_error pos (UnaryTypeMismatch (op, t));
+          let e = promote_integer_at pos e in
           UnaryOp (Checked (pos, expr_typ e), op, e)
       | Not ->
           let t = check_unary pos op t in
@@ -461,7 +472,7 @@ and typecheck_unary_op env ann op e =
 and typecheck_ternary_op env ann cond then_e else_e =
   let pos = pos_of ann in
   let cond = typecheck_expr env cond in
-  let cond = coerce_cond pos cond in
+  let cond = coerce_cond_at pos cond in
   let then_e = typecheck_expr env then_e in
   let else_e = typecheck_expr env else_e in
   let then_t = expr_typ then_e in
@@ -469,19 +480,19 @@ and typecheck_ternary_op env ann cond then_e else_e =
   (* for arithmetic types, apply standard arithmetic conversions *)
   if is_arithmetic_type then_t && is_arithmetic_type else_t then
     let then_e =
-      if is_integer_type then_t then promote_integer pos then_e else then_e
+      if is_integer_type then_t then promote_integer_at pos then_e else then_e
     in
     let else_e =
-      if is_integer_type else_t then promote_integer pos else_e else else_e
+      if is_integer_type else_t then promote_integer_at pos else_e else else_e
     in
     let common_t = common_arithmetic_type (expr_typ then_e) (expr_typ else_e) in
-    let then_e = implicit_cast pos common_t then_e in
-    let else_e = implicit_cast pos common_t else_e in
+    let then_e = implicit_cast_at pos common_t then_e in
+    let else_e = implicit_cast_at pos common_t else_e in
     Ternary (Checked (pos, common_t), cond, then_e, else_e)
   else
     (* otherwise, pointer types, so we decay *)
-    let then_e = decay_expr pos then_e in
-    let else_e = decay_expr pos else_e in
+    let then_e = decay_expr_at pos then_e in
+    let else_e = decay_expr_at pos else_e in
     let t = check_ternary pos (expr_typ then_e) (expr_typ else_e) in
     Ternary (Checked (pos, t), cond, then_e, else_e)
 
@@ -491,12 +502,12 @@ and typecheck_func_call env ann f args =
   let sig_ =
     match Hashtbl.find_opt env.funcs f with
     | Some s -> s
-    | None -> raise (Type_error (pos, UnboundFunction f))
+    | None -> type_error pos (UnboundFunction f)
   in
   (* ensure correct number of parameters *)
   let expected = List.length sig_.params and got = List.length args in
   if got < expected || ((not sig_.is_variadic) && got <> expected) then
-    raise (Type_error (pos, ArityMismatch (f, expected, got)));
+    type_error pos (ArityMismatch (f, expected, got));
   (* typecheck fixed args against declared parameter types *)
   let fixed_args, variadic_args =
     let rec split n acc rest =
@@ -512,16 +523,15 @@ and typecheck_func_call env ann f args =
     List.map2
       (fun param_t arg ->
         let arg = typecheck_expr env arg in
-        let arg = cast_expr pos param_t arg in
+        let arg = cast_expr_at pos param_t arg in
         let at = expr_typ arg in
-        if at <> param_t then
-          raise (Type_error (pos, TypeMismatch (param_t, at)));
+        if at <> param_t then type_error pos (TypeMismatch (param_t, at));
         arg)
       sig_.params fixed_args
   in
   let variadic_args =
     List.map
-      (fun arg -> default_arg_promotion pos (typecheck_expr env arg))
+      (fun arg -> default_arg_promotion (typecheck_expr env arg))
       variadic_args
   in
   FuncCall (Checked (pos, sig_.ret), f, fixed_args @ variadic_args)
@@ -534,7 +544,7 @@ and typecheck_incdec env ann fix dir operand make =
   assert_lvalue pos e;
   let t = expr_typ e in
   if (not (is_arithmetic_type t)) && not (is_pointer_type t) then
-    raise (Type_error (pos, IncDecTypeMismatch (fix, dir, t)));
+    type_error pos (IncDecTypeMismatch (fix, dir, t));
   make (Checked (pos, t)) e
 
 and typecheck_assign env ann lhs rhs =
@@ -544,9 +554,9 @@ and typecheck_assign env ann lhs rhs =
   assert_lvalue pos lhs;
   let lhs_t = expr_typ lhs in
   let rhs = typecheck_expr env rhs in
-  let rhs = cast_expr pos lhs_t rhs in
+  let rhs = cast_expr_at pos lhs_t rhs in
   let rhs_t = expr_typ rhs in
-  if rhs_t <> lhs_t then raise (Type_error (pos, TypeMismatch (lhs_t, rhs_t)));
+  if rhs_t <> lhs_t then type_error pos (TypeMismatch (lhs_t, rhs_t));
   Assign (Checked (pos, lhs_t), lhs, rhs)
 
 (* we need to duplicate the logic bc otherwise it requires more refactoring *)
@@ -557,17 +567,15 @@ and typecheck_compound_assign env ann op lhs rhs =
   assert_lvalue pos lhs;
   let lhs_t = expr_typ lhs in
   let rhs = typecheck_expr env rhs in
-  let rhs = decay_expr pos rhs in
+  let rhs = decay_expr_at pos rhs in
   let rhs_t = expr_typ rhs in
-  let err () =
-    raise (Type_error (pos, BinaryTypeMismatch (op, lhs_t, rhs_t)))
-  in
+  let err () = type_error pos (BinaryTypeMismatch (op, lhs_t, rhs_t)) in
   let rhs =
     match op with
     | LShift | RShift ->
         (* both must be integer types; promote rhs *)
         if not (is_integer_type lhs_t && is_integer_type rhs_t) then err ();
-        promote_integer pos rhs
+        promote_integer_at pos rhs
     | Add | Sub ->
         (* arithmetic, or ptr += int / ptr -= int *)
         if is_pointer_type lhs_t then begin
@@ -577,15 +585,15 @@ and typecheck_compound_assign env ann op lhs rhs =
         else begin
           if not (is_arithmetic_type lhs_t && is_arithmetic_type rhs_t) then
             err ();
-          implicit_cast pos lhs_t rhs
+          implicit_cast_at pos lhs_t rhs
         end
     | Mul | Div ->
         if not (is_arithmetic_type lhs_t && is_arithmetic_type rhs_t) then
           err ();
-        implicit_cast pos lhs_t rhs
+        implicit_cast_at pos lhs_t rhs
     | BitAnd | BitOr | BitXor | Mod ->
         if not (is_integer_type lhs_t && is_integer_type rhs_t) then err ();
-        implicit_cast pos lhs_t rhs
+        implicit_cast_at pos lhs_t rhs
     | _ -> assert false [@coverage off]
   in
   CompoundAssign (Checked (pos, lhs_t), op, lhs, rhs)
@@ -599,11 +607,11 @@ and typecheck_subscript env ann a i =
     match expr_typ a with
     | Array (t, _) -> t
     | Ptr t when t <> Void -> t
-    | t -> raise (Type_error (pos, UnaryTypeMismatch (Deref, t)))
+    | t -> type_error pos (UnaryTypeMismatch (Deref, t))
   in
   (* index must be an integer *)
   if not (is_integer_type (expr_typ i)) then
-    raise (Type_error (pos, UnaryTypeMismatch (Deref, expr_typ i)));
+    type_error pos (UnaryTypeMismatch (Deref, expr_typ i));
   (* promote index to an int *)
-  let i = promote_integer pos i in
+  let i = promote_integer_at pos i in
   Subscript (Checked (pos, elem_t), a, i)

@@ -57,10 +57,9 @@ and parse_primary st =
       StringLiteral (Parsed pos, s)
   | TokIdent _ -> parse_identifier_expr st pos
   | TokLParen -> parse_paren_expr st
-  | TokEof -> raise (Parse_error (pos, "unexpected end of input"))
+  | TokEof -> parse_error_at pos "unexpected end of input"
   | _ ->
-      raise
-        (Parse_error (pos, "unknown token: '" ^ string_of_token st.cur_tok ^ "'"))
+      parse_error_at pos ("unknown token: '" ^ string_of_token st.cur_tok ^ "'")
 
 (* parse postfix operators, chaining as many as appear *)
 and parse_postfix st =

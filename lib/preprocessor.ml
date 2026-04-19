@@ -1,12 +1,12 @@
 (** preprocessor *)
 
-(** preprocessor exception *)
-exception Preprocess_error of Ast.pos * string
-
 (* data for preprocessor, will include #defines, etc in the future *)
 type env = { include_dirs : string list }
 
 let make_pos line = { Ast.line; col = 1 }
+
+let preprocess_error ~file pos msg =
+  Diagnostic.raise_error (Diagnostic.make ~file Diagnostic.Preprocessor pos msg)
 
 (* read a single file into a string *)
 let read_file path =
@@ -28,27 +28,25 @@ let find_in_dirs dirs name =
 let rec handle_include env ~file ~line_no rest buf =
   let rest = String.trim rest in
   let len = String.length rest in
-  if len < 2 then
-    raise (Preprocess_error (make_pos line_no, "malformed #include"));
+  if len < 2 then preprocess_error ~file (make_pos line_no) "malformed #include";
   (* first determine delimiter style from opening char *)
   let close_char, local_style =
     match rest.[0] with
     | '<' -> ('>', false)
     | '"' -> ('"', true)
-    | _ -> raise (Preprocess_error (make_pos line_no, "malformed #include"))
+    | _ -> preprocess_error ~file (make_pos line_no) "malformed #include"
   in
   (* find the closing delimiter *)
   let close_pos =
     match String.index_from_opt rest 1 close_char with
     | None ->
-        raise
-          (Preprocess_error
-             (make_pos line_no, "unterminated filename in #include"))
+        preprocess_error ~file (make_pos line_no)
+          "unterminated filename in #include"
     | Some i -> i
   in
   let name = String.sub rest 1 (close_pos - 1) in
   if String.length name = 0 then
-    raise (Preprocess_error (make_pos line_no, "empty filename in #include"));
+    preprocess_error ~file (make_pos line_no) "empty filename in #include";
   (* error if non-whitespace follows the delimiter *)
   (* todo: we should allow comments, or treat comments like whitespace and
      remove them from the ast entirely *)
@@ -56,9 +54,8 @@ let rec handle_include env ~file ~line_no rest buf =
     String.trim (String.sub rest (close_pos + 1) (len - close_pos - 1))
   in
   if String.length after > 0 then
-    raise
-      (Preprocess_error
-         (make_pos line_no, "detected extra tokens after #include filename"));
+    preprocess_error ~file (make_pos line_no)
+      "detected extra tokens after #include filename";
   (* for quoted includes, also search relative to the current file *)
   let search_dirs =
     if local_style then Filename.dirname file :: env.include_dirs
@@ -66,9 +63,8 @@ let rec handle_include env ~file ~line_no rest buf =
   in
   match find_in_dirs search_dirs name with
   | None ->
-      raise
-        (Preprocess_error
-           (make_pos line_no, Printf.sprintf "file not found: %s" name))
+      preprocess_error ~file (make_pos line_no)
+        (Printf.sprintf "file not found: %s" name)
   | Some path ->
       let content = read_file path in
       let expanded = process_file env ~file:path content in
@@ -85,9 +81,8 @@ and handle_directive env ~file ~line_no name rest buf =
   match name with
   | "include" -> handle_include env ~file ~line_no rest buf
   | d ->
-      raise
-        (Preprocess_error
-           (make_pos line_no, Printf.sprintf "unknown directive #%s" d))
+      preprocess_error ~file (make_pos line_no)
+        (Printf.sprintf "unknown directive #%s" d)
 
 (** process [source] from [file], expanding directives into [buf] *)
 and process_file env ~file source =

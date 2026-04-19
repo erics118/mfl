@@ -10,7 +10,8 @@ type state = {
 }
 
 (** raised on parse errors *)
-exception Parse_error of pos * string
+let parse_error_at pos msg =
+  Diagnostic.raise_error (Diagnostic.make Diagnostic.Parser pos msg)
 
 let create lex_st =
   { cur_tok = TokEof; lex = lex_st; typedefs = [ Hashtbl.create 8 ] }
@@ -19,20 +20,18 @@ let advance st = st.cur_tok <- Lexer.next_token st.lex
 
 (* position of the current token *)
 let cur_pos st = Lexer.tok_pos st.lex
+let parse_error st msg = parse_error_at (cur_pos st) msg
 
 let consume st tok =
   if st.cur_tok = tok then advance st
-  else
-    raise
-      (Parse_error
-         (cur_pos st, Printf.sprintf "expected '%s'" (string_of_token tok)))
+  else parse_error st (Printf.sprintf "expected '%s'" (string_of_token tok))
 
 let consume_identifier st =
   match st.cur_tok with
   | TokIdent name ->
       advance st;
       name
-  | _ -> raise (Parse_error (cur_pos st, "expected identifier"))
+  | _ -> parse_error st "expected identifier"
 
 let push_scope st = st.typedefs <- Hashtbl.create 8 :: st.typedefs
 
@@ -87,6 +86,6 @@ let parse_rparen_list st parse_item =
             consume st TokComma;
             loop (item :: rev_items)
         | TokRParen -> List.rev (item :: rev_items)
-        | _ -> raise (Parse_error (cur_pos st, "expected ',' or ')'"))
+        | _ -> parse_error st "expected ',' or ')'"
       in
       loop []
