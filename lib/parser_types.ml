@@ -6,7 +6,7 @@ open Parser_state
 let parse_long_suffix signedness st =
   if st.cur_tok = TokDoubleKw then begin
     (* error if we have explcitly specified, and we see "double" *)
-    if signedness <> `None then parse_error st "invalid type specifier";
+    if signedness <> `None then error st "invalid type specifier";
     advance st;
     VLongDouble
   end
@@ -104,13 +104,13 @@ let parse_type_name st =
           | TokIdent name ->
               advance st;
               name
-          | _ -> parse_error st "expected struct tag name"
+          | _ -> error st "expected struct tag name"
         in
         VStruct tag
     | TokIdent type_name ->
         advance st;
         VNamed type_name
-    | _ -> parse_error st "expected type" [@coverage off]
+    | _ -> error st "expected type" [@coverage off]
   in
   let rec parse_ptr_suffix ty =
     match st.cur_tok with
