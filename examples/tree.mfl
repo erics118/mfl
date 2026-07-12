@@ -12,7 +12,7 @@ typedef struct Node {
 void inorder(Node* n) {
     if (n == 0) return;
     inorder(n->left);
-    printf("%d\n", n->val);
+    printf("%d ", n->val);
     inorder(n->right);
 }
 
@@ -66,9 +66,11 @@ int main() {
     n4->left = n2;
     n4->right = n6;
 
+    printf("inorder traversal: ");
     inorder(n4);
+    printf("\n");
 
-    printf("%d\n", sum(n4));
+    printf("sum: %d\n", sum(n4));
 
-    printf("%d\n", height(n4));
+    printf("height: %d\n", height(n4));
 }

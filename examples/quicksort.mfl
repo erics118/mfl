@@ -24,8 +24,7 @@ int partition(int arr[], int l, int r) {
 }
 
 void quicksort(int arr[], int l, int r) {
-    if (l >= r)
-        return;
+    if (l >= r) return;
     int p = partition(arr, l, r);
     quicksort(arr, l, p - 1);
     quicksort(arr, p + 1, r);

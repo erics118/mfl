@@ -16,9 +16,7 @@ myint sum(numbers values) {
     return total;
 }
 
-void incr(intptr p) {
-    *p = *p + 1;
-}
+void incr(intptr p) { *p = *p + 1; }
 
 int main() {
     numbers values;

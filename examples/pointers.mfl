@@ -8,32 +8,30 @@ void swap(int* a, int* b) {
 }
 
 // increment via pointer
-void increment(int* n) {
-    ++*n;
-}
+void increment(int* n) { ++*n; }
 
 int main() {
     // read and write
     int x = 10;
     int* p = &x;
     *p = 42;
-    printf("%d\n", x);        // 42
+    printf("%d\n", x);  // 42
 
     // pointer to increment a variable
     increment(&x);
-    printf("%d\n", x);        // 43
+    printf("%d\n", x);  // 43
 
     // swap two variables with pointers
     int a = 1;
     int b = 99;
     swap(&a, &b);
-    printf("%d\n", a);        // 99
-    printf("%d\n", b);        // 1
+    printf("%d\n", a);  // 99
+    printf("%d\n", b);  // 1
 
     // pointer to pointer
     int val = 7;
     int* q = &val;
     int** pp = &q;
     **pp = 100;
-    printf("%d\n", val);      // 100
+    printf("%d\n", val);  // 100
 }
