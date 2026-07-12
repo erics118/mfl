@@ -148,6 +148,7 @@ located under `examples/`
 - `pointers.mfl`: pointer arithmetic and dereferencing
 - `tree.mfl`: binary search tree using structs, typedefs, and malloc
 - `typedefs.mfl`: typedef usage examples
+- `raytracer.mfl`: renders a lit scene of colored spheres to a PPM image
 
 ## testing
 
