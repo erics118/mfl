@@ -127,22 +127,22 @@ and codegen_uop op e =
       (* only for ints *)
       let v = codegen_expr e in
       Llvm.build_not v "compltmp" builder
-  | AddrOf -> begin
+  | AddrOf ->
       (* lvalues only *)
-      match e with
+      begin match e with
       | VarRef (Checked _, name) -> Hashtbl.find locals name
       | UnaryOp (Checked _, Deref, ptr_e) -> codegen_expr ptr_e
       | Subscript _ -> lvalue_ptr e
       | _ -> assert false [@coverage off]
-    end
-  | Deref -> begin
+      end
+  | Deref ->
       (* can only deref pointers *)
-      match expr_type e with
+      begin match expr_type e with
       | Ptr t ->
           let ptr = codegen_expr e in
           emit_load t ptr "deref"
       | _ -> assert false [@coverage off]
-    end
+      end
 
 and codegen_func_call ret_t name args =
   let fn = ensure_function_declared name in
@@ -208,21 +208,21 @@ and codegen_expr (e : checked expr) : Llvm.llvalue =
   | BinaryOp (Checked _, Or, lhs, rhs) -> codegen_or_binop lhs rhs
   | BinaryOp (Checked _, op, lhs, rhs) ->
       codegen_binop (expr_type lhs) op lhs rhs
-  | VarRef (Checked (_, t), name) -> begin
+  | VarRef (Checked (_, t), name) ->
       (* load the value from the variable's alloca; type comes from the
          annotation *)
-      match Hashtbl.find_opt locals name with
-      | Some ptr -> begin
+      begin match Hashtbl.find_opt locals name with
+      | Some ptr ->
           (* arrays decay to a pointer to its first element *)
-          match t with
+          begin match t with
           | Array (elem_t, _) ->
               let zero = Llvm.const_int int_type 0 in
               Llvm.build_gep (llvm_of_typ elem_t) ptr [| zero |] "arrdecay"
                 builder
           | _ -> emit_load t ptr name
-        end
+          end
       | None -> failwith ("undefined variable: " ^ name)
-    end
+      end
   | UnaryOp (Checked _, op, e) -> codegen_uop op e
   | Ternary (Checked _, cond, then_e, else_e) ->
       codegen_ternary cond then_e else_e
@@ -289,11 +289,11 @@ and find_field fields field_name =
 and struct_field_info tag field_name =
   match Hashtbl.find_opt struct_defs tag with
   | None -> failwith ("struct not defined: " ^ tag)
-  | Some (llty, fields) -> begin
-      match find_field fields field_name with
+  | Some (llty, fields) ->
+      begin match find_field fields field_name with
       | None -> failwith ("no field '" ^ field_name ^ "' in struct " ^ tag)
       | Some (idx, ft) -> (llty, idx, ft)
-    end
+      end
 
 (** gets the pointer to a struct field via member access *)
 and member_field_ptr struct_ptr tag field_name =

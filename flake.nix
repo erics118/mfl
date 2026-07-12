@@ -4,20 +4,25 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
-    inputs@{ flake-parts, ... }:
+    inputs@{ flake-parts, treefmt-nix, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = [
         "x86_64-linux"
         "aarch64-linux"
-        "x86_64-darwin"
         "aarch64-darwin"
       ];
 
+      imports = [ treefmt-nix.flakeModule ];
+
       perSystem =
-        { pkgs, ... }:
+        { pkgs, config, ... }:
         let
           # ocaml llvm bindings do not compile properly on macos without this fix
           ocamlLlvm =
@@ -54,6 +59,17 @@
               ocamlLlvm
             ];
           };
+
+          treefmt = {
+            projectRootFile = "flake.nix";
+            settings.global.excludes = [ "_build/**" ];
+            programs = {
+              nixfmt.enable = true;
+              ocamlformat.enable = true;
+            };
+          };
+
+          formatter = config.treefmt.build.wrapper;
         };
     };
 }

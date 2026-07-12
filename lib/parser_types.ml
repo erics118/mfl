@@ -54,11 +54,11 @@ let parse_int_base signedness st =
       advance st;
       parse_long_suffix signedness st
     end
-  | _ -> begin
-      match signedness with
+  | _ ->
+      begin match signedness with
       | `None | `Signed -> VInt
       | `Unsigned -> VUInt
-    end
+      end
 
 (* parse the type of a variable *)
 let parse_type_name st =

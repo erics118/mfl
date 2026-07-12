@@ -148,14 +148,14 @@ and pp_stmt_aux : type a. ?top_level:bool -> ?indent:int -> a stmt -> string =
   let rec pp_body stmt =
     match stmt with
     | CompoundStmt (_, stmts) -> pp_block_aux ~indent stmts
-    | If { cond; then_body; else_body; _ } -> begin
-        match else_body with
+    | If { cond; then_body; else_body; _ } ->
+        begin match else_body with
         | Some s ->
             Printf.sprintf "if (%s) %s else %s" (pp_expr_aux cond)
               (pp_body then_body) (pp_body s)
         | None ->
             Printf.sprintf "if (%s) %s" (pp_expr_aux cond) (pp_body then_body)
-      end
+        end
     | s -> pp_block_aux ~indent [ s ]
   in
   let rest =

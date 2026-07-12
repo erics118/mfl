@@ -35,13 +35,13 @@ let rec sizeof_typ = function
   | Ptr _ -> 8
   | Array (t, sz) -> sizeof_typ t * sz
   | Void -> 0
-  | Struct tag -> begin
+  | Struct tag ->
       (* sum of field sizes; does not account for alignment padding *)
-      match Hashtbl.find_opt struct_defs tag with
+      begin match Hashtbl.find_opt struct_defs tag with
       | None -> 0
       | Some (_, fields) ->
           List.fold_left (fun acc (_, ft) -> acc + sizeof_typ ft) 0 fields
-    end
+      end
 
 (* maps variable names to their alloca ptr within the current function *)
 let locals : (string, Llvm.llvalue) Hashtbl.t = Hashtbl.create 16
@@ -90,11 +90,11 @@ let rec llvm_of_typ = function
   | LongDouble -> double_type
   | Array (t, sz) -> Llvm.array_type (llvm_of_typ t) sz
   | Ptr _ -> pointer_type
-  | Struct tag -> begin
-      match Hashtbl.find_opt struct_defs tag with
+  | Struct tag ->
+      begin match Hashtbl.find_opt struct_defs tag with
       | Some (llty, _) -> llty
       | None -> failwith ("struct not defined: " ^ tag)
-    end
+      end
 
 (** load a value of type [t] from [ptr], returning the computation-ready value.
     handles any type-specific conversions, ie bool i8->i1 *)

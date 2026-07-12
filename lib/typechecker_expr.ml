@@ -446,14 +446,14 @@ and typecheck_unary_op env ann op e =
       let e = decay_expr_at pos e in
       let t = expr_typ e in
       match op with
-      | Deref -> begin
+      | Deref ->
           (* ensure only deref a pointer *)
-          match t with
+          begin match t with
           | Ptr tt when tt <> Void ->
               (* ensure the pointer is not void *)
               UnaryOp (Checked (pos, tt), op, e)
           | t -> type_error pos (UnaryTypeMismatch (op, t))
-        end
+          end
       | Neg ->
           if not (is_arithmetic_type t) then
             type_error pos (UnaryTypeMismatch (op, t));

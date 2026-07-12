@@ -198,11 +198,11 @@ and parse_expr (st : state) : parsed expr =
       consume st TokAssign;
       let value = parse_expr st in
       Assign (Parsed pos, e, value)
-  | tok -> begin
-      match compound_assign_op_of_tok tok with
+  | tok ->
+      begin match compound_assign_op_of_tok tok with
       | Some op ->
           advance st;
           let value = parse_expr st in
           CompoundAssign (Parsed pos, op, e, value)
       | None -> e
-    end
+      end
