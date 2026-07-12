@@ -6,13 +6,20 @@ type func_sig = {
   is_variadic : bool;
 }
 
+(* map of strings *)
+module StringMap = Map.Make (String)
+
+type globals = {
+  funcs : func_sig StringMap.t;
+  (* struct tags are currently program-wide rather than scoped *)
+  structs : (string * typ) list StringMap.t;
+}
+
 type env = {
   (* head is innermost scope. push when entering a new block, discard on exit *)
-  vars : (string, typ) Hashtbl.t list;
-  funcs : (string, func_sig) Hashtbl.t;
-  typedefs : (string, source_type) Hashtbl.t list;
-  (* struct tag to ordered field list; not scoped, visible program-wide *)
-  structs : (string, (string * typ) list) Hashtbl.t;
+  vars : typ StringMap.t list;
+  typedefs : source_type StringMap.t list;
+  globals : globals;
   return_typ : typ option;
   in_loop : bool;
 }
@@ -20,30 +27,49 @@ type env = {
 let push_scope env =
   {
     env with
-    vars = Hashtbl.create 8 :: env.vars;
-    typedefs = Hashtbl.create 8 :: env.typedefs;
-    (* structs are not scoped; share the same table *)
+    vars = StringMap.empty :: env.vars;
+    typedefs = StringMap.empty :: env.typedefs;
   }
 
-let lookup_var env (x : string) =
-  List.find_map (fun scope -> Hashtbl.find_opt scope x) env.vars
+let lookup scopes name =
+  List.find_map (fun scope -> StringMap.find_opt name scope) scopes
 
-let lookup_typedef env (name : string) =
-  List.find_map (fun scope -> Hashtbl.find_opt scope name) env.typedefs
-
-(* let rec lookup_var2 (env : env) (e : 'a expr) : typ option = match e with |
-   VarRef (_, name) -> lookup_var env name | UnaryOp (_, Deref, inner) ->
-   lookup_var2 env inner | _ -> failwith "undefined variable" *)
-
-let define_var env name t =
-  match env.vars with
-  | scope :: _ -> Hashtbl.replace scope name t
+let define scopes name value =
+  match scopes with
+  | scope :: rest -> StringMap.add name value scope :: rest
   | [] -> failwith "empty scope stack"
 
-let define_typedef env name vt =
-  match env.typedefs with
-  | scope :: _ -> Hashtbl.replace scope name vt
-  | [] -> failwith "empty typedef scope stack"
+(* variables *)
+let lookup_var env name = lookup env.vars name
+let define_var env name typ = { env with vars = define env.vars name typ }
 
-let lookup_struct env tag = Hashtbl.find_opt env.structs tag
-let define_struct env tag fields = Hashtbl.replace env.structs tag fields
+(* typedefs *)
+let lookup_typedef env name = lookup env.typedefs name
+
+let define_typedef env name vt =
+  { env with typedefs = define env.typedefs name vt }
+
+(* structs *)
+let lookup_struct env tag = StringMap.find_opt tag env.globals.structs
+
+let define_struct env tag fields =
+  {
+    env with
+    globals =
+      {
+        env.globals with
+        structs = StringMap.add tag fields env.globals.structs;
+      };
+  }
+
+let define_func env name signature =
+  {
+    env with
+    globals =
+      {
+        env.globals with
+        funcs = StringMap.add name signature env.globals.funcs;
+      };
+  }
+
+let with_globals env globals = { env with globals }

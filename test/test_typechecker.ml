@@ -6,18 +6,22 @@ open Typechecker
 let dummy_pos : pos = { line = 0; col = 0 }
 let p = Parsed dummy_pos
 
-let make_tbl pairs =
-  let tbl = Hashtbl.create 4 in
-  List.iter (fun (k, v) -> Hashtbl.add tbl k v) pairs;
-  tbl
+let make_map pairs =
+  List.fold_left
+    (fun map (key, value) -> StringMap.add key value map)
+    StringMap.empty pairs
 
 let default_env () =
   {
-    vars = [ Hashtbl.create 4 ];
-    funcs =
-      make_tbl [ ("noop", { params = []; ret = Void; is_variadic = false }) ];
-    typedefs = [ make_tbl [] ];
-    structs = make_tbl [];
+    vars = [ StringMap.empty ];
+    globals =
+      {
+        funcs =
+          make_map
+            [ ("noop", { params = []; ret = Void; is_variadic = false }) ];
+        structs = StringMap.empty;
+      };
+    typedefs = [ StringMap.empty ];
     return_typ = None;
     in_loop = false;
   }
@@ -76,23 +80,33 @@ let do_while_ body cond = DoWhileLoop { pos = dummy_pos; body; cond }
 let for_ ?(cond = None) ?(incr = None) init body =
   ForLoop { pos = dummy_pos; init; cond; incr; body }
 
-let env_with vars = { (default_env ()) with vars = [ make_tbl vars ] }
+let env_with vars = { (default_env ()) with vars = [ make_map vars ] }
 
 let env_with_funcs funcs =
   {
     (default_env ()) with
-    funcs =
-      make_tbl
-        (funcs @ [ ("noop", { params = []; ret = Void; is_variadic = false }) ]);
+    globals =
+      {
+        (default_env ()).globals with
+        funcs =
+          make_map
+            (funcs
+            @ [ ("noop", { params = []; ret = Void; is_variadic = false }) ]);
+      };
   }
 
 let env_with_all vars funcs =
   {
     (default_env ()) with
-    vars = [ make_tbl vars ];
-    funcs =
-      make_tbl
-        (funcs @ [ ("noop", { params = []; ret = Void; is_variadic = false }) ]);
+    vars = [ make_map vars ];
+    globals =
+      {
+        (default_env ()).globals with
+        funcs =
+          make_map
+            (funcs
+            @ [ ("noop", { params = []; ret = Void; is_variadic = false }) ]);
+      };
   }
 
 let all_integer_types =
@@ -718,11 +732,18 @@ let test_array_decay_stmts _ =
   (* func call: char* and void* params both accept array args *)
   let call_env =
     let e = env_with [ ("arr", Array (Char, 3)) ] in
-    Hashtbl.add e.funcs "f_char"
-      { params = [ Ptr Char ]; ret = Void; is_variadic = false };
-    Hashtbl.add e.funcs "f_void"
-      { params = [ Ptr Void ]; ret = Void; is_variadic = false };
-    e
+    let globals =
+      {
+        e.globals with
+        funcs =
+          e.globals.funcs
+          |> StringMap.add "f_char"
+               { params = [ Ptr Char ]; ret = Void; is_variadic = false }
+          |> StringMap.add "f_void"
+               { params = [ Ptr Void ]; ret = Void; is_variadic = false };
+      }
+    in
+    { e with globals }
   in
   begin match typecheck_expr call_env ("f_char" $ [ !"arr" ]) with
   | FuncCall (_, _, [ arg ]) -> assert_implicit_cast_to (Ptr Char) arg
@@ -1137,12 +1158,12 @@ let test_var_type_resolution _ =
 let test_typedefs _ =
   let env =
     let env = default_env () in
-    { env with typedefs = [ make_tbl [ ("myint", VInt) ] ] }
+    { env with typedefs = [ make_map [ ("myint", VInt) ] ] }
   in
   check_typ ~env Int (cast (VNamed "myint") (i 7));
   let env = default_env () in
-  begin match
-    typecheck_stmt env
+  let env, checked_typedef =
+    typecheck_stmt_with_env env
       (Typedef
          {
            pos = dummy_pos;
@@ -1150,24 +1171,26 @@ let test_typedefs _ =
            existing_type = VInt;
            alias = "myint";
          })
-  with
+  in
+  begin match checked_typedef with
   | Typedef { existing_type = VInt; alias = "myint"; _ } -> ()
   | _ -> assert_failure "expected checked typedef"
   end;
   ignore (typecheck_stmt env (var_def (VNamed "myint") "x"));
-  ignore
-    (typecheck_stmt env
-       (Typedef
-          {
-            pos = dummy_pos;
-            struct_def = None;
-            existing_type = VArray (VInt, 10);
-            alias = "arr";
-          }));
+  let _env, _ =
+    typecheck_stmt_with_env env
+      (Typedef
+         {
+           pos = dummy_pos;
+           struct_def = None;
+           existing_type = VArray (VInt, 10);
+           alias = "arr";
+         })
+  in
   match
     typecheck_stmt
       (let env = default_env () in
-       { env with typedefs = [ make_tbl [ ("arr", VArray (VInt, 10)) ] ] })
+       { env with typedefs = [ make_map [ ("arr", VArray (VInt, 10)) ] ] })
       (var_def (VNamed "arr") "xs")
   with
   | VarDef { name = "xs"; source_type = VArray (VInt, 10); init = None; _ } ->
@@ -1196,7 +1219,7 @@ let test_typedef_cycle _ =
     let env = default_env () in
     {
       env with
-      typedefs = [ make_tbl [ ("a", VNamed "b"); ("b", VNamed "a") ] ];
+      typedefs = [ make_map [ ("a", VNamed "b"); ("b", VNamed "a") ] ];
     }
   in
   check_stmt_err ~env "unknown type 'a'" (var_def (VNamed "a") "x")
@@ -1204,7 +1227,7 @@ let test_typedef_cycle _ =
 let test_array_param_decay _ =
   let env =
     let env = default_env () in
-    { env with typedefs = [ make_tbl [ ("numbers", VArray (VInt, 4)) ] ] }
+    { env with typedefs = [ make_map [ ("numbers", VArray (VInt, 4)) ] ] }
   in
   match
     typecheck_stmt env
@@ -1236,10 +1259,10 @@ let test_func_decl _ =
     -> ()
   | _ -> assert_failure "expected checked func decl"
   end;
-  let env = default_env () in
-  ignore
-    (typecheck_stmt env
-       (func_decl ~is_extern:true VInt "puts" [ (VPtr VChar, "s") ]));
+  let env, _ =
+    typecheck_stmt_with_env (default_env ())
+      (func_decl ~is_extern:true VInt "puts" [ (VPtr VChar, "s") ])
+  in
   check_typ ~env Int ("puts" $ [ StringLiteral (p, [ 104; 105 ]) ])
 
 let test_variadic_func_call _ =
@@ -1258,9 +1281,16 @@ let test_variadic_func_call _ =
   (* array variable as variadic arg: decays to char* *)
   let env2 =
     let e = env_with [ ("arr", Array (Char, 3)) ] in
-    Hashtbl.add e.funcs "printf"
-      { params = [ Ptr Char ]; ret = Int; is_variadic = true };
-    e
+    let globals =
+      {
+        e.globals with
+        funcs =
+          StringMap.add "printf"
+            { params = [ Ptr Char ]; ret = Int; is_variadic = true }
+            e.globals.funcs;
+      }
+    in
+    { e with globals }
   in
   begin match
     typecheck_expr env2 ("printf" $ [ StringLiteral (p, [ 37; 115 ]); !"arr" ])
@@ -1306,8 +1336,13 @@ let test_sizeof _ =
   (* SizeofType on a struct type *)
   let senv =
     let env = default_env () in
-    Hashtbl.add env.structs "Foo" [ ("x", Int) ];
-    env
+    let globals =
+      {
+        env.globals with
+        structs = StringMap.add "Foo" [ ("x", Int) ] env.globals.structs;
+      }
+    in
+    { env with globals }
   in
   check_typ ~env:senv Long (SizeofType (p, VStruct "Foo"));
   (* SizeofExpr does not decay array: inner node retains array type *)
@@ -1322,32 +1357,31 @@ let test_sizeof _ =
   end
 
 let test_struct_def _ =
-  (* StructDef registers the struct in env.structs *)
-  let env = default_env () in
-  ignore
-    (typecheck_stmt env
-       (StructDef
-          {
-            pos = dummy_pos;
-            tag = "Point";
-            fields = [ (VInt, "x"); (VInt, "y") ];
-            var_name = None;
-          }));
+  let env, _ =
+    typecheck_stmt_with_env (default_env ())
+      (StructDef
+         {
+           pos = dummy_pos;
+           tag = "Point";
+           fields = [ (VInt, "x"); (VInt, "y") ];
+           var_name = None;
+         })
+  in
   begin match lookup_struct env "Point" with
   | Some [ ("x", Int); ("y", Int) ] -> ()
   | _ -> assert_failure "expected struct Point with fields x:int, y:int"
   end;
   (* var_name also declares a variable of the struct type *)
-  let env2 = default_env () in
-  ignore
-    (typecheck_stmt env2
-       (StructDef
-          {
-            pos = dummy_pos;
-            tag = "Vec2";
-            fields = [ (VFloat, "x"); (VFloat, "y") ];
-            var_name = Some "v";
-          }));
+  let env2, _ =
+    typecheck_stmt_with_env (default_env ())
+      (StructDef
+         {
+           pos = dummy_pos;
+           tag = "Vec2";
+           fields = [ (VFloat, "x"); (VFloat, "y") ];
+           var_name = Some "v";
+         })
+  in
   begin match lookup_var env2 "v" with
   | Some t -> assert_equal ~printer:string_of_typ (Struct "Vec2") t
   | None ->
@@ -1358,8 +1392,14 @@ let test_struct_def _ =
 let test_member_access _ =
   let env =
     let env = env_with [ ("pt", Struct "Point") ] in
-    Hashtbl.add env.structs "Point" [ ("x", Int); ("y", Int) ];
-    env
+    let globals =
+      {
+        env.globals with
+        structs =
+          StringMap.add "Point" [ ("x", Int); ("y", Int) ] env.globals.structs;
+      }
+    in
+    { env with globals }
   in
   (* field access gives the declared field type *)
   check_typ ~env Int (MemberAccess (p, !"pt", "x"));

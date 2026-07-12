@@ -6,17 +6,13 @@ include Typechecker_stmt
 include Typechecker_types
 
 let typecheck_program (stmts : parsed stmt list) : checked stmt list =
-  let funcs = Hashtbl.create 8 in
-  let typedefs = [ Hashtbl.create 8 ] in
-  let structs = Hashtbl.create 8 in
   let env =
     {
-      vars = [ Hashtbl.create 8 ];
-      funcs;
-      typedefs;
-      structs;
+      vars = [ StringMap.empty ];
+      typedefs = [ StringMap.empty ];
+      globals = { funcs = StringMap.empty; structs = StringMap.empty };
       return_typ = None;
       in_loop = false;
     }
   in
-  List.map (typecheck_stmt env) stmts
+  snd (typecheck_stmts env stmts)

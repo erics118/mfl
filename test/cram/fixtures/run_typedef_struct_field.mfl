@@ -1,0 +1,20 @@
+extern int printf(char* fmt, ...);
+
+typedef struct Point {
+    int x;
+    int y;
+} Point;
+
+typedef struct Segment {
+    Point start;
+    Point end;
+} Segment;
+
+int main() {
+    Segment segment;
+    segment.start.x = 3;
+    segment.start.y = 4;
+    segment.end.x = 8;
+    segment.end.y = 12;
+    printf("%d\n", segment.end.x - segment.start.x);
+}

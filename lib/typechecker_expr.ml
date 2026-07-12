@@ -500,7 +500,7 @@ and typecheck_func_call env ann f args =
   let pos = pos_of ann in
   (* ensure function exists *)
   let sig_ =
-    match Hashtbl.find_opt env.funcs f with
+    match StringMap.find_opt f env.globals.funcs with
     | Some s -> s
     | None -> type_error pos (UnboundFunction f)
   in
