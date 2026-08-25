@@ -2,9 +2,15 @@
 
 subset of C implemented in OCaml, compiled to LLVM IR
 
+<details>
+<summary>
+
 ## features
 
-**types**
+</summary>
+
+### types
+
 - [x] `int`, `bool`, `void`
 - [x] `char`, `short`, `long`, `long long`, unsigned variants
 - [x] `float`, `double`, `long double`
@@ -20,7 +26,8 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [x] `typedef`
 - [ ] function pointer types
 
-**operators**
+### operators
+
 - [x] arithmetic: `+`, `-`, `*`, `/`, `%`
 - [x] bitwise: `&`, `|`, `^`, `~`, `<<`, `>>`
 - [x] comparison: `==`, `!=`, `<`, `<=`, `>`, `>=`
@@ -33,7 +40,8 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [x] `sizeof`
 - [ ] comma operator
 
-**expressions**
+### expressions
+
 - [x] integer and boolean literals
 - [x] variable references
 - [x] assignment as expression (`int z = (x = 3)`)
@@ -53,7 +61,8 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [x] floating point suffixes: `3.14f`, `2.71828L`
 - [ ] compound literals: `(int[]){1, 2, 3}`, `(struct Point){1, 2}`
 
-**statements**
+### statements
+
 - [x] variable declarations with initializer: `int x = 0`
 - [ ] aggregate initializers: `int a[] = {1, 2}`, `struct Point p = {1, 2}`
 - [ ] string-to-array initialization: `char s[] = "hello"`
@@ -70,7 +79,8 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [x] uninitialized declarations: `int x;`
 - [ ] multiple declarators: `int x = 0, y = 1;`
 
-**functions**
+### functions
+
 - [x] definitions and calls with parameters
 - [x] `int`, `bool`, `void` return types
 - [x] implicit `return 0` for `main`, implicit `ret void` for void functions
@@ -81,7 +91,8 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [ ] `(void)` parameter list: `void foo(void)` vs `void foo()`
 - [ ] `inline` functions: `inline int square(int x)`
 
-**scoping**
+### scoping
+
 - [x] function scope
 - [x] block scoping
 - [ ] global variables
@@ -92,17 +103,20 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [ ] `volatile` qualifier
 - [ ] `restrict` qualifier
 
-**types**
+### types
+
 - [x] array-to-pointer decay: `int a[10]; int *p = a`
 - [x] integer promotion and implicit conversion rules
 - [ ] `<stddef.h>` types: `size_t`, `ptrdiff_t`, `offsetof`
 - [ ] `<stdint.h>` types: `int32_t`, `uint64_t`, etc.
 
-**comments**
+### comments
+
 - [x] `//` line comments
 - [x] `/* */` block comments
 
-**preprocessor**
+### preprocessor
+
 - [x] `#include`
 - [ ] `#define` / `#undef` — object-like and function-like macros
 - [ ] `#` stringification and `##` token pasting
@@ -114,9 +128,12 @@ subset of C implemented in OCaml, compiled to LLVM IR
 - [ ] predefined macros: `__FILE__`, `__LINE__`, `__func__`, `__DATE__`, `__TIME__`
 - [ ] multiline macros with `\` continuation
 
-**other**
+### other
+
 - [x] `NULL`
 - [ ] `main` function with args: `int main(int argc, char *argv[])`
+
+</details>
 
 ## usage
 
@@ -162,9 +179,10 @@ dune test --instrument-with bisect_ppx --force
 
 ## sources
 
-initial code is based off of, but written in ocaml instead of haskell: [Daniel J. Harvey's blog](https://danieljharvey.github.io/llvm-compiler-part-1/) 
+initial code is based off of, but written in ocaml instead of haskell: [Daniel J. Harvey's blog](https://danieljharvey.github.io/llvm-compiler-part-1/)
 
 resources:
+
 - https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/index.html
 - https://blog.josephmorag.com/posts/mcc1/
 - https://mapping-high-level-constructs-to-llvm-ir.readthedocs.io/en/latest/
@@ -173,8 +191,10 @@ resources:
 - c preprocessor: https://gcc.gnu.org/onlinedocs/cpp/
 
 gadt:
+
 - https://ocaml.org/manual/5.4/gadts-tutorial.html
 
 possible code resources:
+
 - https://github.com/arbipher/llvm-ocaml-tutorial/
 - https://github.com/adamrk/llvm-ocaml-tutorial
