@@ -43,7 +43,8 @@ let finish_decimal_float_literal st start =
     let literal = String.sub st.input start (st.pos - start) in
     error st (Printf.sprintf "invalid numeric literal '%s'" literal)
   in
-  let read_literal () = String.sub st.input start (st.pos - start) in
+  (* take the lexeme before any suffix is consumed *)
+  let literal = String.sub st.input start (st.pos - start) in
   let suffix =
     match peek st with
     | Some ('f' | 'F') ->
@@ -59,17 +60,11 @@ let finish_decimal_float_literal st start =
   | Some c when is_alpha c -> invalid_literal ()
   | _ -> ()
   end;
-  let literal = read_literal () in
-  (* remove a trailing float/long-double suffix *)
-  let clean =
-    match suffix with
-    | `Double -> literal
-    | `Float | `LongDouble -> String.drop_last 1 literal
-  in
+  let f = float_of_string literal in
   match suffix with
-  | `Float -> TokFloat (float_of_string clean)
-  | `Double -> TokDouble (float_of_string clean)
-  | `LongDouble -> TokLongDouble (float_of_string clean)
+  | `Float -> TokFloat f
+  | `Double -> TokDouble f
+  | `LongDouble -> TokLongDouble f
 
 (** read a number: either an integer or a float/double *)
 let read_number st =

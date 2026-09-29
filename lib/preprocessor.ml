@@ -83,6 +83,7 @@ and handle_directive env ~file ~line_no name rest buf =
 (** process [source] from [file], expanding directives into [buf] *)
 and process_file env ~file source =
   let lines = String.split_on_char '\n' source in
+  let last = List.length lines - 1 in
   let buf = Buffer.create (String.length source) in
   List.iteri
     (fun i line ->
@@ -104,7 +105,7 @@ and process_file env ~file source =
       else begin
         (* normal code, just copy the line over *)
         Buffer.add_string buf line;
-        if i < List.length lines - 1 then Buffer.add_char buf '\n'
+        if i < last then Buffer.add_char buf '\n'
       end)
     lines;
   Buffer.contents buf

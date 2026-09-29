@@ -93,35 +93,25 @@ let check_ternary pos then_t else_t =
 
 (** if we can cast to a different scalar type *)
 let can_explicit_cast from_t to_t =
-  if from_t = to_t then (* allow same types to cast (redundant) *)
-    true
-  else if is_arithmetic_type from_t && is_arithmetic_type to_t then
-    (* arithmetic types can cast from each other *)
-    true
-  else if is_pointer_type from_t && is_pointer_type to_t then
-    (* pointers can cast to any type of pointer *)
-    true
-  else if
-    (is_integer_type from_t && is_pointer_type to_t)
-    || (is_pointer_type from_t && is_integer_type to_t)
-  then
-    (* pointer and int can cast freely *)
-    true
-  else
-    (* no other types are allowed *)
-    false
+  (* only the casts below are allowed *)
+  (* allow same types to cast (redundant) *)
+  from_t = to_t
+  (* arithmetic types can cast from each other *)
+  || (is_arithmetic_type from_t && is_arithmetic_type to_t)
+  (* pointers can cast to any type of pointer *)
+  || (is_pointer_type from_t && is_pointer_type to_t)
+  (* pointer and int can cast freely *)
+  || (is_integer_type from_t && is_pointer_type to_t)
+  || (is_pointer_type from_t && is_integer_type to_t)
 
 (** if we can do an cast/conversion as if by assignment *)
 let can_assign_cast from_t to_t =
-  if from_t = to_t then (* allow same types to cast (redundant) *)
-    true
-  else if
-    (is_pointer_type from_t && to_t = Ptr Void)
-    || (from_t = Ptr Void && is_pointer_type to_t)
-  then
-    (* we can explicitly cast to/from void* *)
-    true
-  else is_arithmetic_type from_t && is_arithmetic_type to_t
+  (* allow same types to cast (redundant) *)
+  from_t = to_t
+  (* we can explicitly cast to/from void* *)
+  || (is_pointer_type from_t && to_t = Ptr Void)
+  || (from_t = Ptr Void && is_pointer_type to_t)
+  || (is_arithmetic_type from_t && is_arithmetic_type to_t)
 
 (** the integer constant 0 can be implicitly converted to any pointer type *)
 let is_null_ptr_constant = function
@@ -359,8 +349,8 @@ and typecheck_integer_binop pos op lhs rhs =
   let rt = expr_typ rhs in
   if not (is_integer_type lt && is_integer_type rt) then
     type_error pos (BinaryTypeMismatch (op, lt, rt));
-  let lhs' = if is_integer_type lt then promote_integer_at pos lhs else lhs in
-  let rhs' = if is_integer_type rt then promote_integer_at pos rhs else rhs in
+  let lhs' = promote_integer_at pos lhs in
+  let rhs' = promote_integer_at pos rhs in
   let common_t = common_integer_type (expr_typ lhs') (expr_typ rhs') in
   let lhs' = implicit_cast_at pos common_t lhs' in
   let rhs' = implicit_cast_at pos common_t rhs' in

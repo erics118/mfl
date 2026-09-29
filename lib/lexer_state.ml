@@ -53,26 +53,12 @@ let _peek_n st n =
 let peek2 st = _peek_n st 1
 let peek3 st = _peek_n st 2
 
-type snapshot = {
-  snap_pos : int;
-  snap_line : int;
-  snap_col : int;
-  snap_tok_line : int;
-  snap_tok_col : int;
-}
+(* a fresh copy of the state, so later advances do not change it *)
+let snapshot (st : state) = { st with pos = st.pos }
 
-let snapshot (st : state) =
-  {
-    snap_pos = st.pos;
-    snap_line = st.line;
-    snap_col = st.col;
-    snap_tok_line = st.tok_line;
-    snap_tok_col = st.tok_col;
-  }
-
-let restore (st : state) (snap : snapshot) =
-  st.pos <- snap.snap_pos;
-  st.line <- snap.snap_line;
-  st.col <- snap.snap_col;
-  st.tok_line <- snap.snap_tok_line;
-  st.tok_col <- snap.snap_tok_col
+let restore (st : state) (snap : state) =
+  st.pos <- snap.pos;
+  st.line <- snap.line;
+  st.col <- snap.col;
+  st.tok_line <- snap.tok_line;
+  st.tok_col <- snap.tok_col
