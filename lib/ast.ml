@@ -56,9 +56,8 @@ type source_type =
 
 let display_struct_tag tag =
   let prefix = "__anon_" in
-  let plen = String.length prefix in
-  if String.length tag > plen && String.sub tag 0 plen = prefix then
-    String.sub tag plen (String.length tag - plen)
+  if String.starts_with ~prefix tag then
+    String.drop_first (String.length prefix) tag
   else tag
 
 (** render a variable type as a string *)
@@ -179,7 +178,7 @@ let format_byte ~(inside : [ `Char | `String ]) = function
   | 34 -> if inside = `String then "\\\"" else "\""
   | 39 -> if inside = `Char then "\\\'" else "'"
   (* normal chars *)
-  | n when n >= 32 && n <= 126 -> String.make 1 (Char.chr n)
+  | n when n >= 32 && n <= 126 -> String.of_char (Char.chr n)
   (* hexadecimal escape sequence *)
   | n -> Printf.sprintf "\\x%02x" n
 

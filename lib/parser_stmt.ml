@@ -58,15 +58,9 @@ and parse_compound_stmt st rev_stmts =
 
 and parse_scoped_compound_stmt st =
   push_scope st;
-  let stmts =
-    match parse_compound_stmt st [] with
-    | stmts -> stmts
-    | exception exn ->
-        pop_scope st;
-        raise exn
-  in
-  pop_scope st;
-  stmts
+  Fun.protect
+    ~finally:(fun () -> pop_scope st)
+    (fun () -> parse_compound_stmt st [])
 
 and parse_return_stmt st =
   let pos = cur_pos st in

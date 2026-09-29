@@ -28,17 +28,10 @@ let rec stmt_can_fall_through = function
 
 (** goes through a list of statements until it finds a statement that cannot
     fall through. *)
-and stmts_can_fall_through = function
-  | [] -> true
-  | stmt :: rest ->
-      if stmt_can_fall_through stmt then stmts_can_fall_through rest else false
+and stmts_can_fall_through stmts = List.for_all stmt_can_fall_through stmts
 
-let rec typecheck_stmts env = function
-  | [] -> (env, [])
-  | stmt :: rest ->
-      let env, checked_stmt = typecheck_stmt_with_env env stmt in
-      let env, checked_rest = typecheck_stmts env rest in
-      (env, checked_stmt :: checked_rest)
+let rec typecheck_stmts env stmts =
+  List.fold_left_map typecheck_stmt_with_env env stmts
 
 and typecheck_stmt_with_env (env : env) (stmt : parsed stmt) :
     env * checked stmt =
@@ -126,16 +119,15 @@ and typecheck_var_def env pos source_type name init =
   let var_t = resolve_source_type env pos source_type in
   (* if init exists, we check its type to ensure it is valid *)
   let init =
-    match init with
-    | None -> None
-    | Some init -> begin
+    Option.map
+      (fun init ->
         let init = typecheck_expr env init in
         let init = cast_expr_at pos var_t init in
         let init_t = expr_typ init in
         (* ensure init has the right type *)
         if var_t <> init_t then type_error pos (TypeMismatch (var_t, init_t));
-        Some init
-      end
+        init)
+      init
   in
   let env = define_var env name var_t in
   (env, VarDef { pos; source_type = source_type_of_typ var_t; name; init })
@@ -266,13 +258,9 @@ and typecheck_for env pos init cond incr body =
   let incr = Option.map (typecheck_expr scoped_env) incr in
   let scoped_env, body = typecheck_stmt_with_env scoped_env body in
   let env = with_globals env scoped_env.globals in
-  begin match cond with
-  | None -> (env, ForLoop { pos; init; cond = None; incr; body })
-  | Some cond ->
-      let cond = coerce_cond_at pos cond in
-      (* incr can be anything, we don't need to check its type *)
-      (env, ForLoop { pos; init; cond = Some cond; incr; body })
-  end
+  let cond = Option.map (coerce_cond_at pos) cond in
+  (* incr can be anything, we don't need to check its type *)
+  (env, ForLoop { pos; init; cond; incr; body })
 
 and typecheck_do_while env pos body cond =
   let body_env, body =

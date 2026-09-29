@@ -275,28 +275,19 @@ and codegen_expr (e : checked expr) : Llvm.llvalue =
       | _ -> emit_load t field_ptr "field"
     end
 
-(* find index and type of a named field in a field list *)
-and find_field fields field_name =
-  let rec go idx = function
-    | [] -> None
-    | (fname, ft) :: _ when fname = field_name -> Some (idx, ft)
-    | _ :: rest -> go (idx + 1) rest
-  in
-  go 0 fields
-
 (** gets the LLVM struct type and field index for a given tag and field name *)
 and struct_field_info tag field_name =
   match Hashtbl.find_opt struct_defs tag with
   | None -> failwith ("struct not defined: " ^ tag)
   | Some (llty, fields) ->
-      begin match find_field fields field_name with
+      begin match List.find_index (fun (n, _) -> n = field_name) fields with
       | None -> failwith ("no field '" ^ field_name ^ "' in struct " ^ tag)
-      | Some (idx, ft) -> (llty, idx, ft)
+      | Some idx -> (llty, idx)
       end
 
 (** gets the pointer to a struct field via member access *)
 and member_field_ptr struct_ptr tag field_name =
-  let llty, idx, _ = struct_field_info tag field_name in
+  let llty, idx = struct_field_info tag field_name in
   let zero = Llvm.const_int int_type 0 in
   let fidx = Llvm.const_int int_type idx in
   Llvm.build_gep llty struct_ptr [| zero; fidx |] "fieldptr" builder

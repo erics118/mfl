@@ -45,15 +45,13 @@ let rec handle_include env ~file ~line_no rest buf =
     | Some i -> i
   in
   let name = String.sub rest 1 (close_pos - 1) in
-  if String.length name = 0 then
+  if String.is_empty name then
     preprocess_error ~file (make_pos line_no) "empty filename in #include";
   (* error if non-whitespace follows the delimiter *)
   (* todo: we should allow comments, or treat comments like whitespace and
      remove them from the ast entirely *)
-  let after =
-    String.trim (String.sub rest (close_pos + 1) (len - close_pos - 1))
-  in
-  if String.length after > 0 then
+  let after = String.trim (String.drop_first (close_pos + 1) rest) in
+  if not (String.is_empty after) then
     preprocess_error ~file (make_pos line_no)
       "detected extra tokens after #include filename";
   (* for quoted includes, also search relative to the current file *)
@@ -71,9 +69,7 @@ let rec handle_include env ~file ~line_no rest buf =
       Buffer.add_string buf expanded;
       (* the line after #include is always a separate line, even if the included
          file lacks a final newline *)
-      if
-        String.length expanded > 0
-        && expanded.[String.length expanded - 1] <> '\n'
+      if not (String.is_empty expanded || String.ends_with ~suffix:"\n" expanded)
       then Buffer.add_char buf '\n'
 
 (* dispatch on directive name. will add #define, etc later *)
@@ -92,16 +88,11 @@ and process_file env ~file source =
     (fun i line ->
       let line_no = i + 1 in
       let trimmed = String.trim line in
-      if String.length trimmed > 0 && trimmed.[0] = '#' then begin
+      if String.starts_with ~prefix:"#" trimmed then begin
         (* parse directive name and remainder *)
-        let after = String.sub trimmed 1 (String.length trimmed - 1) in
-        let after = String.trim after in
+        let after = String.trim (String.drop_first 1 trimmed) in
         let name, rest =
-          match String.index_opt after ' ' with
-          | None -> (after, "")
-          | Some i ->
-              ( String.sub after 0 i,
-                String.sub after (i + 1) (String.length after - i - 1) )
+          Option.value ~default:(after, "") (String.split_first ~sep:" " after)
         in
         handle_directive env ~file ~line_no name rest buf;
         (* todo: emit #line so lexer positions stay accurate. right now, line

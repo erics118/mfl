@@ -60,12 +60,11 @@ let finish_decimal_float_literal st start =
   | _ -> ()
   end;
   let literal = read_literal () in
-  let len = String.length literal in
   (* remove a trailing float/long-double suffix *)
   let clean =
     match suffix with
     | `Double -> literal
-    | `Float | `LongDouble -> String.sub literal 0 (len - 1)
+    | `Float | `LongDouble -> String.drop_last 1 literal
   in
   match suffix with
   | `Float -> TokFloat (float_of_string clean)
@@ -150,7 +149,7 @@ let read_hex_escape_sequence st =
   let start = st.pos in
   advance_while is_hex st;
   let digits = String.sub st.input start (st.pos - start) in
-  if String.length digits = 0 then error st "empty hex escape sequence";
+  if String.is_empty digits then error st "empty hex escape sequence";
   let hex_val = int_of_string ("0x" ^ digits) in
   if hex_val > 255 then error st "hex escape out of range";
   hex_val
@@ -182,29 +181,24 @@ let read_escape_sequence st =
       error st msg
 
 let read_string st =
-  let bytes = ref [] in
   advance st;
-  let rec loop () =
+  let rec loop bytes =
     match peek st with
     (* end of string *)
     | Some '"' ->
         advance st;
-        TokString (List.rev !bytes)
+        TokString (List.rev bytes)
     (* escape sequence *)
-    | Some '\\' ->
-        let value = read_escape_sequence st in
-        bytes := value :: !bytes;
-        loop ()
+    | Some '\\' -> loop (read_escape_sequence st :: bytes)
     (* bad characters *)
     | Some ('\n' | '\r' | '\000') -> error st "invalid string literal"
     (* normal characters *)
     | Some c ->
         advance st;
-        bytes := Char.code c :: !bytes;
-        loop ()
+        loop (Char.code c :: bytes)
     | None -> error st "unterminated string literal"
   in
-  loop ()
+  loop []
 
 let read_char st =
   advance st;

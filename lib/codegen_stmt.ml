@@ -18,9 +18,7 @@ let rec codegen_if cond then_body else_body =
   (* emit the else branch (or nothing). jump to merge unless it already
      returned *)
   Llvm.position_at_end else_bb builder;
-  (match else_body with
-  | Some s -> codegen_stmt s
-  | None -> ());
+  Option.iter codegen_stmt else_body;
   br_if_open merge_bb;
   (* all future codegen continues in the merge block *)
   Llvm.position_at_end merge_bb builder
@@ -209,15 +207,10 @@ and codegen_stmt = function
           codegen_struct_def tag resolved
       end
   | VarDef { source_type; name; init; _ } ->
-      let ty = llvm_of_typ (Ast.typ_of_source_type source_type) in
-      let ptr = Llvm.build_alloca ty name builder in
+      let t = Ast.typ_of_source_type source_type in
+      let ptr = Llvm.build_alloca (llvm_of_typ t) name builder in
       (* set variable to init if it exists *)
-      begin match init with
-      | None -> ()
-      | Some init ->
-          let v = codegen_expr init in
-          emit_store (Ast.typ_of_source_type source_type) v ptr
-      end;
+      Option.iter (fun init -> emit_store t (codegen_expr init) ptr) init;
       Hashtbl.replace locals name ptr
   | If { cond; then_body; else_body; _ } -> codegen_if cond then_body else_body
   | WhileLoop { cond; body; _ } -> codegen_while_loop cond body

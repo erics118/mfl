@@ -41,12 +41,8 @@ let pp ?default_file fmt diagnostic =
     | Some file -> Some file
     | None -> default_file
   in
-  begin match file with
-  | Some file ->
-      Format.fprintf fmt "%s:%d:%d: " file diagnostic.pos.line
-        diagnostic.pos.col
-  | None -> Format.fprintf fmt "%d:%d: " diagnostic.pos.line diagnostic.pos.col
-  end;
+  Option.iter (Format.fprintf fmt "%s:") file;
+  Format.fprintf fmt "%d:%d: " diagnostic.pos.line diagnostic.pos.col;
   Format.fprintf fmt "%s %s: %s"
     (string_of_stage diagnostic.stage)
     (string_of_severity diagnostic.severity)

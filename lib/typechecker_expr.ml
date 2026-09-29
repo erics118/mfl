@@ -508,16 +508,8 @@ and typecheck_func_call env ann f args =
   if got < expected || ((not sig_.is_variadic) && got <> expected) then
     type_error pos (ArityMismatch (f, expected, got));
   (* typecheck fixed args against declared parameter types *)
-  let fixed_args, variadic_args =
-    let rec split n acc rest =
-      if n = 0 then (List.rev acc, rest)
-      else
-        match rest with
-        | x :: xs -> split (n - 1) (x :: acc) xs
-        | [] -> assert false
-    in
-    split expected [] args
-  in
+  let fixed_args = List.take expected args
+  and variadic_args = List.drop expected args in
   let fixed_args =
     List.map2
       (fun param_t arg ->
@@ -542,7 +534,7 @@ and typecheck_incdec env ann fix dir operand make =
   let e = typecheck_expr env operand in
   assert_lvalue pos e;
   let t = expr_typ e in
-  if (not (is_arithmetic_type t)) && not (is_pointer_type t) then
+  if not (is_scalar_type t) then
     type_error pos (IncDecTypeMismatch (fix, dir, t));
   make (Checked (pos, t)) e
 
