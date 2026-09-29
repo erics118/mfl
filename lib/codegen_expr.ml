@@ -274,7 +274,6 @@ and codegen_expr (e : checked expr) : Llvm.llvalue =
             builder
       | _ -> emit_load t field_ptr "field"
     end
-  | _ -> assert false [@coverage off]
 
 (* find index and type of a named field in a field list *)
 and find_field fields field_name =

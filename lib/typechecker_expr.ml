@@ -260,7 +260,6 @@ let rec typecheck_expr (env : env) (expr : parsed expr) : checked expr =
         | None -> type_error pos (NoSuchField (tag, field))
       in
       MemberAccess (Checked (pos, field_t), lhs, field)
-  | ImplicitCast (_ann, _ty, _e) -> assert false
   | SizeofExpr (ann, e) ->
       let pos = pos_of ann in
       let e = typecheck_expr env e in

@@ -161,9 +161,9 @@ let rec source_type_of_typ = function
   | Struct tag -> VStruct tag
 
 (** phantom types marking which compiler phase produced an expr *)
-type parsed
+type parsed = private Parsed_phase
 
-type checked
+type checked = private Checked_phase
 
 let format_byte ~(inside : [ `Char | `String ]) = function
   (* simple escape sequence *)
